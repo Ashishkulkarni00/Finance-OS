@@ -3,15 +3,12 @@ import { CircleHelp, Wallet } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useGetPositionQuery } from '@/services/positionService';
 import { useGetCurrentCycleQuery } from '@/services/cycleService';
-import { useGetCommitmentInstancesForCycleQuery } from '@/services/commitmentInstanceService';
 import { useGetTimelineQuery } from '@/services/timelineService';
 import { useGetAccountsQuery } from '@/services/accountService';
-import { RoomLeftHero } from '@/features/today/components/RoomLeftHero';
-import { PositionStatement } from '@/features/today/components/PositionStatement';
-import { NeedsYouCard } from '@/features/today/components/NeedsYouCard';
+import { FreeUntilSalaryHero } from '@/features/today/components/FreeUntilSalaryHero';
+import { InsightList } from '@/components/InsightList';
 import { ComingUpList } from '@/features/today/components/ComingUpList';
 import { TodayPrimer } from '@/features/today/components/TodayPrimer';
-import { GoalPaceCard } from '@/features/today/components/GoalPaceCard';
 import { TodayGuideSheet } from '@/features/today/components/TodayGuideSheet';
 import { EmptyState } from '@/components/EmptyState';
 import { SectionHeader } from '@/components/SectionHeader';
@@ -31,19 +28,9 @@ export default function TodayPage() {
   const { data: accountsPage, isLoading: accountsLoading } = useGetAccountsQuery();
   const { data: position, isLoading: positionLoading } = useGetPositionQuery();
   const { data: cycle } = useGetCurrentCycleQuery();
-  const {
-    data: instances,
-    isLoading: instancesLoading,
-    isError: instancesError,
-  } = useGetCommitmentInstancesForCycleQuery(cycle?.id ?? 0, { skip: !cycle });
   const { data: timeline, isLoading: timelineLoading, isError: timelineError } = useGetTimelineQuery({ days: 30 });
 
   const accounts = accountsPage?.content ?? [];
-  const spendableAccountIds = accounts.filter((a) => a.countsAsSpendable && !a.archived).map((a) => a.id);
-  // Same tier used on Month's Needs You zone - one definition, computed server-side,
-  // so the two surfaces can't disagree. See AttentionTier.java.
-  // Income is only flagged once it's late (AttentionTier) - then it belongs here too, phrased as income.
-  const attentionInstances = (instances ?? []).filter((i) => i.attentionTier === 'NEEDS_YOU');
 
   if (!accountsLoading && accounts.length === 0) {
     return (
@@ -80,24 +67,15 @@ export default function TodayPage() {
 
       <TodayPrimer onOpenGuide={() => setGuideOpen(true)} />
 
-      <div className="grid grid-cols-1 gap-space-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
+      <div className="grid grid-cols-1 gap-space-8 lg:grid-cols-2">
         <div className="flex flex-col gap-space-8">
-          <RoomLeftHero position={position} cycle={cycle} isLoading={positionLoading} />
-          <PositionStatement position={position} isLoading={positionLoading} />
+          <FreeUntilSalaryHero position={position} cycle={cycle} isLoading={positionLoading} />
         </div>
 
         <div className="flex flex-col gap-space-8">
-          <NeedsYouCard
-            attentionInstances={attentionInstances}
-            // Skipped until the cycle resolves, which RTK Query reports as not-loading -
-            // treat "no cycle yet" as still loading so Needs You can't declare itself empty.
-            instancesLoading={instancesLoading || !cycle}
-            instancesError={instancesError}
-            spendableAccountIds={spendableAccountIds}
-            accounts={accounts}
-          />
-
-          <GoalPaceCard />
+          {/* One ranked list from the insight engine (≤3): shortfalls, what's due or late,
+              card bills, a goal behind - replaces Needs you and the goal card. */}
+          <InsightList surface="TODAY" />
 
           <section>
             <SectionHeader trailing="next 30 days">Coming up</SectionHeader>

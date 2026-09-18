@@ -55,6 +55,11 @@ public class CommitmentInstanceController {
         return mapper.toResponse(service.shape(cycleId));
     }
 
+    @GetMapping("/api/v1/cycles/{cycleId}/review")
+    public com.finance.commitment.dto.CycleReviewResponse review(@PathVariable Long cycleId) {
+        return com.finance.commitment.dto.CycleReviewResponse.of(service.review(cycleId));
+    }
+
     @GetMapping("/api/v1/commitment-instances/{id}")
     public CommitmentInstanceDetailResponse get(@PathVariable Long id) {
         return mapper.toDetailResponse(service.getDetail(id));

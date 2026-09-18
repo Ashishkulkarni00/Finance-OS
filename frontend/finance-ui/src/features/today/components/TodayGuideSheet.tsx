@@ -9,9 +9,9 @@ const CHAIN: { term: string; means: string }[] = [
   { term: 'Held', means: 'Everything in your bank accounts and cash, right now.' },
   { term: '− Reserved', means: 'Money you set aside for something specific - an emergency fund, a trip.' },
   { term: '− Committed', means: 'Bills and EMIs still to leave before your next salary.' },
-  { term: '= Real balance', means: 'What is genuinely yours to decide about until payday.' },
-  { term: '÷ Days to salary', means: 'Spread evenly, so one big day doesn’t eat next week.' },
-  { term: '= Room today', means: 'Your share for today. Spend less and tomorrow’s share grows.' },
+  { term: '− Owed on cards', means: 'Already spent on credit cards, still to be paid.' },
+  { term: '= Free until salary', means: 'What is genuinely yours to decide about until payday.' },
+  { term: '÷ Days to salary', means: 'Spread evenly - “a day” under the big number. Spend less and tomorrow’s share grows.' },
 ];
 
 /**
@@ -22,12 +22,12 @@ const CHAIN: { term: string; means: string }[] = [
  */
 const CASES: { question: string; answer: string }[] = [
   {
-    question: 'Room left dropped, but I didn’t spend anything',
+    question: 'Free until salary dropped, but I didn’t spend anything',
     answer:
       'Something new was claimed: a bill was added or its amount became known, you reserved money, or an account balance was corrected downward.',
   },
   {
-    question: 'Room left went up',
+    question: 'Free until salary went up',
     answer: 'Money arrived (income, a refund), a bill settled for less than expected, or a reservation was released.',
   },
   {
@@ -89,7 +89,7 @@ export function TodayGuideSheet({ open, onClose }: TodayGuideSheetProps) {
         </p>
 
         <div>
-          <p className="mb-space-3 text-label font-medium text-ink">Where “Room left” comes from</p>
+          <p className="mb-space-3 text-label font-medium text-ink">Where “Free until salary” comes from</p>
           <div className="rounded-lg border border-line">
             {CHAIN.map((c) => (
               <div
@@ -108,7 +108,7 @@ export function TodayGuideSheet({ open, onClose }: TodayGuideSheetProps) {
             ))}
           </div>
           <p className="mt-space-2 text-caption text-ink-muted">
-            Then whatever you’ve spent today comes off Room today - that’s Room left. Credit cards, loans and
+            What you’ve spent today comes off today’s share - that’s “left today”. Credit cards, loans and
             investments are never counted as spending money.
           </p>
         </div>

@@ -19,6 +19,8 @@ const DebtsPage = lazy(() => import('./routes/DebtsPage'));
 const InvestmentsPage = lazy(() => import('./routes/InvestmentsPage'));
 const CardsPage = lazy(() => import('./routes/CardsPage'));
 const CreditCardDetailPage = lazy(() => import('./routes/CreditCardDetailPage'));
+const MoneyLayout = lazy(() => import('./routes/MoneyLayout'));
+const ImportPage = lazy(() => import('./routes/ImportPage'));
 
 /** No persisted "onboarding done" flag exists (and shouldn't need one) - a user with
  *  zero accounts has nothing for the rest of the product to show, which is exactly
@@ -41,7 +43,15 @@ export function App() {
             <Route path="/today" element={<TodayPage />} />
             <Route path="/month" element={<MonthPage />} />
             <Route path="/month/close" element={<MonthClosePage />} />
-            <Route path="/accounts" element={<MoneyPage />} />
+            {/* Money: the four registers as tabs (STRATEGY_DEEP_DIVE §D). Old addresses redirect. */}
+            <Route path="/money" element={<MoneyLayout />}>
+              <Route index element={<Navigate to="/money/accounts" replace />} />
+              <Route path="accounts" element={<MoneyPage />} />
+              <Route path="cards" element={<CardsPage />} />
+              <Route path="debts" element={<DebtsPage />} />
+              <Route path="investments" element={<InvestmentsPage />} />
+            </Route>
+            <Route path="/accounts" element={<Navigate to="/money/accounts" replace />} />
             <Route path="/commitments/:instanceId" element={<CommitmentDetailPage />} />
             <Route path="/accounts/:accountId" element={<AccountDetailPage />} />
             <Route path="/loans/:loanId" element={<LoanDetailPage />} />
@@ -49,12 +59,15 @@ export function App() {
             <Route path="/commitment-rules/:ruleId" element={<CommitmentRuleDetailPage />} />
             {/* Goals only now - the page lives at /goals, beside /goals/:goalId. /plan
                 still resolves so any saved link or bookmark lands in the same place. */}
-            <Route path="/goals" element={<PlanPage />} />
-            <Route path="/plan" element={<Navigate to="/goals" replace />} />
+            {/* Ahead: where you're heading - goals now; the 12-month view joins it in Phase 2. */}
+            <Route path="/ahead" element={<PlanPage />} />
+            <Route path="/goals" element={<Navigate to="/ahead" replace />} />
+            <Route path="/plan" element={<Navigate to="/ahead" replace />} />
             <Route path="/ledger" element={<LedgerPage />} />
-            <Route path="/debts" element={<DebtsPage />} />
-            <Route path="/investments" element={<InvestmentsPage />} />
-            <Route path="/cards" element={<CardsPage />} />
+            <Route path="/ledger/import" element={<ImportPage />} />
+            <Route path="/debts" element={<Navigate to="/money/debts" replace />} />
+            <Route path="/investments" element={<Navigate to="/money/investments" replace />} />
+            <Route path="/cards" element={<Navigate to="/money/cards" replace />} />
             <Route path="/cards/:accountId" element={<CreditCardDetailPage />} />
           </Route>
         </Routes>

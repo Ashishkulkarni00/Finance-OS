@@ -189,8 +189,8 @@ export function AccountFormFields({ register, watch, setValue, errors, allowedTy
             </span>
             <span className="mt-space-1 block text-caption text-ink-muted">
               {watch('includeInSpendable')
-                ? 'Counts toward Room left and what’s free this month.'
-                : 'Still counts in net worth, but never toward Room left or what’s free this month.'}
+                ? 'Counts toward what’s free until salary.'
+                : 'Still counts in net worth, but never toward what’s free until salary.'}
             </span>
           </FormRow>
         )}

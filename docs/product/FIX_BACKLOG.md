@@ -66,11 +66,6 @@ fix) or move it to **Done** with the date.
 
 ## 3. Cards follow-ups
 
-### 3.2 Card bills don't appear in Needs You
-- An overdue card statement shows as overdue on the card, but not in Today's or This Month's
-  Needs You.
-- **Fix.** Add unpaid statements past their due date as a Tier 1 item.
-
 ### 3.3 A manual "credit card bill" commitment would now double count
 - What's owed on cards is subtracted from Real Balance, so a plan bill for the card's payment
   subtracts the same money again. Nothing prevents creating one.
@@ -140,6 +135,8 @@ fix) or move it to **Done** with the date.
 ---
 
 ## Done
+
+- **2026-09-18 - Insight engine** (`GET /insights`, Today and Months use it). Covers overdue card bills in Needs you (was 3.2) and a late salary on Today (was 2.7), plus shortfalls, planned moves not recorded, bills due or needing an amount, and a goal behind.
 
 - **2026-09-17 - Month pickers (was 2.3).** Add and Edit bill pick "Starts" / "In" with a month + year picker (`SalaryMonthPicker`, any month ±10 years, cycle dates shown); Edit can move a bill's start.
 - **2026-09-17 - A one-off's month can be changed in Edit bill** ("In" picker; was 2.10).

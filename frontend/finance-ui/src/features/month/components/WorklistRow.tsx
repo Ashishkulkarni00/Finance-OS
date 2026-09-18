@@ -21,7 +21,7 @@ interface WorklistRowProps {
    *  settled row always shows its tick: once paid, *that* is the fact worth leading with. */
   leading?: ReactNode;
   /** Tier 1 (Needs You) items render as cards elsewhere, not this row - see
-   *  NeedsYouZone.tsx - so this only ever needs to distinguish pending from settled. */
+   *  the insight list (components/InsightList.tsx) - so this only ever needs to distinguish pending from settled. */
   tone?: WorklistRowTone;
 }
 

@@ -28,7 +28,7 @@ export default function PlanPage() {
       <div className="flex flex-col gap-space-6">
         <div className="flex items-start justify-between gap-space-4">
           <div className="flex flex-col gap-space-1">
-            <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">Goals</span>
+            <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">Ahead · Goals</span>
             <span className="text-title text-ink">What you’re saving towards</span>
           </div>
           <div className="flex shrink-0 items-center gap-space-4">

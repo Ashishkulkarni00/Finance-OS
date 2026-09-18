@@ -120,7 +120,7 @@ export function PositionStatement({ position, isLoading }: PositionStatementProp
         {showDetail &&
           breakdown.cards.map((c) => <StatementRow key={c.accountId} indent label={c.name} value={c.balance} />)}
 
-        <StatementRow variant="total" label="Real balance" value={position.realBalance} emphasiseNegative note="What is genuinely yours to decide about." />
+        <StatementRow variant="total" label="Free until salary" value={position.realBalance} emphasiseNegative note="What is genuinely yours to decide about." />
       </Statement>
     </section>
   );

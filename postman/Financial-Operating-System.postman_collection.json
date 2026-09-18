@@ -283,6 +283,14 @@
 		{
 			"key": "incomeCategoryId",
 			"value": ""
+		},
+		{
+			"key": "importBatchId",
+			"value": ""
+		},
+		{
+			"key": "importRowId",
+			"value": ""
 		}
 	],
 	"item": [
@@ -8536,6 +8544,69 @@
 							"body": "{\n    \"state\": \"COMPLETE\",\n    \"expectedIn\": \"115400.00\",\n    \"incomeStillExpected\": \"57700.00\",\n    \"committed\": \"15000.00\",\n    \"plannedSavings\": \"12500.00\",\n    \"flexible\": \"87900.00\",\n    \"unknownAmountCount\": 0,\n    \"spent\": \"49555.00\",\n    \"spentShare\": 0.5638,\n    \"cycleElapsed\": 0.6774\n}"
 						}
 					]
+				},
+				{
+					"name": "Month review (against its plan)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+									"const b = pm.response.json();",
+									"pm.test(\"money as strings\", () => [\"incomeExpected\", \"incomeReceived\", \"paymentsPlanned\", \"paymentsPaid\", \"setAsidePlanned\", \"setAsideMade\", \"spentOutsidePlan\"].forEach((k) => pm.expect(b[k]).to.be.a(\"string\")));",
+									"pm.test(\"counts add up\", () => pm.expect(b.paymentsPaidCount).to.be.at.most(b.paymentsCount));",
+									"pm.test(\"lists are capped\", () => { pm.expect(b.differences.length).to.be.at.most(5); pm.expect(b.largestUnplanned.length).to.be.at.most(3); });"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/cycles/{{shapeCycleId}}/review",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"cycles",
+								"{{shapeCycleId}}",
+								"review"
+							]
+						},
+						"description": "A month against its plan (Phase 1 piece 4). Buckets are the shape's: payments (expenses, transfers paying a card/loan), set aside (investments, transfers into non-spending money). `notDone` = plan items not recorded (savings ones flagged), `skipped`, `differences` (actual − planned, largest first, ≤5), `largestUnplanned` (≤3 expenses no plan item covers). \"Planned\" is the plan as it stands now - plans aren't locked at month start yet (deferred integrity design)."
+					},
+					"response": [
+						{
+							"name": "200 - illustrative",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/cycles/{{shapeCycleId}}/review",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"cycles",
+										"{{shapeCycleId}}",
+										"review"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"body": "{\n    \"incomeExpected\": \"57700.00\",\n    \"incomeReceived\": \"57700.00\",\n    \"paymentsPlanned\": \"35947.00\",\n    \"paymentsPaid\": \"34157.00\",\n    \"paymentsCount\": 13,\n    \"paymentsPaidCount\": 12,\n    \"setAsidePlanned\": \"12500.00\",\n    \"setAsideMade\": \"10000.00\",\n    \"flexible\": \"9253.00\",\n    \"spentOutsidePlan\": \"11240.00\",\n    \"notDone\": [\n        {\n            \"instanceId\": 44,\n            \"name\": \"SIP Zerodha\",\n            \"amount\": \"2500.00\",\n            \"dueDate\": \"2026-10-10\",\n            \"mandatory\": true,\n            \"savings\": true\n        }\n    ],\n    \"skipped\": [\n        {\n            \"instanceId\": 45,\n            \"name\": \"Hair cut\",\n            \"amount\": \"500.00\",\n            \"dueDate\": \"2026-10-10\",\n            \"mandatory\": false,\n            \"savings\": false\n        }\n    ],\n    \"differences\": [\n        {\n            \"instanceId\": 41,\n            \"name\": \"Electricity bill\",\n            \"planned\": \"1790.00\",\n            \"actual\": \"2140.00\",\n            \"difference\": \"350.00\"\n        }\n    ],\n    \"largestUnplanned\": [\n        {\n            \"transactionId\": 120,\n            \"description\": \"Car repair\",\n            \"date\": \"2026-10-12\",\n            \"amount\": \"4000.00\",\n            \"category\": \"Transport\"\n        }\n    ]\n}"
+						}
+					]
 				}
 			]
 		},
@@ -8849,6 +8920,415 @@
 								}
 							],
 							"body": "{\n    \"title\": \"Validation failed\",\n    \"status\": 400,\n    \"code\": \"VALIDATION_FAILED\",\n    \"field\": \"applyFrom\",\n    \"detail\": \"This bill follows its loan or holding - change it there, or set when it stops.\"\n}"
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Insights",
+			"description": "STRATEGY_DEEP_DIVE Phase 1 (1): one ranked list of what needs the user, replacing each screen's own warnings. Examples are illustrative (the dev data had nothing due when this was written; no test data may be created).",
+			"item": [
+				{
+					"name": "What needs you - Today (top 3)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+									"const b = pm.response.json();",
+									"pm.test(\"at most 3 shown, total counts them all\", () => { pm.expect(b.items.length).to.be.at.most(3); pm.expect(b.total).to.be.at.least(b.items.length); });",
+									"pm.test(\"every item explains itself\", () => b.items.forEach((i) => { pm.expect(i.title).to.be.a(\"string\").and.not.empty; pm.expect(i.explanation).to.be.a(\"string\").and.not.empty; pm.expect([\"CRITICAL\", \"ATTENTION\", \"OPPORTUNITY\", \"INFO\"]).to.include(i.severity); }));",
+									"pm.test(\"money as strings\", () => b.items.forEach((i) => { if (i.impact != null) pm.expect(i.impact).to.be.a(\"string\"); if (i.action && i.action.amount != null) pm.expect(i.action.amount).to.be.a(\"string\"); }));",
+									"pm.test(\"ranked: severity never rises down the list\", () => { const order = [\"CRITICAL\", \"ATTENTION\", \"OPPORTUNITY\", \"INFO\"]; for (let k = 1; k < b.items.length; k++) pm.expect(order.indexOf(b.items[k].severity)).to.be.at.least(order.indexOf(b.items[k - 1].severity)); });"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/insights?surface=TODAY",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"insights"
+							],
+							"query": [
+								{
+									"key": "surface",
+									"value": "TODAY"
+								}
+							]
+						},
+						"description": "The insight engine: everything that needs the user, ranked by severity (CRITICAL = money lost if nothing happens; ATTENTION; OPPORTUNITY; INFO), then date, then rupee size. Types: SHORTFALL, OVERDUE, DUE_SOON, NEEDS_AMOUNT, NEEDS_REVIEW, UNVERIFIED, INCOME_LATE, PLANNED_ITEM_MISSED, CARD_BILL_DUE, CARD_BILL_OVERDUE, GOAL_BEHIND. Each item has server wording (`title`, `explanation` - the basis) and at most one `action`: SETTLE/ESTIMATE/CONFIRM (instanceId), TRANSFER (from/to/amount pre-fill), OPEN (route). Derived on read; dismiss/snooze comes later (deferred table). Today shows 3; `total` counts all."
+					},
+					"response": [
+						{
+							"name": "200 - illustrative",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/insights?surface=TODAY",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"insights"
+									],
+									"query": [
+										{
+											"key": "surface",
+											"value": "TODAY"
+										}
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"body": "{\n    \"items\": [\n        {\n            \"key\": \"shortfall:account:4\",\n            \"type\": \"SHORTFALL\",\n            \"severity\": \"CRITICAL\",\n            \"title\": \"IDBI Saving account won't cover Electricity bill on 1 Oct\",\n            \"explanation\": \"₹17,290 is planned to leave it before salary; it holds ₹709. Move ₹16,581 in before 1 Oct.\",\n            \"impact\": \"16581.00\",\n            \"when\": \"2026-10-01\",\n            \"action\": {\n                \"kind\": \"TRANSFER\",\n                \"label\": \"Move money\",\n                \"toAccountId\": 4,\n                \"amount\": \"16581.00\"\n            }\n        },\n        {\n            \"key\": \"instance:61:overdue\",\n            \"type\": \"OVERDUE\",\n            \"severity\": \"CRITICAL\",\n            \"title\": \"Bike loan EMI (HDFC) was due 5 Oct\",\n            \"explanation\": \"₹6,145 from HDFC Salary. Paid already? Record it or link the Ledger entry. If skipped: CIBIL hits\",\n            \"impact\": \"6145.00\",\n            \"when\": \"2026-10-05\",\n            \"action\": {\n                \"kind\": \"SETTLE\",\n                \"label\": \"Settle\",\n                \"instanceId\": 61\n            }\n        },\n        {\n            \"key\": \"goal:1:pace\",\n            \"type\": \"GOAL_BEHIND\",\n            \"severity\": \"OPPORTUNITY\",\n            \"title\": \"Emergency fund is behind its pace\",\n            \"explanation\": \"25% saved with 40% of the time gone; ₹15,182 a month from now reaches ₹2,00,000 by 31 Aug.\",\n            \"impact\": \"15182.00\",\n            \"when\": \"2027-08-31\",\n            \"action\": {\n                \"kind\": \"OPEN\",\n                \"label\": \"Open goal\",\n                \"route\": \"/goals/1\"\n            }\n        }\n    ],\n    \"total\": 4\n}"
+						}
+					]
+				},
+				{
+					"name": "What needs you - Month (top 5)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+									"const b = pm.response.json();",
+									"pm.test(\"at most 5 shown, total counts them all\", () => { pm.expect(b.items.length).to.be.at.most(5); pm.expect(b.total).to.be.at.least(b.items.length); });",
+									"pm.test(\"every item explains itself\", () => b.items.forEach((i) => { pm.expect(i.title).to.be.a(\"string\").and.not.empty; pm.expect(i.explanation).to.be.a(\"string\").and.not.empty; pm.expect([\"CRITICAL\", \"ATTENTION\", \"OPPORTUNITY\", \"INFO\"]).to.include(i.severity); }));",
+									"pm.test(\"money as strings\", () => b.items.forEach((i) => { if (i.impact != null) pm.expect(i.impact).to.be.a(\"string\"); if (i.action && i.action.amount != null) pm.expect(i.action.amount).to.be.a(\"string\"); }));",
+									"pm.test(\"ranked: severity never rises down the list\", () => { const order = [\"CRITICAL\", \"ATTENTION\", \"OPPORTUNITY\", \"INFO\"]; for (let k = 1; k < b.items.length; k++) pm.expect(order.indexOf(b.items[k].severity)).to.be.at.least(order.indexOf(b.items[k - 1].severity)); });"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/insights?surface=MONTH",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"insights"
+							],
+							"query": [
+								{
+									"key": "surface",
+									"value": "MONTH"
+								}
+							]
+						},
+						"description": "Same engine, Month's cap of 5. Current month only."
+					},
+					"response": [
+						{
+							"name": "200 - illustrative",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/insights?surface=MONTH",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"insights"
+									],
+									"query": [
+										{
+											"key": "surface",
+											"value": "MONTH"
+										}
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"body": "{\n    \"items\": [],\n    \"total\": 0\n}"
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Imports",
+			"description": "Phase 1 piece 5: statement import (upload → fix rows → import). Examples are illustrative.",
+			"item": [
+				{
+					"name": "Upload a bank statement (CSV)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test(\"201 Created\", () => pm.response.to.have.status(201));",
+									"const b = pm.response.json();",
+									"pm.collectionVariables.set(\"importBatchId\", b.id);",
+									"pm.test(\"staged, not imported\", () => pm.expect(b.status).to.eql(\"STAGED\"));",
+									"pm.test(\"rows carry money as strings\", () => b.rows.forEach((r) => { if (r.amount != null) pm.expect(r.amount).to.be.a(\"string\"); }));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/imports/statement?accountId={{accountId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"imports",
+								"statement"
+							],
+							"query": [
+								{
+									"key": "accountId",
+									"value": "{{accountId}}"
+								}
+							]
+						},
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": ""
+								}
+							]
+						},
+						"description": "The CSV a bank or card gives you, for one account (`accountId`, required). The header row is found automatically (preamble lines skipped): a date column plus withdrawal/deposit, debit/credit, or amount (+ Dr/Cr) columns. Withdrawals → EXPENSE, deposits → INCOME; on a credit card a credit is left out with a reason (usually the bill payment). Lines without a date and amount (balances, totals) are skipped; an amount with an unreadable date is kept with `parseError`. Categories are pre-filled from the user's last entry with the same description. Possible duplicates (same account, amount, date) are flagged. Nothing is imported yet. Choose a file in Postman's form-data `file` field."
+					},
+					"response": [
+						{
+							"name": "201 - illustrative",
+							"originalRequest": {
+								"method": "POST",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/imports/statement?accountId={{accountId}}",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"imports",
+										"statement"
+									],
+									"query": [
+										{
+											"key": "accountId",
+											"value": "{{accountId}}"
+										}
+									]
+								},
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "file",
+											"type": "file",
+											"src": ""
+										}
+									]
+								}
+							},
+							"status": "Created",
+							"code": 201,
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"body": "{\n    \"id\": 7,\n    \"originalFilename\": \"hdfc-oct.csv\",\n    \"status\": \"STAGED\",\n    \"totalRows\": 3,\n    \"duplicateRows\": 1,\n    \"invalidRows\": 0,\n    \"uploadedAt\": \"2026-10-08T10:00:00Z\",\n    \"rows\": [\n        {\n            \"id\": 1,\n            \"rowNumber\": 4,\n            \"duplicate\": true,\n            \"date\": \"2026-10-05\",\n            \"description\": \"EMI BIKE LOAN\",\n            \"type\": \"EXPENSE\",\n            \"amount\": \"6145.00\",\n            \"accountId\": 2,\n            \"categoryId\": 9,\n            \"duplicateOfTransactionId\": 88\n        },\n        {\n            \"id\": 2,\n            \"rowNumber\": 5,\n            \"duplicate\": false,\n            \"date\": \"2026-09-28\",\n            \"description\": \"SALARY SEP 2026\",\n            \"type\": \"INCOME\",\n            \"amount\": \"57700.00\",\n            \"accountId\": 2,\n            \"categoryId\": 20\n        },\n        {\n            \"id\": 3,\n            \"rowNumber\": 6,\n            \"duplicate\": false,\n            \"date\": \"2026-10-07\",\n            \"description\": \"UPI-SWIGGY\",\n            \"type\": \"EXPENSE\",\n            \"amount\": \"349.50\",\n            \"accountId\": 2\n        }\n    ]\n}"
+						}
+					]
+				},
+				{
+					"name": "Fix a staged row",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+									"const b = pm.response.json();",
+									"pm.test(\"still staged\", () => pm.expect(b.status).to.eql(\"STAGED\"));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/imports/{{importBatchId}}/rows/{{importRowId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"imports",
+								"{{importBatchId}}",
+								"rows",
+								"{{importRowId}}"
+							]
+						},
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"type\": \"EXPENSE\",\n  \"categoryId\": \"{{categoryId}}\"\n}"
+						},
+						"description": "Change a row's `type` (EXPENSE/INCOME/TRANSFER…), `categoryId` (or `clearCategory`), `toAccountId` for a transfer, or `description`. Changing the type clears fields the new type doesn't use. Set `{{importRowId}}` from the upload response."
+					},
+					"response": [
+						{
+							"name": "200 - illustrative",
+							"originalRequest": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/imports/{{importBatchId}}/rows/{{importRowId}}",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"imports",
+										"{{importBatchId}}",
+										"rows",
+										"{{importRowId}}"
+									]
+								},
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"type\": \"EXPENSE\",\n  \"categoryId\": \"{{categoryId}}\"\n}"
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"body": "{\n    \"id\": 7,\n    \"originalFilename\": \"hdfc-oct.csv\",\n    \"status\": \"STAGED\",\n    \"totalRows\": 3,\n    \"duplicateRows\": 1,\n    \"invalidRows\": 0,\n    \"uploadedAt\": \"2026-10-08T10:00:00Z\",\n    \"rows\": [\n        {\n            \"id\": 1,\n            \"rowNumber\": 4,\n            \"duplicate\": true,\n            \"date\": \"2026-10-05\",\n            \"description\": \"EMI BIKE LOAN\",\n            \"type\": \"EXPENSE\",\n            \"amount\": \"6145.00\",\n            \"accountId\": 2,\n            \"categoryId\": 9,\n            \"duplicateOfTransactionId\": 88\n        },\n        {\n            \"id\": 2,\n            \"rowNumber\": 5,\n            \"duplicate\": false,\n            \"date\": \"2026-09-28\",\n            \"description\": \"SALARY SEP 2026\",\n            \"type\": \"INCOME\",\n            \"amount\": \"57700.00\",\n            \"accountId\": 2,\n            \"categoryId\": 20\n        },\n        {\n            \"id\": 3,\n            \"rowNumber\": 6,\n            \"duplicate\": false,\n            \"date\": \"2026-10-07\",\n            \"description\": \"UPI-SWIGGY\",\n            \"type\": \"EXPENSE\",\n            \"amount\": \"349.50\",\n            \"accountId\": 2\n        }\n    ]\n}"
+						}
+					]
+				},
+				{
+					"name": "Import the checked rows",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+									"const b = pm.response.json();",
+									"pm.test(\"committed\", () => pm.expect(b.status).to.eql(\"COMMITTED\"));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/imports/{{importBatchId}}/commit",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"imports",
+								"{{importBatchId}}",
+								"commit"
+							]
+						},
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"includeDuplicateRowIds\": [],\n  \"excludeRowIds\": []\n}"
+						},
+						"description": "Creates the entries (all or nothing). Duplicates are skipped unless listed in `includeDuplicateRowIds`; `excludeRowIds` leaves rows out. Every included row must be complete first - otherwise 422 IMPORT_ROW_INVALID says how many need a category or a transfer destination. Imported entries auto-match planned bills like any recorded entry."
+					},
+					"response": [
+						{
+							"name": "200 - illustrative",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/imports/{{importBatchId}}/commit",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"imports",
+										"{{importBatchId}}",
+										"commit"
+									]
+								},
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"includeDuplicateRowIds\": [],\n  \"excludeRowIds\": []\n}"
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"body": "{\n    \"id\": 7,\n    \"originalFilename\": \"hdfc-oct.csv\",\n    \"status\": \"COMMITTED\",\n    \"totalRows\": 3,\n    \"duplicateRows\": 1,\n    \"invalidRows\": 0,\n    \"uploadedAt\": \"2026-10-08T10:00:00Z\",\n    \"rows\": [\n        {\n            \"id\": 1,\n            \"rowNumber\": 4,\n            \"duplicate\": true,\n            \"date\": \"2026-10-05\",\n            \"description\": \"EMI BIKE LOAN\",\n            \"type\": \"EXPENSE\",\n            \"amount\": \"6145.00\",\n            \"accountId\": 2,\n            \"categoryId\": 9,\n            \"duplicateOfTransactionId\": 88\n        },\n        {\n            \"id\": 2,\n            \"rowNumber\": 5,\n            \"duplicate\": false,\n            \"date\": \"2026-09-28\",\n            \"description\": \"SALARY SEP 2026\",\n            \"type\": \"INCOME\",\n            \"amount\": \"57700.00\",\n            \"accountId\": 2,\n            \"categoryId\": 20,\n            \"committedTransactionId\": 140\n        },\n        {\n            \"id\": 3,\n            \"rowNumber\": 6,\n            \"duplicate\": false,\n            \"date\": \"2026-10-07\",\n            \"description\": \"UPI-SWIGGY\",\n            \"type\": \"EXPENSE\",\n            \"amount\": \"349.50\",\n            \"accountId\": 2,\n            \"categoryId\": 16,\n            \"committedTransactionId\": 141\n        }\n    ],\n    \"committedAt\": \"2026-10-08T10:02:00Z\"\n}"
 						}
 					]
 				}
