@@ -1,0 +1,42 @@
+# Root ignores. backend/finance and frontend/finance-ui carry their own
+# stack-specific .gitignore files as well.
+
+### Secrets - never commit ###
+application-local.properties
+application-*-local.properties
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+### Build output ###
+target/
+build/
+dist/
+dist-ssr/
+out/
+*.tsbuildinfo
+coverage/
+
+### Dependencies ###
+node_modules/
+
+### Logs ###
+logs/
+*.log
+
+### IDE ###
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/*
+!.vscode/extensions.json
+.claude/settings.local.json
+
+### OS ###
+.DS_Store
+Thumbs.db
+desktop.ini
+~$*

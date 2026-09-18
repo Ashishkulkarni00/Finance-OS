@@ -1,0 +1,3 @@
+# Copy to application-test-local.properties (gitignored) and fill in.
+# Environment variables TEST_DB_USERNAME / TEST_DB_PASSWORD take precedence.
+TEST_DB_PASSWORD=CHANGE_ME

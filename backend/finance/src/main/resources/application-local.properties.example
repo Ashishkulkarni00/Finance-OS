@@ -1,0 +1,7 @@
+# Copy this file to application-local.properties and fill in your own values.
+# application-local.properties is gitignored and must never be committed.
+spring.datasource.username=root
+spring.datasource.password=CHANGE_ME
+
+spring.jpa.show-sql=true
+logging.level.org.hibernate.SQL=DEBUG
