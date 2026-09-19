@@ -34,8 +34,8 @@ const CASES: { question: string; answer: string }[] = [
       'It still counts for this month and is listed under “Due date passed”. If the payment is already in your Ledger on the same account, within a few days of the due date and for the same amount, it’s linked automatically and shows as settled. Otherwise, Settle it and choose “Already in the Ledger” — never record it again, or the money is counted twice. (Only pick “Starts from its next due date” when adding a bill that genuinely hadn’t started yet.)',
   },
   {
-    question: 'How is “Free for the rest of this cycle” different from Room left on Today?',
-    answer: 'It’s the same money. Months shows the whole amount until salary; Today splits it into a share per day.',
+    question: 'Is “Free until salary” here the same as on Today?',
+    answer: 'Yes - the same figure. Today also splits it into a share per day.',
   },
   {
     question: 'A bill says “Amount unknown”',

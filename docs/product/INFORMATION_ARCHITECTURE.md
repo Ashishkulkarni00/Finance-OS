@@ -12,6 +12,8 @@ If a screen only answers *"what happened?"*, it belongs one level deeper.
 
 ## 2. Primary navigation — five items
 
+**Applied 2026-09-18** as Today · Months · Ahead · Money · Ledger + Add (see `STRATEGY_DEEP_DIVE.md` §D; "Plan" became "Ahead"; Goals live under Ahead; the Money tabs are Overview · Cards · Debts · Investments).
+
 Deliberately five. Mobile bottom-bar limit, and more than five means we have not decided
 what matters.
 

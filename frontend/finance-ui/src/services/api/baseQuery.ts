@@ -4,8 +4,12 @@ import type { ProblemDetail, AppError } from '@/types/errors';
 
 const raw = fetchBaseQuery({
   baseUrl: import.meta.env.VITE_API_URL ?? '/api/v1',
-  prepareHeaders: (headers) => {
-    headers.set('Content-Type', 'application/json');
+  prepareHeaders: (headers, { arg }) => {
+    // A file upload (FormData) sets its own multipart boundary - forcing JSON would break it.
+    const body = typeof arg === 'object' && arg !== null && 'body' in arg ? (arg as FetchArgs).body : undefined;
+    if (!(body instanceof FormData)) {
+      headers.set('Content-Type', 'application/json');
+    }
     return headers; // an auth header lands here in Phase 3
   },
 });

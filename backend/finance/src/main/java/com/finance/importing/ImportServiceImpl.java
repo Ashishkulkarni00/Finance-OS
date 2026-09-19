@@ -31,6 +31,8 @@ public class ImportServiceImpl implements ImportService {
     private final ImportBatchRepository batchRepository;
     private final ImportRowRepository rowRepository;
     private final ImportCsvParser parser;
+    private final BankStatementParser statementParser;
+    private final com.finance.account.AccountService accountService;
     private final TransactionRepository transactionRepository;
     private final TransactionService transactionService;
     private final CurrentUserProvider currentUser;
@@ -38,12 +40,16 @@ public class ImportServiceImpl implements ImportService {
     public ImportServiceImpl(ImportBatchRepository batchRepository,
                              ImportRowRepository rowRepository,
                              ImportCsvParser parser,
+                             BankStatementParser statementParser,
+                             com.finance.account.AccountService accountService,
                              TransactionRepository transactionRepository,
                              TransactionService transactionService,
                              CurrentUserProvider currentUser) {
         this.batchRepository = batchRepository;
         this.rowRepository = rowRepository;
         this.parser = parser;
+        this.statementParser = statementParser;
+        this.accountService = accountService;
         this.transactionRepository = transactionRepository;
         this.transactionService = transactionService;
         this.currentUser = currentUser;
@@ -52,8 +58,70 @@ public class ImportServiceImpl implements ImportService {
     @Override
     @Transactional
     public ImportView upload(String originalFilename, InputStream content) {
+        return stage(originalFilename, parser.parse(content));
+    }
+
+    @Override
+    @Transactional
+    public ImportView uploadStatement(String originalFilename, InputStream content, Long accountId) {
+        // Ownership-checked: another user's account is a 404.
+        com.finance.account.domain.Account account = accountService.getById(accountId);
+        boolean card = account.getType() == com.finance.account.domain.AccountType.CREDIT_CARD;
+        List<ImportRow> rows = statementParser.parse(content, accountId, card);
         Long userId = currentUser.currentUserId();
-        List<ImportRow> parsedRows = parser.parse(content);
+        for (ImportRow row : rows) {
+            // Category from the user's own last entry with the same description - a pre-fill
+            // shown in the review, never imported without the user seeing it.
+            if (row.isValid() && row.getType() != null && row.getType().requiresCategory()) {
+                transactionRepository
+                        .findFirstByUserIdAndTypeAndDescriptionIgnoreCaseAndDeletedAtIsNullOrderByDateDescIdDesc(
+                                userId, row.getType(), row.getDescription())
+                        .ifPresent(previous -> row.setCategoryId(previous.getCategoryId()));
+            }
+        }
+        return stage(originalFilename, rows);
+    }
+
+    @Override
+    @Transactional
+    public ImportView updateRow(Long batchId, Long rowId, com.finance.importing.dto.UpdateImportRowRequest request) {
+        ImportBatch batch = requireOwned(batchId);
+        if (batch.isCommitted()) {
+            throw new BusinessRuleException(ErrorCode.IMPORT_ALREADY_COMMITTED, "This import has already been committed.");
+        }
+        ImportRow row = rowsFor(batch).stream().filter(r -> r.getId().equals(rowId)).findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.IMPORT_NOT_FOUND, "We couldn't find that row."));
+        if (!row.isValid()) {
+            throw new BusinessRuleException(ErrorCode.IMPORT_ROW_INVALID, "This line couldn't be read, so it can't be imported.");
+        }
+        if (request.type() != null) {
+            row.setType(request.type());
+            if (!request.type().requiresCategory()) {
+                row.setCategoryId(null);
+            }
+            if (!request.type().requiresDestination()) {
+                row.setToAccountId(null);
+            }
+        }
+        if (Boolean.TRUE.equals(request.clearCategory())) {
+            row.setCategoryId(null);
+        } else if (request.categoryId() != null) {
+            row.setCategoryId(request.categoryId());
+        }
+        if (request.toAccountId() != null) {
+            accountService.getById(request.toAccountId());
+            row.setToAccountId(request.toAccountId());
+        }
+        if (request.description() != null && !request.description().isBlank()) {
+            row.setDescription(request.description().trim());
+        }
+        rowRepository.save(row);
+        log.info("Import row updated batchId={} rowId={}", batchId, rowId);
+        return new ImportView(batch, rowsFor(batch));
+    }
+
+    private ImportView stage(String originalFilename, List<ImportRow> parsedRows) {
+        Long userId = currentUser.currentUserId();
 
         int duplicateCount = 0;
         int invalidCount = 0;
@@ -111,15 +179,28 @@ public class ImportServiceImpl implements ImportService {
 
         Set<Long> includeDuplicates = request.includeDuplicateRowIds() == null
                 ? Set.of() : new HashSet<>(request.includeDuplicateRowIds());
+        Set<Long> excluded = request.excludeRowIds() == null ? Set.of() : new HashSet<>(request.excludeRowIds());
 
         List<ImportRow> rows = rowsFor(batch);
-        for (ImportRow row : rows) {
-            if (!row.isValid()) {
-                continue;
-            }
-            if (row.isDuplicate() && !includeDuplicates.contains(row.getId())) {
-                continue;
-            }
+        List<ImportRow> toImport = rows.stream()
+                .filter(ImportRow::isValid)
+                .filter(r -> !excluded.contains(r.getId()))
+                .filter(r -> !r.isDuplicate() || includeDuplicates.contains(r.getId()))
+                .toList();
+        // Say what's missing before anything is created - the commit is all or nothing.
+        long needCategory = toImport.stream()
+                .filter(r -> r.getType() != null && r.getType().requiresCategory() && r.getCategoryId() == null).count();
+        long needDestination = toImport.stream()
+                .filter(r -> r.getType() != null && r.getType().requiresDestination() && r.getToAccountId() == null).count();
+        if (needCategory > 0 || needDestination > 0) {
+            throw new BusinessRuleException(ErrorCode.IMPORT_ROW_INVALID,
+                    (needCategory > 0 ? needCategory + (needCategory == 1 ? " entry needs" : " entries need") + " a category" : "")
+                            + (needCategory > 0 && needDestination > 0 ? ", and " : "")
+                            + (needDestination > 0 ? needDestination + (needDestination == 1 ? " transfer needs" : " transfers need")
+                                    + " the account it went to" : "")
+                            + ". Fill them in, or leave those rows out.", "rows");
+        }
+        for (ImportRow row : toImport) {
 
             CreateTransactionRequest txRequest = new CreateTransactionRequest(
                     row.getDate(), row.getDescription(), row.getType(), row.getAmount(),

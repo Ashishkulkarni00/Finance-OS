@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Receipt, CircleHelp, Tags } from 'lucide-react';
+import { Receipt, CircleHelp, Tags, Upload } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/Button';
 import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
@@ -102,6 +103,13 @@ export default function LedgerPage() {
           categoryName={categories.find((c) => c.id === filters.categoryId)?.name}
         />
         <div className="flex shrink-0 items-center gap-space-4">
+          <Link
+            to="/ledger/import"
+            className="flex items-center gap-space-1 text-caption text-accent underline-offset-4 hover:underline"
+          >
+            <Upload size={14} strokeWidth={1.5} aria-hidden />
+            Import statement
+          </Link>
           <button
             type="button"
             onClick={() => setManagingCategories(true)}

@@ -6,7 +6,8 @@ import { useGetPositionQuery } from '@/services/positionService';
 import { useGetCommitmentInstancesForCycleQuery, useGetCommitmentPlanProgressQuery } from '@/services/commitmentInstanceService';
 import { MonthOverview } from '@/features/month/components/MonthOverview';
 import type { CycleMode } from '@/features/month/components/MonthOverview';
-import { NeedsYouZone } from '@/features/month/components/NeedsYouZone';
+import { InsightList } from '@/components/InsightList';
+import { formatShortDate } from '@/lib/dates';
 import { PlanZone } from '@/features/month/components/PlanZone';
 import { FlexibleSpendingSection } from '@/features/month/components/FlexibleSpendingSection';
 import { MonthPrimer } from '@/features/month/components/MonthPrimer';
@@ -57,7 +58,6 @@ export default function MonthPage() {
   // Bills only: expected income is shown in the plan's "Coming in" block, not as a payment.
   const bills = (instances ?? []).filter((i) => i.settleAs !== 'INCOME');
   // A late salary is flagged too (only once late) - it needs recording like any planned item.
-  const needsYou = (instances ?? []).filter((i) => i.attentionTier === 'NEEDS_YOU');
   const nextUp = bills
     .filter((i) => i.attentionTier === 'WORTH_KNOWING')
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
@@ -111,7 +111,10 @@ export default function MonthPage() {
 
           {mode === 'current' && (
             <Divided>
-              <NeedsYouZone instances={needsYou} nextUp={nextUp} isLoading={instancesPending} isError={instancesError} />
+              <InsightList
+                surface="MONTH"
+                calmNote={nextUp ? `Next: ${nextUp.commitmentName}, ${formatShortDate(nextUp.dueDate)}.` : undefined}
+              />
             </Divided>
           )}
 

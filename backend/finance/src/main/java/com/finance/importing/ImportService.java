@@ -15,6 +15,12 @@ public interface ImportService {
 
     ImportView upload(String originalFilename, InputStream content);
 
+    /** A bank or card statement CSV, for one account - see {@code BankStatementParser}. */
+    ImportView uploadStatement(String originalFilename, InputStream content, Long accountId);
+
+    /** Fix one staged row before commit. */
+    ImportView updateRow(Long batchId, Long rowId, com.finance.importing.dto.UpdateImportRowRequest request);
+
     ImportView getById(Long id);
 
     ImportView commit(Long id, CommitImportRequest request);

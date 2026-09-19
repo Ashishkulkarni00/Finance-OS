@@ -5,6 +5,7 @@ import type {
   CommitmentInstanceDetailResponse,
   CycleStandingResponse,
   CycleShapeResponse,
+  CycleReviewResponse,
 } from '@/types/commitment';
 
 export const commitmentInstanceService = baseApi.injectEndpoints({
@@ -30,6 +31,11 @@ export const commitmentInstanceService = baseApi.injectEndpoints({
     /** Reads transactions too ("spent"), so it refreshes whenever Position does. */
     getCycleShape: build.query<CycleShapeResponse, number>({
       query: (cycleId) => `/cycles/${cycleId}/shape`,
+      providesTags: [{ type: 'CommitmentInstance' as const, id: 'LIST' }, 'Position'],
+    }),
+
+    getCycleReview: build.query<CycleReviewResponse, number>({
+      query: (cycleId) => `/cycles/${cycleId}/review`,
       providesTags: [{ type: 'CommitmentInstance' as const, id: 'LIST' }, 'Position'],
     }),
 
@@ -72,6 +78,7 @@ export const {
   useGetCommitmentPlanProgressQuery,
   useGetCycleStandingQuery,
   useGetCycleShapeQuery,
+  useGetCycleReviewQuery,
   useGetCommitmentInstanceDetailQuery,
   useConfirmCommitmentInstanceMutation,
   useSettleCommitmentInstanceMutation,

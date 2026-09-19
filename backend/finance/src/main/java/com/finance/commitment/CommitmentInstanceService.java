@@ -27,6 +27,9 @@ public interface CommitmentInstanceService {
     /** The month in one line: expected in − committed − planned savings = flexible, and spent so far. */
     CycleShape shape(Long cycleId);
 
+    /** A month against its plan - income, payments, set aside, flexible, what didn't happen. */
+    CycleReview review(Long cycleId);
+
     CommitmentInstanceView getById(Long id);
 
     /** Everything the detail route shows: the rule, its consequence text, linked transaction, history. */

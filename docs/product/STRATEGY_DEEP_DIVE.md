@@ -8,10 +8,10 @@ sources, Sept 2026), `INFORMATION_ARCHITECTURE.md`, `PRODUCT_AUDIT.md` (12 steps
 `PLANNED_CHANGES.md` (built), `DISCIPLINE_AND_TRUST.md` (integrity design, parked by the
 user until they return to it).
 
-A note on research: the market picture below uses `COMPETITIVE_ANALYSIS.md` (researched this
-month, sources listed there) plus product knowledge up to mid-2026. No fresh browsing was
-done for this document; claims about competitors are about their *model*, which changes slowly,
-not their latest feature list.
+A note on research: §B was re-checked with fresh web research on 2026-09-18 (sources at the
+end). It **corrected three claims** in the first draft of this document - forecasting,
+decision previews and "money unlocking" all exist somewhere in the market already. The
+direction survives, but the argument for it changed: see §B.2.
 
 ---
 
@@ -50,8 +50,9 @@ A salary-cycle money manager with an unusually honest core:
   derived payoff, goals with pace.
 
 ### What is strong (keep and sharpen)
-1. **Committed-before-it-leaves.** Nobody else in the market subtracts obligations before
-   they're paid, per account, on a salary cycle. This is the product.
+1. **Committed-before-it-leaves.** Simplifi and PocketGuard subtract bills roughly, on a
+   calendar month; nobody does it per account, on a salary cycle, with EMIs, card dues and
+   goal transfers each settled by the right entry. This is the product.
 2. **Honesty engineering**: INCOMPLETE instead of guesses, derived values never stored,
    "never counted twice" enforced by double entry, "never judge the user".
 3. **Obligation sources** (enter once: a loan's EMI, a SIP, a goal contribution).
@@ -96,21 +97,57 @@ that already exists.
 
 ## B. Competitive gap analysis (not a checkbox table)
 
-| Area | State of the market | Implication for Kosh |
-|---|---|---|
-| **Tracking + categorisation** | Crowded, commoditised (Monarch, Copilot, axio SMS, AA-linked neobanks). Automation wins. | Table stakes. Reduce friction (import, memory); never lead with it. |
-| **Budgeting methods** | YNAB owns "give every rupee a job" (envelopes: powerful, high effort, steep learning). Others do category budgets that people abandon. | Don't copy envelopes or category budgets. Our budget is *obligations first, flexible is what's left* - lower effort, same honesty. |
-| **Safe-to-spend** | Simplifi ("Spending Plan"), PocketGuard ("In My Pocket") compute it roughly: income − bills − savings on a calendar month, not per account, not salary-cycle, weak commitment model. | We're ahead on correctness; they're one decision from copying the *number*. The moat is the obligation model underneath + trust, not the formula. |
-| **Debt** | Loan payoff calculators exist everywhere; almost no app connects a loan to monthly cash flow or to what happens when it ends. Indian apps are lenders - conflicted. | **Open.** "Money unlocking" is ours to take. |
-| **Future / forecasting** | Monarch/Copilot show recurring + balance forecast; Empower forecasts retirement. Nobody shows a household's next 12 months of *obligations and flexibility* with explicit assumptions. | **Open.** Signature territory. |
-| **Decisions** | "What-if" exists as generic calculators (loan EMI calculators, SIP calculators) disconnected from the user's actual month. | **Open.** Consequences on *your* months and goals. |
-| **Behaviour change** | YNAB changes behaviour through method + effort; the rest inform. Reviews in the market: "built to show what happened, not to decide what happens next". | **Open** for a calm plan→live→review→recover loop without envelope effort. |
-| **India specifics** | EMI-heavy lives, card EMIs, SIP/RD, annual premiums, festival spending, salary on fixed days - served by lenders/investment apps with a tracker attached. | Independent, subscription-funded, can honestly say "take on less debt". |
-| **Trust** | Aggregators monetise via lending/advice. Few apps explain their numbers. | "How did you calculate this?" on every figure; history kept. |
+### B.1 What the market actually offers (checked 2026-09-18)
 
-**The poorly solved job:** *"Help me run my month and the next few months with all my
-commitments accounted for, show me what's truly free, warn me before I get into trouble,
-and help me get back on track when I do - without me doing the maths."*
+| Product | What it's really for | Closest thing to our ideas | Where it stops |
+|---|---|---|---|
+| **Monarch** (US; $99.99, Plus $199) | Aggregation, net worth, household. The core plan projects cash flow a few months ahead from recurring bills; **Plus (Apr 2026) adds multi-year forecasting and what-if scenarios** ("buy a house in three years?"); an AI assistant with weekly recaps. | Forecasting, scenarios | Long-horizon net worth/retirement framing; calendar months; bank-sync dependent; no EMI or card-EMI model; US only. |
+| **YNAB** (US) | A method: give every dollar a job. "True expenses" (annual ÷ 12 targets), **Loan Planner** (extra-payment what-if tied to the budget). | Reserve-ahead, debt what-if, behaviour change | High effort and learning curve; envelopes; users who don't adopt the method quit. |
+| **Simplifi** (US) | **Spending Plan**: income − bills & subscriptions (annual premiums set aside too) − savings = left to spend, adjusting as you spend. | Closest to Real Balance | Calendar month; not per account; thin commitment model; no debt lifecycle. |
+| **Copilot** (US, Apple) | Beautiful tracking; recurring detection; forecasts upcoming automatic payments and **alerts on shortfalls**. | Shortfall warnings | Reviewers: weak for big-picture plans (debt, goals); the Cash Flow tab looks backward. |
+| **PocketGuard** (US) | "In My Pocket" safe-to-spend; debt payoff plan. | Safe-to-spend, debt plan | Shallow; upsell-driven. |
+| **Debt apps** (Payoff, Debt Free, FinProjection) | Single purpose: payoff order, **a freed payment rolls into the next debt**, "cash freed once debt-free", month-by-month tables. | Money unlocking | Cut off from the rest of the month; manual; debt only. |
+| **axio** (ex-Walnut, India) | SMS-based auto tracking and bill reminders - now an RBI-registered NBFC selling loans and BNPL. | Automation for India | Revenue grows when users borrow more. |
+| **INDmoney** (India) | AA-based aggregation, net worth, investments; free card bill tracker. | Aggregation | Investment / lead-generation funnel; budgeting thin. |
+| **Fi** (India) | Neobank with money insights - **banking shut down in 2026**; customers moved to Federal Bank's app. | - | The consumer-neobank-with-insights model failed economically. |
+| **Money View, ET Money, Jupiter** | Lending or investing platforms with a tracker attached. | Tracking | Conflicted incentives. |
+
+Retention context (secondary sources; treat as directional): finance apps reportedly lose
+~71% of daily users between day 1 and day 30; a CFPB survey is cited for 67% of budgeting-app
+triers rating them "not helpful" or "too much effort"; manual-entry apps reportedly churn ~3×
+faster than auto-sync ones; apps built around recurring decisions and visible progress
+retain better than dashboard-centric ones.
+
+### B.2 What this means - honestly
+
+- **No single idea in our direction is new.** Safe-to-spend (Simplifi, PocketGuard),
+  reserve-ahead (YNAB true expenses, Simplifi), shortfall warnings (Copilot), what-if
+  (Monarch Plus, YNAB Loan Planner) and freed cash after debt (debt apps) all exist.
+- **What nobody does is combine them on one model of obligations, for the way a salaried
+  Indian household actually runs**: salary on a fixed day, several EMIs (some billed to a
+  card), SIP/RD, family support, annual premiums, festival spending - month to month, per
+  account, with numbers that explain themselves.
+- **In India the field is conflicted or retreating**: lenders and investment platforms with
+  trackers attached, and the one insight-led neobank (Fi) shut its banking. An independent,
+  subscription-funded tool that can say "take on less debt" has room.
+- **The biggest threat to Kosh is effort, not competitors.** Manual entry is the category's
+  #1 churn cause. Import / Account Aggregator can't wait for Phase 4 (see §H).
+- **Copy risk**: Monarch could add salary cycles and EMIs but isn't building for India;
+  Indian players could copy the maths but not the independence. The durable edge is the
+  *combination + India fit + trust*, not any one screen.
+
+### B.3 Crowded, table stakes, open
+
+| | Areas |
+|---|---|
+| **Crowded - don't compete** | transaction tracking, categorisation, net-worth dashboards, investment value tracking, charts, AI chat |
+| **Table stakes - must be good enough** | fast capture, import/auto-sync, recurring detection, bill reminders, goals |
+| **Partly served, never combined - our ground** | committed-before-it-leaves free money per account; obligations-first month; debt-to-cash-flow unlocks; reserve-ahead; decisions previewed on *your* months and goals; recovery; numbers that explain themselves |
+| **Open in India specifically** | EMI-heavy salary-cycle planning, card EMIs inside statements, SIP/RD as commitments, independent planning with nothing to sell |
+
+**The poorly solved job:** *"Run my month and the next few months with every commitment
+accounted for, show me what's truly free, warn me before trouble, and help me get back on
+track - without me doing the maths, and without someone trying to sell me a loan."*
 
 ---
 
@@ -121,9 +158,9 @@ and help me get back on track when I do - without me doing the maths."*
 | # | Direction | User problem | Why others don't solve it | Enabling capability | Hard to copy because | Backend foundation | Retention |
 |---|---|---|---|---|---|---|---|
 | 1 | **Committed-first money** ("what's truly mine") | Bank balance lies; money is already promised | They show balances or category budgets | Obligations as dated rows per account, settled by actuals | Needs a commitment model at the core, not a screen | Exists (rules, instances, position) | Daily glance at Room |
-| 2 | **Money unlocking** | "When does this get easier?" | Loans treated as expenses; no cash-flow future | Loan schedules + obligation end dates → freed ₹/month by date | Needs loans + obligations joined to months | Loan model exists; needs forecast service | Monthly anticipation, milestone moments |
-| 3 | **The months ahead** (12-month obligation calendar) | Annual premiums, festivals, EMIs ending surprise people | Forecasts are balance lines, not obligations | Forecast of rules, one-offs, loans, annual items; reserve-ahead | Needs the obligation model + honest assumptions | Needs forecast service + reserve-ahead | Planning sessions; fewer surprises |
-| 4 | **Decision consequences** | "Can I afford this EMI / purchase / prepayment?" | Generic calculators ignore your month | Scenario = temporary rules applied to the forecast | Needs forecast + obligations + goals together | Scenario evaluation over forecast (no persistence) | Used at every big decision - high trust moment |
+| 2 | **Money unlocking** | "When does this get easier?" | Only single-purpose debt apps show freed cash, cut off from the rest of the month | Loan schedules + obligation end dates → freed ₹/month by date | Needs loans + obligations joined to months | Loan model exists; needs forecast service | Monthly anticipation, milestone moments |
+| 3 | **The months ahead** (12-month obligation calendar) | Annual premiums, festivals, EMIs ending surprise people | Monarch/Copilot forecast balances (Monarch Plus multi-year, US); none lays out obligations, unlocks and flexibility month by month for Indian lives | Forecast of rules, one-offs, loans, annual items; reserve-ahead | Needs the obligation model + honest assumptions | Needs forecast service + reserve-ahead | Planning sessions; fewer surprises |
+| 4 | **Decision consequences** | "Can I afford this EMI / purchase / prepayment?" | Monarch Plus (long-horizon net worth) and YNAB Loan Planner (one loan) exist; none previews a decision on this month, the next 12 and every goal together | Scenario = temporary rules applied to the forecast | Needs forecast + obligations + goals together | Scenario evaluation over forecast (no persistence) | Used at every big decision - high trust moment |
 | 5 | **Recover without shame** | "I blew the month - now what?" | "Over budget" red numbers | Drift detection, priced options, remembered choice | Needs locked plan + variance attribution | Plan lock, change log, recovery plan | Returns exactly when users usually quit |
 | 6 | **Honest numbers** | "Can I trust this?" | Numbers without provenance; editable history | Provenance labels, calculation explanations, history kept | Cultural + architectural (derived, never stored) | Provenance + change log | Trust compounds |
 | 7 | **Goal chains** | Goals feel isolated | Goals are progress bars | When a goal completes, its contribution flows to the next | Needs goals as funded obligations | GOAL-sourced rules exist; add "then" link | Long-horizon momentum |
@@ -142,9 +179,11 @@ and behaviour layer:
 4. **Recover** - when a month drifts, priced options, your choice remembered (new).
 5. **Honest** - every number explains itself; history is kept (partly exists).
 
-Why this and not "AI finance" or "all in one place": each piece depends on the obligation
-model Kosh already has and competitors don't; together they answer questions people
-otherwise answer in a spreadsheet or not at all.
+Why this and not "AI finance" or "all in one place": each piece exists somewhere, but only
+as a separate product or a premium add-on on a calendar-month, bank-sync, US model. Kosh
+already has the obligation model that lets all five sit on one set of numbers, and it fits
+how Indian salaried households actually run. The combination, the India fit and the trust
+are the moat - not any single screen (§B.2).
 
 ---
 
@@ -258,7 +297,8 @@ no points, no nagging.
 3. Navigation to 5 + Add (Money tabs; Goals into Ahead as a placeholder list until Phase 2).
 4. Integrity P0 (plan lock, corrections with history) - *pending the parked D1-D8*.
 5. Month review at close (read-only version first).
-6. Import screen (backend exists) + entry memory - effort reduction.
+6. **Import screen (backend exists) + entry memory - effort reduction.** Raised in priority
+   after the retention research (§B.1): manual entry is the category's #1 churn cause.
 
 **Phase 2 - Differentiation**
 1. **Ahead**: 12-month obligation forecast (rules, one-offs, loans, annual items, expected
@@ -273,8 +313,12 @@ Baselines ("above your usual"), recurring detection → "add as bill", goal chai
 cover & goal ETAs from contributions, momentum indicators (direction, not score), yearly
 story.
 
-**Phase 4 - Advanced OS**
-Account Aggregator import, reminders by email/push built on insights, household/partner,
+**Phase 3.5 - Automation (brought forward from Phase 4)**
+Account Aggregator (consented, RBI-regulated) or bank-statement parsing, so entries arrive
+instead of being typed. Needs a compliance review; the Phase 1 import pipeline is where the
+data lands.
+
+**Phase 4 - Advanced OS** reminders by email/push built on insights, household/partner,
 auth/billing/export (SaaS gate), tax-season summary.
 
 ---
@@ -347,9 +391,9 @@ single month, **"goal"** for savings targets. Backend names stay.
 | # | Moment | Value | Differentiation | Complexity | Retention | Why it ranks here |
 |---|---|---|---|---|---|---|
 | 1 | "₹39,000 in the bank, **₹8,000 is actually yours**" (first Room) | ★★★★★ | ★★★★ | low (built) | ★★★★★ | The founding insight; the reason to open daily. |
-| 2 | "**₹13,400/month frees up by Dec 2027**" (unlock calendar) | ★★★★ | ★★★★★ | medium | ★★★★ | Turns debt from dread into momentum; nobody shows it. |
+| 2 | "**₹13,400/month frees up by Dec 2027**" (unlock calendar) | ★★★★ | ★★★★ | medium | ★★★★ | Turns debt from dread into momentum; debt apps show it for debt alone - Kosh ties it to the month and to goals. |
 | 3 | "IDBI won't cover the 5 Oct EMIs - move ₹4,200" (before it bounces) | ★★★★★ | ★★★★ | low (projection exists) | ★★★★ | Prevents a real cost (bounce fee, CIBIL). |
-| 4 | "This new EMI makes **Feb and Mar tight** and moves your EF goal by 5 months" | ★★★★★ | ★★★★★ | medium-high | ★★★ (episodic) | Highest-trust moment; decisions are where money is won or lost. |
+| 4 | "This new EMI makes **Feb and Mar tight** and moves your EF goal by 5 months" | ★★★★★ | ★★★★ | medium-high | ★★★ (episodic) | Highest-trust moment; Monarch Plus does long-horizon what-if, nobody does it on this month plus every goal. |
 | 5 | "Insurance ₹18,000 in March - **₹3,000/month from now** makes it painless" | ★★★★ | ★★★★ | medium | ★★★ | Converts anxiety into a plan. |
 | 6 | "October is ₹2,100 off plan - here are 3 ways back" | ★★★★ | ★★★★ | medium | ★★★★★ | Catches users at the moment they usually quit. |
 | 7 | "September in 60 seconds: what held, what drifted, why" | ★★★ | ★★★ | medium | ★★★★ | Monthly reason to return; feeds the next plan. |
@@ -463,6 +507,280 @@ cycles exist · momentum indicators until reviews exist · SaaS gate.
 
 ---
 
+
+## Q. Feature prioritisation framework
+
+Score 1-5 on each axis; **Complexity counts against**. Behavioural impact and trust are
+weighted double - they are what this product is for.
+
+| Feature | Value | Freq. | Behaviour ×2 | Differ. | Trust ×2 | Complexity (−) | Data needed | Retention | Money | **Verdict** |
+|---|---|---|---|---|---|---|---|---|---|---|
+| One hero number + "why" | 5 | 5 | 4 | 4 | 5 | 2 | exists | 5 | 3 | **MUST HAVE** |
+| Insight engine (≤3 items) | 5 | 5 | 4 | 3 | 4 | 3 | exists | 5 | 3 | **MUST HAVE** |
+| Import screen + entry memory | 5 | 5 | 2 | 1 | 3 | 3 | statements | 5 | 4 | **MUST HAVE** (churn) |
+| Plan lock + corrections with history | 4 | 3 | 5 | 4 | 5 | 4 | exists | 3 | 3 | **MUST HAVE** (parked design) |
+| Month review → next plan | 4 | 2 | 5 | 3 | 4 | 3 | lock + snapshot | 4 | 3 | **MUST HAVE** |
+| Ahead: 12-month obligations | 5 | 3 | 4 | 4 | 4 | 3 | exists | 4 | 4 | **HIGH-VALUE DIFFERENTIATOR** |
+| Money unlocking | 4 | 2 | 4 | 3 | 4 | 2 | loans exist | 4 | 3 | **HIGH-VALUE DIFFERENTIATOR** |
+| Reserve ahead (annual items) | 4 | 2 | 5 | 2 | 4 | 2 | exists | 3 | 3 | **HIGH-VALUE DIFFERENTIATOR** |
+| Decision preview (what-if) | 5 | 1 | 4 | 4 | 5 | 4 | forecast | 3 | 5 | **HIGH-VALUE DIFFERENTIATOR** (premium) |
+| Get back on track | 4 | 2 | 5 | 4 | 4 | 4 | lock | 5 | 4 | **HIGH-VALUE DIFFERENTIATOR** |
+| Goal chains | 3 | 1 | 3 | 3 | 3 | 2 | goals | 3 | 2 | **NICE TO HAVE** |
+| Momentum indicators | 3 | 1 | 3 | 2 | 3 | 3 | reviews | 3 | 2 | **NICE TO HAVE** (Phase 3) |
+| Yearly story | 3 | 1 | 3 | 2 | 3 | 3 | 12 snapshots | 3 | 3 | **NICE TO HAVE** |
+| Household | 4 | 3 | 2 | 2 | 3 | 5 | auth | 4 | 5 | **DEFER** (Phase 4) |
+| Account Aggregator | 5 | 5 | 1 | 1 | 3 | 5 | compliance | 5 | 4 | **Phase 3.5** |
+| Health score 0-100 | 2 | 2 | 1 | 1 | 1 | 2 | - | 2 | 2 | **DO NOT BUILD** |
+| Streaks / badges | 1 | 3 | 1 | 1 | 1 | 2 | - | 2 | 1 | **DO NOT BUILD** |
+| AI chat box | 2 | 2 | 1 | 1 | 2 | 3 | - | 2 | 3 | **DO NOT BUILD** |
+| Live market prices | 2 | 4 | 1 | 1 | 2 | 3 | feeds | 3 | 2 | **DO NOT BUILD** |
+
+---
+
+## R. "Available to spend" - the formula, and how it explains itself
+
+Illustrative, using the user's October plan on salary day (after the ₹57,700 lands):
+
+```
+In spending accounts now (incl. salary received)           ₹67,197   (actual, per account)
+− Still to pay this month (bills not yet paid)            −₹35,947   (planned)
+− Set aside this month (EF, SIP, RD not yet moved)        −₹10,000   (planned)
+− Owed on credit cards (statement + unbilled)                  −₹0   (actual)
+− Reserved (earmarked money, incl. reserve-ahead)              −₹0   (user)
+= Free until 27 Oct                                        ₹21,250
+÷ 30 days left                                              ₹708/day
+
+Before salary day, shown beneath, never added in:  + ₹57,700 expected on the 28th (forecast)
+```
+
+Rules:
+- **Expected income is shown separately, never mixed silently.** Before salary day the hero
+  says "₹X free until salary" (money in hand only) with "+₹57,700 expected on the 28th"
+  beneath; after it lands, it's part of the actual line. (Today's Real Balance excludes
+  expected income - keep that; the forecast line is an addition, clearly labelled.)
+- Every line is tappable → its entries / bills / accounts.
+- A figure with an unknown amount shows "at most" and names the bill.
+- Per-account view on tap: "IDBI: ₹709, ₹17,290 leaves before the 10th → short ₹16,581
+  unless you move money in."
+
+---
+
+## S. Guardrails - "can I afford this?"
+
+A lightweight check, not a restriction. Entry points: Today ("Can I afford…?"), and the
+Add sheet when an amount is large relative to Flexible.
+
+| Result | Rule (explainable) | Wording |
+|---|---|---|
+| **Fits** | amount ≤ flexible remaining − the rest of this month's usual daily spending | "Fits: ₹X left for the rest of the month after it." |
+| **Tight** | fits this month but leaves less than N days of your usual spending, or a later month in Ahead goes negative | "Fits, but leaves ₹X for 12 days (you usually spend ₹Y)." |
+| **Doesn't fit** | exceeds flexible remaining | "₹X more than what's free until salary. Options: next month, from savings (EF cover drops to 1.2 months), or skip optional bills." |
+
+No red. No "you shouldn't". For a new EMI, the check runs as a scenario (§I2) across 12
+months: "Makes Feb and Mar tight; EF goal moves 5 months later."
+
+---
+
+## T. Future obligations and reserve-ahead
+
+- **What counts**: annual/quarterly bills (insurance, school fees, vehicle insurance, club
+  memberships), festivals (Diwali), known one-offs (a wedding, travel), tax payments.
+- **Ahead** lists them by month with "₹X/month from now makes this comfortable" =
+  amount ÷ months remaining (shown as a suggestion).
+- **"Reserve monthly"** (one tap) creates a monthly set-aside tied to that obligation
+  (reservation linked to the bill, §I7). The reservation reduces Free, so the money is
+  *already* spoken for when March comes; paying the bill releases it.
+- Not unique (YNAB true expenses, Simplifi) - but here it's on the same numbers as
+  everything else, and it covers Indian specifics (Diwali, annual premiums, school terms).
+
+---
+
+## U. Debt as a first-class object
+
+**Already built:** lender, account, outstanding, as-of, EMIs left, next EMI, EMI, day,
+rate, tenure, principal, dates, paid via bank/card, pay-from, payoff date, still to pay,
+outstanding today, terms consistency, estimator, plan bill that follows the loan,
+prepayment planning.
+
+**Missing, in order of value:**
+1. **Interest remaining** and **interest share of the next EMI** (needs a rate; else
+   INCOMPLETE "needs a rate").
+2. **Unlock date and amount** per loan, and the household **unlock calendar**.
+3. **Prepayment what-if**: months and interest saved for ₹X once, or ₹Y/month extra
+   (YNAB-style, but tied to the month and goals); Adopt plans the one-off.
+4. **Costliest first**: order by rate; note when a prepayment beats investing (rate vs a
+   stated expected return - labelled as an assumption).
+5. **Foreclosure value** (lender-specific; user-entered checkpoint, never guessed).
+6. **Loan checkpoints** (statements over time) - the integrity design M6.
+7. **Refinancing** - DEFER (needs lender data; low frequency).
+
+---
+
+## V. Trajectory - honest projection
+
+- **Horizons**: 3 / 6 / 12 months in Ahead (obligation-level detail); 24-60 months only as
+  a coarse line (debt-free date, goal dates, monthly flexibility) - longer horizons
+  compound assumptions.
+- **Every figure carries its kind**: Actual (past), Planned (rules), Forecast (derived from
+  rules + loans), Assumption (income stays ₹57,700; spending at your usual), Scenario
+  (what-if overlays). Assumptions are listed on the screen and editable only as scenario
+  inputs.
+- **Confidence**: months beyond known obligations say "assumes your usual spending of ₹X
+  (median of 3 months)"; with fewer than 3 closed months, "assumes flexible is spent in full".
+- **Never**: point predictions of market returns, "you'll be a crorepati by…".
+
+---
+
+## W. Financial health - decision
+
+**Do not build a score.** Build a **Standing** line (from `design/PRODUCT_STRATEGY.md` §3.4)
+with named dimensions, shown only once there's enough data (3 closed months):
+
+| Dimension | Basis |
+|---|---|
+| Liquidity | spendable + EF ÷ monthly must-pay (months covered) |
+| Commitment load | committed ÷ income |
+| Debt pressure | EMIs ÷ income; high-rate debt outstanding |
+| Savings consistency | planned savings actually made, last 3 months |
+| Readiness | future obligations with reserve-ahead in place |
+
+Show three phrases, not numbers-as-grades: **strongest area**, **biggest vulnerability**,
+**improving**. If after testing it reads as a verdict or invites gaming, remove it -
+nothing else depends on it.
+
+---
+
+## X. Personal financial memory
+
+Kosh already stores intent next to facts: a bill's **Why** and **If skipped**, loan notes,
+goal names. Extend carefully:
+
+| Kind | Example | Stored as | Shown as |
+|---|---|---|---|
+| Fact | ₹40,000 moved to HDFC Premium on 3 Nov | transaction | the record |
+| User note | "Top-up from Diwali bonus" | note on the plan item / transaction | quote, in the user's words |
+| Decision | "Stopped RD from Nov to raise EF contribution" | plan revision reason (integrity M3) | "You decided on 18 Sep: …" |
+| Assumption | salary stays ₹57,700 | forecast input | labelled "assumption" |
+| System interpretation | "Dining ₹2,100 above your usual" | computed, never stored | labelled "Kosh noticed" |
+
+Rule: the system never writes into the user's notes and never presents its interpretation
+as the user's reason.
+
+---
+
+## Y. Where AI (or any inference) belongs
+
+| Job | Where it appears | Method | Label |
+|---|---|---|---|
+| **Explain** "why is this month different?" | Month → What changed | rules over variance (no LLM needed) | "Kosh noticed" |
+| **Detect** trends, recurring, anomalies | insights | statistics over history | "Looks like…" + confirm |
+| **Forecast** goal/debt dates | Ahead | deterministic projection | "Forecast, assumes…" |
+| **Consequences** of a decision | what-if | deterministic | "If you…" |
+| **Summarise** a month in 60 seconds | Review | templated from computed facts; an LLM may *phrase* it, never compute it | - |
+| **Suggest** categories/accounts | Add | description memory | chip, never auto-applied below high confidence |
+
+**Rule:** numbers are always computed deterministically; language models, if used at all,
+only phrase facts the system already computed. No free-form "ask anything" box.
+
+---
+
+## Z. Automation - observed, inferred, confirmed
+
+Every automated item has one of three states, visible:
+
+| State | Meaning | Example | Counts in figures? |
+|---|---|---|---|
+| **Observed** | came from a source (import, AA, match) | ₹6,145 debit on 5 Oct | yes, as actual |
+| **Inferred** | Kosh guessed | "₹649 to Spotify 4 months running - a subscription?" | **no** until confirmed |
+| **Confirmed** | the user accepted | Spotify added as a bill | yes |
+
+Automations worth building, in order: bill matching (built) → recurring detection → entry
+memory → import de-duplication (built backend) → month-end summary → forecast refresh on
+every write (derived, so automatic) → goal contribution suggestions.
+
+---
+
+## AA. Notifications philosophy
+
+Inside the app, the insight engine ranks everything. **Outside** the app (Phase 4 channels),
+only what would cost money or a deadline:
+
+| Level | Examples | Channel | Timing | Limit |
+|---|---|---|---|---|
+| **Critical** | account won't cover a payment in ≤3 days; card bill due in ≤2 days unpaid; salary not seen 2 days after pay day | push/email (opt-in) | once, morning | ≤1/day |
+| **Important** | month drifting > N%; annual obligation within 30 days without a reserve | in-app card; weekly digest | when detected | ≤3 visible |
+| **Insight** | above your usual; recurring detected; unlock next month | in-app only | on open | ≤3 visible |
+| **Milestone** | EMI ended, ₹X/month freed; EF reached 3 months; goal reached | in-app; optional digest | on the day | as they happen |
+
+Suppression: one item per key; snooze/dismiss (deferred SQL table); no repeats within 7
+days; nothing at night; batching into one morning digest; the user can turn any level off.
+**Never**: urgency language for non-urgent things, "you're missing out", daily "check your
+spending" nudges.
+
+---
+
+## AB. India-specific opportunities
+
+| Area | What to do | Not |
+|---|---|---|
+| Salary cycles | already the backbone | - |
+| EMIs incl. **card EMIs / no-cost EMI** | first-class; card EMIs inside the statement (built); unlock calendar | - |
+| UPI | fast capture is the main entry path; later, UPI SMS/AA import | a UPI payment app |
+| Credit cards | statement vs due cycle (built), utilisation, interest-free window | card recommendations |
+| SIP / RD / FD / PPF / EPF / NPS | commitments + dated value check-ins; EPF/NPS as "locked" holdings | fund recommendations, live NAVs |
+| Insurance premiums | annual obligations with reserve-ahead | selling insurance |
+| Festivals (Diwali), weddings | one-offs + reserve-ahead; bonus planning (built one-offs) | - |
+| Family support | a first-class commitment category ("support at home") | judgement |
+| Tax | quarterly advance tax / year-end tax as obligations; a year summary of 80C/80D items (Phase 4 report) | tax filing |
+| Account Aggregator | Phase 3.5 import path | aggregation as the product |
+
+---
+
+## AC. Convenience - the work Kosh removes
+
+Ranked by cognitive load removed: (1) "how much can I actually spend?" (2) "is there enough
+in *that* account for the EMI?" (3) remembering due dates (4) annual expenses sneaking up
+(5) "what happens after this loan ends?" (6) reconciling plan vs actual at month end
+(7) "can I afford this?" (8) typing every expense (import). Every feature on the roadmap
+maps to one of these; anything that maps to none is suspect.
+
+---
+
+## AD. Yearly story (Phase 3)
+
+From month snapshots and reviews (no re-summing raw history): income change; monthly
+flexibility change (the headline); debt reduced and ₹/month unlocked; EF months covered;
+savings consistency; goals progressed; the user's own notes on major decisions and
+recoveries. One scrolling page, in the user's words where they gave them. Needs I4 (month
+state) first.
+
+---
+
+## AE. Household (future) - architecture now, feature later
+
+Today every row carries `user_id` (ADR-0005). When couples arrive:
+- Introduce a **ledger/household** that owns accounts, rules and goals; `user_id` becomes
+  the actor (who recorded it) plus membership.
+- Per-account visibility (mine / shared / partner's), contribution ratios on shared bills.
+- Cost now: nothing, as long as new tables keep the `user_id` scoping pattern and no code
+  assumes "one user = one money world" beyond `CurrentUserProvider`. Don't build it early.
+
+---
+
+## AF. Performance and scale
+
+| Load | Approach |
+|---|---|
+| 10 accounts, 10 years of entries | balances derive from checkpoints + entries since (M5), not all history; index `(user_id, account, date)` |
+| 100 recurring items × 12-month forecast | ~1,200 cheap rows per request; compute on read; cache per user, invalidated on write |
+| Insights | one `FinancialContext` per request; rules read it, never query |
+| Month history | closed-month snapshots (I4) so reviews and the yearly story don't re-sum raw data |
+| Background jobs | none needed at single-user scale; Phase 4 digests use a scheduled job |
+
+Avoid: event sourcing, CQRS, projection tables - premature at this scale.
+
+---
+
 ## P. Decisions needed (when the user is ready)
 
 | # | Decision | Recommendation |
@@ -474,3 +792,26 @@ cycles exist · momentum indicators until reviews exist · SaaS gate.
 | S5 | Build the forecast service as the backbone of Phase 2? | Yes - Ahead, unlocks, reserve-ahead and what-if all sit on it. |
 | S6 | Confirm the DO-NOT-BUILD list (§N) | Yes. |
 | S7 | Name for the future tab: "Ahead" / "Future" / "Plan" | "Ahead" - short, forward, not confused with the month's plan. |
+| S8 | Bring automation forward: import screen in Phase 1, Account Aggregator / statement parsing in Phase 3.5 (was Phase 4)? | Yes - the retention research makes manual entry the biggest risk to the whole thesis (§B.1-B.2). |
+| S9 | Accept §B.2's positioning: no single feature is unique; the combination, India fit and independence are the edge? | Yes - and stop claiming individual features as firsts in other docs (`PRODUCT_DIFFERENTIATION.md` needs this correction). |
+
+---
+
+## Sources (research on 2026-09-18)
+
+- [Forecasting in Monarch - Monarch Help](https://help.monarch.com/hc/en-us/articles/48344305092244-Forecasting-in-Monarch)
+- [Monarch Money Review 2026 - The Penny Hoarder](https://www.thepennyhoarder.com/budgeting/monarch-money-review/)
+- [Monarch Money Review 2026 - WalletGrower](https://walletgrower.com/blog/monarch-money-review-2026)
+- [YNAB Loan Planner](https://www.ynab.com/blog/ynab-loan-planner)
+- [How to Use Targets in YNAB](https://support.ynab.com/en_us/how-to-use-targets-rk5kkI9ks)
+- [Understanding your Spending Plan - Quicken Simplifi](https://support.simplifi.quicken.com/en/articles/4212702-understanding-your-spending-plan)
+- [Copilot Money Review 2026 - WalletGrower](https://walletgrower.com/blog/copilot-money-review-2026)
+- [Cash Flow Tab Overview - Copilot Help](https://help.copilot.money/en/articles/9682232-cash-flow-tab-overview)
+- [Payoff: Smart Debt Planner - Google Play](https://play.google.com/store/apps/details?id=com.payoffplanner.app&hl=en-US)
+- [FinProjection](https://finprojection.com/)
+- [India neobank Fi winds down banking services - Yahoo Finance / TechCrunch](https://finance.yahoo.com/news/india-neobank-fi-winds-down-221744130.html)
+- [axio: Income & Expense Tracker - Google Play](https://play.google.com/store/apps/details?id=com.daamitt.walnut.app&hl=en_IN)
+- [INDmoney credit card bill tracker](https://www.indmoney.com/features/track-credit-card-bills)
+- [Why 67% of people who try budgeting apps quit within 30 days - Strategia-X](https://www.strategia-x.com/blog/2026-04-12-why-budgeting-apps-fail-30-days-fintech-ux-data/)
+- [Why personal finance apps fail at user retention - Product Growth](https://www.productgrowth.blog/p/personal-finance-app-user-retention)
+- Earlier research with its own sources: `COMPETITIVE_ANALYSIS.md`.

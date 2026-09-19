@@ -21,7 +21,7 @@ interface MonthCruxProps {
  * terms rather than Today's per-day terms. MONTH_EXPERIENCE.md §4, §12.
  *
  * <p>Now states where the figure comes from, the way Today's hero does. The same number
- * appears on both screens under different names ("Free for the rest of this cycle" here,
+ * appears on both screens under different names ("Free until salary" here,
  * "Real balance" on Today) and nothing said they were one figure. Every sentence only
  * names facts already on the position/cycle responses - no money is computed here.
  */
@@ -41,7 +41,7 @@ export function MonthCrux({ position, cycle, isLoading }: MonthCruxProps) {
   if (position.state === 'INCOMPLETE') {
     return (
       <div className="flex flex-col gap-space-3">
-        <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">Free for the rest of this cycle</span>
+        <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">Free until salary</span>
         <UnknownState reason={position.reason} />
         <PositionBlockers blockers={position.blockers} />
       </div>
@@ -65,12 +65,12 @@ export function MonthCrux({ position, cycle, isLoading }: MonthCruxProps) {
 
   return (
     <div className="flex flex-col gap-space-2">
-      <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">Free for the rest of this cycle</span>
+      <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">Free until salary</span>
       <Amount value={animated} role="hero" className={negative ? undefined : 'text-accent'} emphasiseNegative />
       <p className="max-w-[40rem] text-body text-ink-soft">{verdict}</p>
       <p className="max-w-[40rem] text-caption text-ink-muted">
-        What’s in your bank and cash, minus what you’ve reserved and every bill still due before salary on{' '}
-        {formatSalaryDate(cycle.endDate)}. Today splits this same figure into a share for each day.
+        What’s in your bank and cash, minus what you’ve reserved, every bill still due and what’s owed on cards, until
+        salary on {formatSalaryDate(cycle.endDate)} - the same figure as Today’s.
       </p>
     </div>
   );
