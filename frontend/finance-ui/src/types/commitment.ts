@@ -97,6 +97,35 @@ export interface PlanCategoryGroup {
 }
 
 /** Plan's "Standing" mirror line. */
+/** GET /cycles/{id}/review - a month against its plan ("planned" = the plan as it stands now). */
+export interface CycleReviewResponse {
+  incomeExpected: Money;
+  incomeReceived: Money;
+  paymentsPlanned: Money;
+  paymentsPaid: Money;
+  paymentsCount: number;
+  paymentsPaidCount: number;
+  setAsidePlanned: Money;
+  setAsideMade: Money;
+  /** Absent when nothing was coming in. */
+  flexible?: Money;
+  spentOutsidePlan: Money;
+  notDone: CycleReviewItem[];
+  skipped: CycleReviewItem[];
+  differences: { instanceId: number; name: string; planned: Money; actual: Money; difference: Money }[];
+  largestUnplanned: { transactionId: number; description: string; date: string; amount: Money; category?: string }[];
+}
+
+export interface CycleReviewItem {
+  instanceId: number;
+  name: string;
+  amount?: Money;
+  dueDate: string;
+  mandatory: boolean;
+  /** A set-aside item (savings, SIP) rather than a payment. */
+  savings: boolean;
+}
+
 /** GET /cycles/{id}/shape - expected in − committed − planned savings = flexible. */
 export interface CycleShapeResponse {
   /** NO_INCOME: nothing coming in, so no flexible figure. INCOMPLETE: a bill needs an amount - flexible is an upper bound. */

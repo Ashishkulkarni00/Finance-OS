@@ -52,6 +52,7 @@ export const {
   useGetCyclesQuery,
   useGetCycleQuery,
   useLazyGetCycleForDateQuery,
+  useGetCycleForDateQuery,
   useGetCycleSnapshotQuery,
   useGetCycleSummaryQuery,
   useGetFlexibleSpendingQuery,

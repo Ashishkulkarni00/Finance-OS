@@ -110,6 +110,26 @@ public interface CommitmentInstanceRepository extends JpaRepository<CommitmentIn
                                      @Param("to") java.time.LocalDate to);
 
     /**
+     * The largest entries of one type in a date range that pay no bill occurrence - the
+     * month review's "biggest unplanned spending". Pass a page size to limit.
+     */
+    @Query("""
+            select t from Transaction t
+            where t.userId = :userId and t.deletedAt is null
+              and t.type = :type
+              and t.date between :from and :to
+              and not exists (select 1 from CommitmentInstance ci
+                              where ci.userId = :userId and ci.linkedTransactionId = t.id)
+            order by t.amount desc
+            """)
+    List<com.finance.transaction.domain.Transaction> findLargestUnlinked(
+            @Param("userId") Long userId,
+            @Param("type") com.finance.transaction.domain.TransactionType type,
+            @Param("from") java.time.LocalDate from,
+            @Param("to") java.time.LocalDate to,
+            org.springframework.data.domain.Pageable page);
+
+    /**
      * Un-retires a soft-deleted occurrence of this rule in this cycle. Returns rows restored.
      *
      * <p>Native, deliberately: the entity's {@code @SQLRestriction} hides deleted rows from

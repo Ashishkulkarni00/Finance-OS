@@ -44,7 +44,17 @@ export function addTargetFor(pathname: string, search: string): AddTarget {
     case 'investments':
       return { kind: 'holding' };
     case 'goals':
+    case 'ahead':
       return { kind: 'goal' };
+    case 'money':
+      // /money/<tab>: add what that tab lists.
+      return id === 'cards'
+        ? { kind: 'card' }
+        : id === 'debts'
+          ? { kind: 'loan' }
+          : id === 'investments'
+            ? { kind: 'holding' }
+            : { kind: 'account' };
     default:
       return { kind: 'transaction' };
   }

@@ -1,8 +1,8 @@
 import { PagePrimer } from '@/components/PagePrimer';
 
 const RULES = [
-  { term: 'Room left', means: 'your share for today' },
-  { term: 'Real balance', means: 'held − reserved − bills still due − owed on credit cards' },
+  { term: 'Free until salary', means: 'held − reserved − bills still due − owed on credit cards' },
+  { term: 'A day', means: 'that, spread over the days to salary' },
   { term: 'Needs you', means: 'act on it now' },
 ];
 

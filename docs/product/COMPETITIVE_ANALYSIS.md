@@ -1,6 +1,6 @@
 # Competitive Analysis
 
-Researched September 2026. Sources listed at the end.
+Researched September 2026. Sources listed at the end. **Updated 2026-09-18:** several "market is empty" rows below are too strong - Monarch Plus now has multi-year forecasting and what-if, YNAB has a Loan Planner, and debt apps show freed cash. The corrected view is `STRATEGY_DEEP_DIVE.md` §B.
 
 ---
 
@@ -59,7 +59,7 @@ And the category's central failure:
 | **axio** (ex-Walnut) | Lending + BNPL | SMS auto-tracking, decent | Now a credit product; budgeting is the funnel |
 | **Money View** | Lending | Best automatic tracking in India | Same — a loan app with a tracker attached |
 | **Jupiter** | Neobank | AI expense analytics, AA-connected | Requires banking with them |
-| **Fi Money** | Neobank | Good insights, AA-connected | Same |
+| **Fi Money** | Neobank | Good insights, AA-connected | **Banking shut down in 2026** (customers moved to Federal Bank's app) - see `STRATEGY_DEEP_DIVE.md` §B |
 | **INDmoney** | Investing | Best aggregation, AA-connected | Investment-led; budgeting is thin |
 | **ET Money** | Investing | Decent tracker | Sells mutual funds |
 | **Cred** | Card payments + rewards | Card-centric | Not a finance manager |

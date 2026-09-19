@@ -23,6 +23,11 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
 
     Optional<Transaction> findByIdAndUserIdAndDeletedAtIsNull(Long id, Long userId);
 
+    /** The latest entry of this kind with the same description - where a statement row's
+     *  category is suggested from (the user's own past choice, never a guess). */
+    Optional<Transaction> findFirstByUserIdAndTypeAndDescriptionIgnoreCaseAndDeletedAtIsNullOrderByDateDescIdDesc(
+            Long userId, com.finance.transaction.domain.TransactionType type, String description);
+
     @Query("""
             select t.id as id, t.date as date from Transaction t
             where t.id in :ids

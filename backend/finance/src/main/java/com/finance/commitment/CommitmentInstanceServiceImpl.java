@@ -321,24 +321,10 @@ public class CommitmentInstanceServiceImpl implements CommitmentInstanceService 
                 unknown++;
                 continue;
             }
-            // Money moved or invested out of an account that isn't spending money (cash kept
-            // for the emergency fund) was set aside already - it isn't taken from this month's income.
-            if ((kind == TransactionType.INVESTMENT || kind == TransactionType.TRANSFER)
-                    && !accountService.getByIdIncludingDeleted(commitment.getAccountId()).countsAsSpendable()) {
-                continue;
-            }
-            if (kind == TransactionType.INVESTMENT) {
-                savings = savings.add(amount);
-            } else if (kind == TransactionType.TRANSFER) {
-                Account to = accountService.getByIdIncludingDeleted(commitment.getToAccountId());
-                if (to.getType() == AccountType.CREDIT_CARD || to.getType() == AccountType.LOAN) {
-                    committed = committed.add(amount);   // paying a debt is spoken-for money
-                } else if (!to.countsAsSpendable()) {
-                    savings = savings.add(amount);       // set aside
-                }
-                // Between two spendable accounts: neither.
-            } else {
-                committed = committed.add(amount);
+            switch (bucketOf(commitment)) {
+                case PAYMENT -> committed = committed.add(amount);
+                case SET_ASIDE -> savings = savings.add(amount);
+                default -> { }
             }
         }
 
@@ -356,6 +342,112 @@ public class CommitmentInstanceServiceImpl implements CommitmentInstanceService 
 
         return new CycleShape(state, income, standing.incomeExpectedTotal(), committed, savings, flexible, unknown,
                 spent, spentShare, elapsed(cycle));
+    }
+
+    /** Which part of the month's outline a plan item belongs to - one definition for the
+     *  outline (shape) and the review, so they can't disagree. */
+    enum Bucket { INCOME, PAYMENT, SET_ASIDE, NEITHER }
+
+    private Bucket bucketOf(Commitment commitment) {
+        TransactionType kind = commitment.getSettleAs();
+        if (kind == TransactionType.INCOME) {
+            return Bucket.INCOME;
+        }
+        // Money moved or invested out of an account that isn't spending money (cash kept for
+        // the emergency fund) was set aside already - it isn't taken from this month's income.
+        if ((kind == TransactionType.INVESTMENT || kind == TransactionType.TRANSFER)
+                && !accountService.getByIdIncludingDeleted(commitment.getAccountId()).countsAsSpendable()) {
+            return Bucket.NEITHER;
+        }
+        if (kind == TransactionType.INVESTMENT) {
+            return Bucket.SET_ASIDE;
+        }
+        if (kind == TransactionType.TRANSFER) {
+            Account to = accountService.getByIdIncludingDeleted(commitment.getToAccountId());
+            if (to.getType() == AccountType.CREDIT_CARD || to.getType() == AccountType.LOAN) {
+                return Bucket.PAYMENT;   // paying a debt is spoken-for money
+            }
+            return to.countsAsSpendable() ? Bucket.NEITHER : Bucket.SET_ASIDE;
+        }
+        return Bucket.PAYMENT;
+    }
+
+    private static final int LARGEST_UNPLANNED = 3;
+
+    @Override
+    @Transactional
+    public CycleReview review(Long cycleId) {
+        Cycle cycle = cycleService.getById(cycleId);
+        Long userId = currentUser.currentUserId();
+        CycleShape shape = shape(cycleId);
+        List<CommitmentInstanceView> views = listForCycle(cycleId);
+        CommitmentPlanProgress progress = planProgress(views);
+
+        BigDecimal incomeExpected = BigDecimal.ZERO;
+        BigDecimal paymentsPlanned = BigDecimal.ZERO, paymentsPaid = BigDecimal.ZERO;
+        BigDecimal setAsidePlanned = BigDecimal.ZERO, setAsideMade = BigDecimal.ZERO;
+        int paymentsCount = 0, paymentsPaidCount = 0;
+        List<CycleReview.Item> notDone = new java.util.ArrayList<>();
+        List<CycleReview.Item> skipped = new java.util.ArrayList<>();
+        List<CycleReview.Difference> differences = new java.util.ArrayList<>();
+
+        for (CommitmentInstanceView view : views) {
+            CommitmentInstance instance = view.instance();
+            Commitment commitment = view.commitment();
+            Bucket bucket = bucketOf(commitment);
+            BigDecimal planned = instance.getExpectedAmount() != null ? instance.getExpectedAmount() : instance.getConfirmedAmount();
+            if (bucket == Bucket.INCOME) {
+                incomeExpected = incomeExpected.add(orZero(instance.getExpectedAmount()));
+                continue;
+            }
+            if (bucket == Bucket.NEITHER) {
+                continue;
+            }
+            boolean savings = bucket == Bucket.SET_ASIDE;
+            if (instance.getStatus() == CommitmentInstanceStatus.SKIPPED) {
+                skipped.add(new CycleReview.Item(instance.getId(), commitment.getName(), planned, instance.getDueDate(),
+                        commitment.isMandatory(), savings));
+                continue;
+            }
+            boolean done = instance.getStatus().isClosed() || instance.getStatus() == CommitmentInstanceStatus.UNVERIFIED;
+            if (savings) {
+                setAsidePlanned = setAsidePlanned.add(orZero(planned));
+                if (done) {
+                    setAsideMade = setAsideMade.add(orZero(instance.getConfirmedAmount()));
+                }
+            } else {
+                paymentsCount++;
+                paymentsPlanned = paymentsPlanned.add(orZero(planned));
+                if (done) {
+                    paymentsPaidCount++;
+                    paymentsPaid = paymentsPaid.add(orZero(instance.getConfirmedAmount()));
+                }
+            }
+            if (!done) {
+                notDone.add(new CycleReview.Item(instance.getId(), commitment.getName(), instance.outstanding(),
+                        instance.getDueDate(), commitment.isMandatory(), savings));
+            }
+            BigDecimal variance = instance.variance();
+            if (variance != null && variance.signum() != 0) {
+                differences.add(new CycleReview.Difference(instance.getId(), commitment.getName(),
+                        instance.getExpectedAmount(), instance.getConfirmedAmount(), variance));
+            }
+        }
+        differences.sort(Comparator.comparing((CycleReview.Difference d) -> d.difference().abs()).reversed());
+
+        BigDecimal otherIncome = repository.sumUnlinked(userId, TransactionType.INCOME, cycle.getStartDate(), cycle.getEndDate());
+        BigDecimal incomeReceived = progress.incomeReceivedTotal().add(otherIncome);
+
+        List<CycleReview.Spend> largest = repository.findLargestUnlinked(userId, TransactionType.EXPENSE,
+                        cycle.getStartDate(), cycle.getEndDate(),
+                        org.springframework.data.domain.PageRequest.of(0, LARGEST_UNPLANNED)).stream()
+                .map(t -> new CycleReview.Spend(t.getId(), t.getDescription(), t.getDate(), t.getAmount(),
+                        t.getCategoryId() == null ? null : categoryService.getByIdIncludingDeleted(t.getCategoryId()).getName()))
+                .toList();
+
+        return new CycleReview(incomeExpected, incomeReceived, paymentsPlanned, paymentsPaid, paymentsCount,
+                paymentsPaidCount, setAsidePlanned, setAsideMade, shape.flexible(), shape.spent(),
+                notDone, skipped, differences.stream().limit(5).toList(), largest);
     }
 
     /** Share of the cycle's days gone, today included. */

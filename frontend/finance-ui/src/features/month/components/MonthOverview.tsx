@@ -30,23 +30,28 @@ interface MonthOverviewProps {
  * be taken from don't exist yet, and borrowing today's would state October's free money
  * with a confidence nobody has.
  */
-function PlannedAhead({ cycle, progress, instances }: { cycle: CycleResponse; progress?: CommitmentPlanProgressResponse; instances?: CommitmentInstanceResponse[] }) {
-  const count = instances?.length ?? 0;
-  const unknown = (instances ?? []).filter((i) => i.expectedAmount == null).length;
+function PlannedAhead({ cycle, instances }: { cycle: CycleResponse; progress?: CommitmentPlanProgressResponse; instances?: CommitmentInstanceResponse[] }) {
+  // Bills only - expected income has its own line in the plan. The month's money figures
+  // live in the outline above (comes in − committed − set aside = flexible); a second big
+  // "planned" total here disagreed with it, so this block only counts (decision S3).
+  const bills = (instances ?? []).filter((i) => i.settleAs !== 'INCOME');
+  const unknown = bills.filter((i) => i.expectedAmount == null).length;
 
   return (
     <div className="flex flex-col gap-space-2">
-      <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">Planned for this cycle</span>
-      {progress ? <Amount value={progress.plannedTotal} role="hero" className="text-ink" /> : <Skeleton className="h-12 w-48" />}
+      <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">Planned ahead</span>
+      <p className="text-section text-ink">
+        {bills.length === 0 ? 'Nothing planned yet' : `${bills.length} ${bills.length === 1 ? 'payment' : 'payments'} planned`}
+      </p>
       <p className="max-w-[40rem] text-body text-ink-soft">
-        {count === 0
-          ? 'Nothing planned yet — add the bills you expect this month.'
-          : `${count} ${count === 1 ? 'bill' : 'bills'} planned${
-              unknown > 0 ? ` · ${unknown} still ${unknown === 1 ? 'needs' : 'need'} an amount, so it’s at least this` : ''
-            }.`}
+        {bills.length === 0
+          ? 'Add the bills you expect this month.'
+          : unknown > 0
+            ? `${unknown} still ${unknown === 1 ? 'needs' : 'need'} an amount - the outline above is an upper limit until then.`
+            : 'Every one has an amount.'}
       </p>
       <p className="max-w-[40rem] text-caption text-ink-muted">
-        What’s free for this month appears once it starts on {formatShortDate(cycle.startDate)} — it depends on your
+        What’s free until salary appears once the month starts on {formatShortDate(cycle.startDate)} - it depends on your
         balances then, which aren’t known yet.
       </p>
     </div>

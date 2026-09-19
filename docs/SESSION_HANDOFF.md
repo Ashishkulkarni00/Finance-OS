@@ -63,11 +63,12 @@ Rewritten from scratch 2026-09-17 (end of day).
   - Money is never counted twice; the user is never judged.
 
 ## 3. What exists (feature map)
+- **Navigation (since 2026-09-18):** Today · Months · Ahead · Money (tabs: Overview · Cards · Debts · Investments) · Ledger, plus Add.
 - **Accounts:**
   - Typed accounts (bank, cash, card, loan, investment); "spending money?" decides what counts as held.
   - "Update balance" re-bases the opening anchor. This is design hole H6.
   - Net worth has a confidence label.
-- **Ledger:** double-entry transactions (income, expense, transfer, investment, refund), categories with Income/Fixed/Flexible groups, an import backend with no screen yet.
+- **Ledger:** double-entry transactions (income, expense, transfer, investment, refund), categories with Income/Fixed/Flexible groups, and **Import statement** (`/ledger/import`: bank/card CSV → review → import, categories remembered from past entries).
 - **Months** (`/month`, was "This Month"), for any salary month:
   - **MonthShape line:** comes in − committed − set aside = flexible, then spent and pace.
   - **Overview:** free this cycle, money in and out.
@@ -75,7 +76,7 @@ Rewritten from scratch 2026-09-17 (end of day).
   - **Plan:**
     - What's different this month, and a Coming-in block (salary).
     - Bills grouped **by date (default)** or by category, with Settle / Record it / Received / Skip.
-  - Day-to-day spending, and Month close (freezes a snapshot of actual totals).
+  - Day-to-day spending, and Month close (steps: confirm balances → resolve → **review against the plan** → what moved → close, which freezes a snapshot of actual totals).
 - **Bills (commitments):**
   - Rule → monthly rows.
   - Paid as expense / transfer / investment / income, and may follow a loan, holding or goal.

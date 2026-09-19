@@ -1,20 +1,21 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import { useGetCurrentCycleQuery, useGetCycleQuery, useGetCycleSummaryQuery, useCloseCycleMutation } from '@/services/cycleService';
+import { useGetCurrentCycleQuery, useGetCycleQuery, useCloseCycleMutation } from '@/services/cycleService';
 import { useGetCommitmentInstancesForCycleQuery } from '@/services/commitmentInstanceService';
 import { Button } from '@/components/Button';
 import { StepDots } from '@/features/monthClose/components/StepDots';
 import { ConfirmBalancesStep } from '@/features/monthClose/components/ConfirmBalancesStep';
 import { ResolveStep } from '@/features/monthClose/components/ResolveStep';
-import { WhatHappenedStep } from '@/features/monthClose/components/WhatHappenedStep';
+import { ReviewStep } from '@/features/monthClose/components/ReviewStep';
 import { WhatMovedStep } from '@/features/monthClose/components/WhatMovedStep';
-import { InsufficientHistoryStep } from '@/features/monthClose/components/InsufficientHistoryStep';
 import { CloseStep } from '@/features/monthClose/components/CloseStep';
 import type { CycleSnapshotResponse } from '@/types/cycle';
 import type { AppError } from '@/types/errors';
 
-const STEPS = ['confirm', 'resolve', 'happened', 'moved', 'history', 'close'] as const;
+// 'review' replaced "What happened" (totals only) and the "still learning your normal"
+// filler (2026-09-18): the month against its plan, and what's different next month.
+const STEPS = ['confirm', 'resolve', 'review', 'moved', 'close'] as const;
 
 export default function MonthClosePage() {
   const navigate = useNavigate();
@@ -32,7 +33,6 @@ export default function MonthClosePage() {
   const { data: explicitCycle, isLoading: explicitLoading } = useGetCycleQuery(explicitId ?? 0, { skip: explicitId == null });
   const cycle = explicitId != null ? explicitCycle : currentCycle;
   const cycleLoading = explicitId != null ? explicitLoading : currentLoading;
-  const { data: summary, isLoading: summaryLoading } = useGetCycleSummaryQuery(cycle?.id ?? 0, { skip: !cycle });
   const { data: instances, isLoading: instancesLoading } = useGetCommitmentInstancesForCycleQuery(cycle?.id ?? 0, {
     skip: !cycle,
   });
@@ -98,9 +98,8 @@ export default function MonthClosePage() {
 
       {STEPS[step] === 'confirm' && <ConfirmBalancesStep />}
       {STEPS[step] === 'resolve' && <ResolveStep instances={instances} isLoading={instancesLoading} />}
-      {STEPS[step] === 'happened' && <WhatHappenedStep summary={summary} isLoading={summaryLoading} />}
+      {STEPS[step] === 'review' && <ReviewStep cycle={cycle} />}
       {STEPS[step] === 'moved' && <WhatMovedStep />}
-      {STEPS[step] === 'history' && <InsufficientHistoryStep />}
       {STEPS[step] === 'close' && (
         <CloseStep
           onClose={handleClose}

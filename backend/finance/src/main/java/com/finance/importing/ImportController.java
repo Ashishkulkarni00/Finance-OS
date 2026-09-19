@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -43,6 +44,25 @@ public class ImportController {
         return ResponseEntity
                 .created(URI.create("/api/v1/imports/" + created.batch().getId()))
                 .body(mapper.toResponse(created));
+    }
+
+    /** A bank or card statement CSV for one account (the file people actually have). */
+    @PostMapping("/statement")
+    public ResponseEntity<ImportBatchResponse> uploadStatement(@RequestParam("file") MultipartFile file,
+                                                               @RequestParam("accountId") Long accountId) throws IOException {
+        if (file.isEmpty()) {
+            throw new BusinessRuleException(ErrorCode.VALIDATION_FAILED, "The uploaded file is empty.", "file");
+        }
+        ImportView created = service.uploadStatement(file.getOriginalFilename(), file.getInputStream(), accountId);
+        return ResponseEntity
+                .created(URI.create("/api/v1/imports/" + created.batch().getId()))
+                .body(mapper.toResponse(created));
+    }
+
+    @PatchMapping("/{id}/rows/{rowId}")
+    public ImportBatchResponse updateRow(@PathVariable Long id, @PathVariable Long rowId,
+                                         @Valid @RequestBody com.finance.importing.dto.UpdateImportRowRequest request) {
+        return mapper.toResponse(service.updateRow(id, rowId, request));
     }
 
     @GetMapping("/{id}")

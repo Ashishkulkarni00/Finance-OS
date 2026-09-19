@@ -23,7 +23,7 @@ const verb = (r: CommitmentResponse) => (r.settleAs === 'INCOME' ? 'comes in' : 
  * Read from the rules' own dates (PLANNED_CHANGES.md §2.2); renders nothing when the month
  * is like the one before.
  */
-export function PlanChanges({ cycle }: { cycle: CycleResponse | undefined }) {
+export function PlanChanges({ cycle, title = 'What’s different this month' }: { cycle: CycleResponse | undefined; title?: string }) {
   const { data: page } = useGetCommitmentRulesQuery();
   if (!cycle || !page) return null;
 
@@ -79,7 +79,7 @@ export function PlanChanges({ cycle }: { cycle: CycleResponse | undefined }) {
     <div className="mb-space-6 flex items-start gap-space-3 rounded-xl border border-line bg-surface p-space-4">
       <CalendarClock size={18} strokeWidth={1.5} className="mt-0.5 shrink-0 text-accent" aria-hidden />
       <div className="flex min-w-0 flex-col gap-space-1">
-        <p className="text-body text-ink">What’s different this month</p>
+        <p className="text-body text-ink">{title}</p>
         <ul className="flex flex-col gap-space-1">
           {changes.map((c) => (
             <li key={c.key} className="text-caption text-ink-soft">

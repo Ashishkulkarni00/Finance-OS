@@ -1,20 +1,25 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { Compass, Calendar, Wallet, Target, Receipt, Landmark, TrendingUp, Plus, CreditCard } from 'lucide-react';
+import { Compass, Calendar, Wallet, Target, Receipt, Plus } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useAppDispatch } from '@/store/hooks';
 import { openAddSheet, openPageAdd } from '@/store/slices/uiSlice';
 import { ADD_LABEL, addTargetFor } from './addTarget';
 
+/**
+ * Five places, by what people come to do (STRATEGY_DEEP_DIVE §D, decision S2) - not one per
+ * database entity. `owns` lists the path prefixes that belong to each, so a detail page
+ * (one card, one loan, one bill) keeps its section lit.
+ */
 const NAV_ITEMS = [
-  { to: '/today', label: 'Today', icon: Compass },
-  { to: '/ledger', label: 'Ledger', icon: Receipt },
-  { to: '/month', label: 'Months', icon: Calendar },
-  { to: '/accounts', label: 'Accounts', icon: Wallet },
-  { to: '/cards', label: 'Cards', icon: CreditCard },
-  { to: '/debts', label: 'Debts', icon: Landmark },
-  { to: '/investments', label: 'Investments', icon: TrendingUp },
-  { to: '/goals', label: 'Goals', icon: Target },
+  { to: '/today', label: 'Today', icon: Compass, owns: ['/today'] },
+  { to: '/month', label: 'Months', icon: Calendar, owns: ['/month', '/commitments', '/commitment-rules'] },
+  { to: '/ahead', label: 'Ahead', icon: Target, owns: ['/ahead', '/goals'] },
+  { to: '/money', label: 'Money', icon: Wallet, owns: ['/money', '/accounts', '/cards', '/loans'] },
+  { to: '/ledger', label: 'Ledger', icon: Receipt, owns: ['/ledger'] },
 ] as const;
+
+const isOwned = (pathname: string, owns: readonly string[]) =>
+  owns.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 
 /** Desktop left rail, 240px - DESIGN_SYSTEM §11. Add is a deliberate action, not a 5th destination.
  *  It adds what the current page lists, and its label says which (`addTargetFor`). */
@@ -47,14 +52,14 @@ export function NavRail() {
       </button>
 
       <ul className="flex flex-col gap-space-2">
-        {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
+        {NAV_ITEMS.map(({ to, label, icon: Icon, owns }) => (
           <li key={to}>
             <NavLink
               to={to}
-              className={({ isActive }) =>
+              className={() =>
                 cn(
                   'flex items-center gap-space-3 rounded-lg px-space-3 py-space-2 text-label transition-colors duration-150',
-                  isActive ? 'bg-accent-wash text-accent font-medium' : 'text-ink-soft hover:bg-sunken hover:text-ink',
+                  isOwned(pathname, owns) ? 'bg-accent-wash text-accent font-medium' : 'text-ink-soft hover:bg-sunken hover:text-ink',
                 )
               }
             >
