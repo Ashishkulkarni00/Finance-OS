@@ -17,3 +17,9 @@ export interface CreateReservationRequest {
   purpose: string;
   goalId?: number | null;
 }
+
+export interface UpdateReservationRequest {
+  amount?: Money;
+  purpose?: string;
+  goalId?: number | null;
+}

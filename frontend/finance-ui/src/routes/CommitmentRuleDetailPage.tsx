@@ -11,7 +11,12 @@ import { SectionHeader } from '@/components/SectionHeader';
 import { Skeleton } from '@/components/Skeleton';
 import { ErrorState } from '@/components/ErrorState';
 import { formatShortDate } from '@/lib/dates';
-import { useGetCommitmentRuleQuery, useGetCommitmentRuleInstancesQuery } from '@/services/commitmentRuleService';
+import {
+  useArchiveCommitmentRuleMutation,
+  useGetCommitmentRuleQuery,
+  useGetCommitmentRuleInstancesQuery,
+  useUnarchiveCommitmentRuleMutation,
+} from '@/services/commitmentRuleService';
 import type { CommitmentInstanceStatus } from '@/types/commitment';
 
 const FREQUENCY_LABEL: Record<string, string> = { MONTHLY: 'Monthly', QUARTERLY: 'Quarterly', ANNUAL: 'Annual' };
@@ -59,6 +64,18 @@ export default function CommitmentRuleDetailPage() {
   const [editing, setEditing] = useState(false);
 
   const { data: rule, isLoading, isError, refetch } = useGetCommitmentRuleQuery(id, { skip: !id });
+  const [archiveRule, { isLoading: archiving }] = useArchiveCommitmentRuleMutation();
+  const [unarchiveRule, { isLoading: unarchiving }] = useUnarchiveCommitmentRuleMutation();
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const run = async (action: () => Promise<unknown>) => {
+    setActionError(null);
+    try {
+      await action();
+    } catch (err) {
+      setActionError((err as { message?: string }).message ?? "That didn't work. Try again.");
+    }
+  };
   const { data: history } = useGetCommitmentRuleInstancesQuery(id, { skip: !id });
 
   if (isLoading) {
@@ -94,13 +111,34 @@ export default function CommitmentRuleDetailPage() {
         <div className="flex flex-wrap items-center justify-between gap-space-3">
           <div className="flex items-center gap-space-3">
             <h1 className="text-title text-ink">{rule.name}</h1>
-            {rule.mandatory && <StatusPill tone="neutral">Mandatory</StatusPill>}
+            {rule.mandatory && !rule.archived && <StatusPill tone="neutral">Mandatory</StatusPill>}
+            {rule.archived && <StatusPill tone="neutral">Stopped</StatusPill>}
           </div>
-          <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
-            <Pencil size={14} strokeWidth={1.5} />
-            Edit
-          </Button>
+          <span className="flex items-center gap-space-2">
+            {rule.archived ? (
+              <Button variant="secondary" size="sm" disabled={unarchiving} onClick={() => run(() => unarchiveRule(rule.id).unwrap())}>
+                Start it again
+              </Button>
+            ) : (
+              <>
+                <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
+                  <Pencil size={14} strokeWidth={1.5} />
+                  Edit
+                </Button>
+                <Button variant="ghost" size="sm" disabled={archiving} onClick={() => run(() => archiveRule(rule.id).unwrap())}>
+                  Stop it
+                </Button>
+              </>
+            )}
+          </span>
         </div>
+        {rule.archived && (
+          <p className="text-caption text-ink-muted">
+            Stopped: it no longer appears in any month from now on. Months it already ran in keep what was recorded, and
+            starting it again brings it back from this month.
+          </p>
+        )}
+        {actionError && <p className="text-caption text-critical">{actionError}</p>}
         {rule.why && <p className="font-serif text-editorial text-ink">{rule.why}</p>}
       </div>
       <EditCommitmentSheet commitmentId={editing ? rule.id : null} onClose={() => setEditing(false)} onDeleted={() => navigate(-1)} />

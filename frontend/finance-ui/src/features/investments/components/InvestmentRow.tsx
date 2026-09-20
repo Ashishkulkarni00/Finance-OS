@@ -7,6 +7,7 @@ import { formatShortDate } from '@/lib/dates';
 import { useRecordValuationMutation } from '@/services/investmentService';
 import { cn } from '@/lib/cn';
 import type { InvestmentResponse } from '@/types/investment';
+import { EditInvestmentSheet } from './EditInvestmentSheet';
 
 /** Beyond this, a valuation is old enough that presenting it as "what it's worth" would
  *  be overstating what we know. Three months is one quarter's statement. */
@@ -57,6 +58,7 @@ function GainLine({ investment }: { investment: InvestmentResponse }) {
  */
 export function InvestmentRow({ investment }: { investment: InvestmentResponse }) {
   const [editing, setEditing] = useState(false);
+  const [editingDetails, setEditingDetails] = useState(false);
   const [value, setValue] = useState('');
   const [recordValuation, { isLoading }] = useRecordValuationMutation();
 
@@ -146,9 +148,18 @@ export function InvestmentRow({ investment }: { investment: InvestmentResponse }
             className="num h-8 w-full rounded-md border border-accent bg-surface px-space-2 text-caption text-ink outline-none"
           />
         ) : (
-          <Button size="sm" variant="secondary" onClick={() => setEditing(true)}>
-            Value
-          </Button>
+          <span className="flex items-center gap-space-2">
+            <Button size="sm" variant="ghost" onClick={() => setEditingDetails(true)}>
+              Edit
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => setEditing(true)}>
+              Value
+            </Button>
+            {editingDetails && (
+              // Keyed so each opening starts from the holding's saved values.
+              <EditInvestmentSheet key={investment.id} investment={investment} open onClose={() => setEditingDetails(false)} />
+            )}
+          </span>
         )
       }
     />
