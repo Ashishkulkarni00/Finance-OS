@@ -45,7 +45,6 @@ public class LoanServiceImpl implements LoanService {
     private static final Logger log = LoggerFactory.getLogger(LoanServiceImpl.class);
 
     private final LoanRepository repository;
-    private final LoanPaymentRepository paymentRepository;
     private final AmortisationCalculator calculator;
     private final AccountService accountService;
     private final CurrentUserProvider currentUser;
@@ -54,7 +53,6 @@ public class LoanServiceImpl implements LoanService {
     private final CommitmentRepository commitmentRepository;
 
     public LoanServiceImpl(LoanRepository repository,
-                           LoanPaymentRepository paymentRepository,
                            AmortisationCalculator calculator,
                            AccountService accountService,
                            CurrentUserProvider currentUser,
@@ -62,7 +60,6 @@ public class LoanServiceImpl implements LoanService {
                            @Lazy CommitmentService commitmentService,
                            CommitmentRepository commitmentRepository) {
         this.repository = repository;
-        this.paymentRepository = paymentRepository;
         this.calculator = calculator;
         this.accountService = accountService;
         this.currentUser = currentUser;

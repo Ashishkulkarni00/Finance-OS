@@ -11,7 +11,6 @@ import com.finance.commitment.domain.CommitmentInstance;
 import com.finance.common.user.CurrentUserProvider;
 import com.finance.loan.AmortisationCalculator;
 import com.finance.loan.AmortisationEntry;
-import com.finance.loan.LoanPaymentRepository;
 import com.finance.loan.LoanRepository;
 import com.finance.loan.domain.Loan;
 import org.springframework.stereotype.Service;
@@ -40,7 +39,6 @@ public class TimelineServiceImpl implements TimelineService {
     private final CardStatementRepository cardStatementRepository;
     private final com.finance.card.CreditCardService creditCardService;
     private final LoanRepository loanRepository;
-    private final LoanPaymentRepository loanPaymentRepository;
     private final AmortisationCalculator amortisationCalculator;
     private final AccountService accountService;
     private final CurrentUserProvider currentUser;
@@ -51,7 +49,6 @@ public class TimelineServiceImpl implements TimelineService {
                                CardStatementRepository cardStatementRepository,
                                com.finance.card.CreditCardService creditCardService,
                                LoanRepository loanRepository,
-                               LoanPaymentRepository loanPaymentRepository,
                                AmortisationCalculator amortisationCalculator,
                                AccountService accountService,
                                CurrentUserProvider currentUser,
@@ -61,7 +58,6 @@ public class TimelineServiceImpl implements TimelineService {
         this.cardStatementRepository = cardStatementRepository;
         this.creditCardService = creditCardService;
         this.loanRepository = loanRepository;
-        this.loanPaymentRepository = loanPaymentRepository;
         this.amortisationCalculator = amortisationCalculator;
         this.accountService = accountService;
         this.currentUser = currentUser;
