@@ -7,6 +7,7 @@ import { SectionHeader } from '@/components/SectionHeader';
 import { Amount } from '@/components/Amount';
 import { LedgerRow, DomainRule, MetaFacts } from '@/components/LedgerRow';
 import { formatMoney } from '@/lib/money';
+import { formatShortDate } from '@/lib/dates';
 import { useGetGoalsQuery } from '@/services/goalService';
 import type { GoalResponse } from '@/types/goal';
 
@@ -22,6 +23,8 @@ const MONTH_YEAR = new Intl.DateTimeFormat('en-IN', { month: 'short', year: 'num
  * draws it.
  */
 function GoalRow({ goal }: { goal: GoalResponse }) {
+  // The next payment it has to make - a trip's bookings - is the date that matters most.
+  const next = (goal.schedule ?? []).find((l) => l.commitmentId != null && l.status !== 'PAID');
   return (
     <LedgerRow
       to={`/goals/${goal.id}`}
@@ -38,6 +41,15 @@ function GoalRow({ goal }: { goal: GoalResponse }) {
       meta={
         <MetaFacts
           items={[
+            ...(next
+              ? [
+                  {
+                    label: 'Next',
+                    value: `${formatShortDate(next.date)}${next.stillNeeded ? ` · ${formatMoney(next.stillNeeded)}` : ''}`,
+                    className: next.status === 'SHORT' ? 'text-attention' : undefined,
+                  },
+                ]
+              : []),
             { label: 'By', value: MONTH_YEAR.format(new Date(goal.targetDate)) },
             ...(goal.requiredPerMonth
               ? [{ label: 'A month', value: <Amount value={goal.requiredPerMonth} role="caption" className="text-ink" /> }]

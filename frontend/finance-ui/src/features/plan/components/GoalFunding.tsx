@@ -39,7 +39,12 @@ export function GoalFunding({ goal }: { goal: GoalResponse }) {
   const today = new Date().toISOString().slice(0, 10);
   // A one-off top-up whose month is over has done its job; it stays in that month's history.
   const funding = all.filter(
-    (r) => r.sourceType === 'GOAL' && r.sourceId === goal.id && !(isOneOff(r) && r.activeTo != null && r.activeTo < today),
+    // Paid as an expense, a goal-linked bill is a payment the goal makes (GoalPayments), not funding.
+    (r) =>
+      r.sourceType === 'GOAL' &&
+      r.sourceId === goal.id &&
+      r.settleAs !== 'EXPENSE' &&
+      !(isOneOff(r) && r.activeTo != null && r.activeTo < today),
   );
   const sources = { loans: [], investments: [], goals: [goal] };
   const candidate =
@@ -47,7 +52,7 @@ export function GoalFunding({ goal }: { goal: GoalResponse }) {
       ? all.find(
           (r) =>
             r.sourceType === 'MANUAL' &&
-            suggestSource({ name: r.name, amountType: r.amountType, fixedAmount: r.fixedAmount, toAccountId: r.toAccountId }, sources) != null,
+            suggestSource({ name: r.name, amountType: r.amountType, fixedAmount: r.fixedAmount, toAccountId: r.toAccountId ?? null }, sources) != null,
         )
       : undefined;
 

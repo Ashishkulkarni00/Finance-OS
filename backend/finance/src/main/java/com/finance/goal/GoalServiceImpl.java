@@ -7,8 +7,14 @@ import com.finance.common.exception.ErrorCode;
 import com.finance.common.exception.ResourceNotFoundException;
 import com.finance.common.money.MoneyScale;
 import com.finance.common.user.CurrentUserProvider;
+import com.finance.commitment.CommitmentInstanceRepository;
+import com.finance.commitment.CommitmentRepository;
 import com.finance.commitment.CommitmentService;
+import com.finance.commitment.domain.Commitment;
+import com.finance.commitment.domain.CommitmentInstance;
+import com.finance.commitment.domain.CommitmentInstanceStatus;
 import com.finance.commitment.domain.CommitmentSource;
+import com.finance.transaction.domain.TransactionType;
 import com.finance.goal.domain.Goal;
 import com.finance.goal.dto.CreateGoalRequest;
 import com.finance.goal.dto.UpdateGoalRequest;
@@ -28,6 +34,9 @@ import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 
 /**
  * Business rules for goals. Progress is never stored - it is read from whichever of
@@ -51,12 +60,23 @@ public class GoalServiceImpl implements GoalService {
     static final BigDecimal PACE_TOLERANCE_POINTS = BigDecimal.valueOf(5);
 
     private CommitmentService commitmentService;
+    private CommitmentRepository commitmentRepository;
+    private CommitmentInstanceRepository instanceRepository;
 
     /** Set after construction: goals and bills refer to each other. Optional so a read-only
      *  service (as the pace test builds) works without it. */
     @Autowired(required = false)
     void setCommitmentService(@Lazy CommitmentService commitmentService) {
         this.commitmentService = commitmentService;
+    }
+
+    /** The goal's planned payments are read from these. Optional for the same reason: without
+     *  them a goal simply has no payments, and reads exactly as it did before they existed. */
+    @Autowired(required = false)
+    void setCommitmentRepositories(CommitmentRepository commitmentRepository,
+                                   CommitmentInstanceRepository instanceRepository) {
+        this.commitmentRepository = commitmentRepository;
+        this.instanceRepository = instanceRepository;
     }
 
     public GoalServiceImpl(GoalRepository repository,
@@ -188,27 +208,155 @@ public class GoalServiceImpl implements GoalService {
     }
 
     private GoalView toView(Goal goal) {
-        BigDecimal current = currentAmount(goal);
+        BigDecimal saved = currentAmount(goal);
+        LocalDate today = LocalDate.now(clock);
+        List<Payment> payments = plannedPayments(goal, today);
+        BigDecimal spent = payments.stream().map(Payment::paid).reduce(BigDecimal.ZERO, BigDecimal::add);
+        // What the goal has done so far: what's still saved plus what's already been paid out
+        // of it. A booking paid early moves money, not the goal backwards.
+        BigDecimal covered = saved.add(spent);
         BigDecimal progressPercent = goal.getTargetAmount().signum() == 0
                 ? BigDecimal.ZERO
-                : current.divide(goal.getTargetAmount(), 4, RoundingMode.HALF_UP)
+                : covered.divide(goal.getTargetAmount(), 4, RoundingMode.HALF_UP)
                         .multiply(BigDecimal.valueOf(100))
                         .min(BigDecimal.valueOf(100))
+                        .max(BigDecimal.ZERO)
                         .setScale(2, RoundingMode.HALF_UP);
 
-        LocalDate today = LocalDate.now(clock);
-        long monthsRemaining = ChronoUnit.MONTHS.between(today, goal.getTargetDate());
-        BigDecimal requiredPerMonth = null;
-        if (monthsRemaining > 0) {
-            BigDecimal remaining = goal.getTargetAmount().subtract(current);
-            requiredPerMonth = remaining.signum() <= 0
-                    ? BigDecimal.ZERO
-                    : MoneyScale.normalise(remaining.divide(BigDecimal.valueOf(monthsRemaining), 10, RoundingMode.HALF_UP));
-        }
+        List<GoalScheduleLine> schedule = schedule(goal, payments, saved);
+        BigDecimal requiredPerMonth = payments.isEmpty()
+                ? requiredByTargetDate(goal, covered, today)
+                : requiredByTightestDeadline(schedule, today);
 
         BigDecimal timeElapsedPercent = timeElapsedPercent(goal, today);
-        return new GoalView(goal, MoneyScale.normalise(current), progressPercent, requiredPerMonth,
-                pace(goal, current, progressPercent, timeElapsedPercent, today), timeElapsedPercent);
+        return new GoalView(goal, MoneyScale.normalise(saved), MoneyScale.normalise(spent), progressPercent, requiredPerMonth,
+                pace(goal, covered, progressPercent, timeElapsedPercent, today), timeElapsedPercent, schedule);
+    }
+
+    /** One planned payment: its date and amount, and what's been paid against it. */
+    private record Payment(Long commitmentId, String name, LocalDate date, BigDecimal amount, BigDecimal paid) {
+    }
+
+    /**
+     * A goal's payments are the bills linked to it that are paid as an expense - money
+     * leaving for the goal on a date (a trip's bookings), as opposed to the transfers that
+     * fund it. Each is read as one dated payment: its occurrence if one has been planned,
+     * otherwise its first due date. A skipped one isn't counted.
+     */
+    private List<Payment> plannedPayments(Goal goal, LocalDate today) {
+        if (commitmentRepository == null || instanceRepository == null) {
+            return List.of();
+        }
+        List<Payment> payments = new ArrayList<>();
+        for (Commitment bill : commitmentRepository.findBySourceTypeAndSourceIdAndUserIdAndDeletedAtIsNull(
+                CommitmentSource.GOAL, goal.getId(), goal.getUserId())) {
+            if (bill.getSettleAs() != TransactionType.EXPENSE || bill.isArchived()) {
+                continue;
+            }
+            List<CommitmentInstance> occurrences = instanceRepository
+                    .findTop6ByCommitmentIdAndUserIdOrderByDueDateDesc(bill.getId(), goal.getUserId());
+            CommitmentInstance first = occurrences.stream()
+                    .min(Comparator.comparing(CommitmentInstance::getDueDate))
+                    .orElse(null);
+            if (first != null && first.getStatus() == CommitmentInstanceStatus.SKIPPED) {
+                continue;
+            }
+            BigDecimal paid = occurrences.stream()
+                    .map(CommitmentInstance::getConfirmedAmount)
+                    .filter(java.util.Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            LocalDate date = first != null ? first.getDueDate() : firstDueDate(bill);
+            BigDecimal amount = first != null && first.getExpectedAmount() != null ? first.getExpectedAmount() : bill.getFixedAmount();
+            payments.add(new Payment(bill.getId(), bill.getName(), date, amount, paid));
+        }
+        payments.sort(Comparator.comparing(Payment::date));
+        return payments;
+    }
+
+    /** The first date on or after the bill's start that falls on its due day. */
+    private static LocalDate firstDueDate(Commitment bill) {
+        LocalDate start = bill.getActiveFrom();
+        LocalDate sameMonth = start.withDayOfMonth(Math.min(bill.getDueDay(), start.lengthOfMonth()));
+        if (!sameMonth.isBefore(start)) {
+            return sameMonth;
+        }
+        LocalDate next = start.plusMonths(1);
+        return next.withDayOfMonth(Math.min(bill.getDueDay(), next.lengthOfMonth()));
+    }
+
+    /**
+     * The goal's dated amounts, earliest first: each planned payment, then whatever part of
+     * the target no payment accounts for, due on the goal's own date ("the rest, at the trip").
+     * Walking them in order, each line says whether what's saved now covers everything due up
+     * to and including it.
+     */
+    private List<GoalScheduleLine> schedule(Goal goal, List<Payment> payments, BigDecimal saved) {
+        if (payments.isEmpty()) {
+            return List.of();
+        }
+        List<Payment> lines = new ArrayList<>(payments);
+        BigDecimal planned = payments.stream()
+                .map(p -> p.amount() == null ? p.paid() : p.amount().max(p.paid()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal rest = goal.getTargetAmount().subtract(planned);
+        if (rest.signum() > 0) {
+            lines.add(new Payment(null, "The rest", goal.getTargetDate(), rest, BigDecimal.ZERO));
+            lines.sort(Comparator.comparing(Payment::date));
+        }
+
+        List<GoalScheduleLine> schedule = new ArrayList<>();
+        BigDecimal needed = BigDecimal.ZERO;
+        BigDecimal available = saved.max(BigDecimal.ZERO);
+        for (Payment line : lines) {
+            if (line.amount() == null) {
+                schedule.add(new GoalScheduleLine(line.commitmentId(), line.name(), line.date(), null,
+                        MoneyScale.normalise(line.paid()), null, null, null, GoalScheduleLine.Status.AMOUNT_UNKNOWN));
+                continue;
+            }
+            BigDecimal stillNeeded = line.amount().subtract(line.paid()).max(BigDecimal.ZERO);
+            if (stillNeeded.signum() == 0) {
+                schedule.add(new GoalScheduleLine(line.commitmentId(), line.name(), line.date(),
+                        MoneyScale.normalise(line.amount()), MoneyScale.normalise(line.paid()), MoneyScale.normalise(BigDecimal.ZERO),
+                        null, null, GoalScheduleLine.Status.PAID));
+                continue;
+            }
+            needed = needed.add(stillNeeded);
+            BigDecimal shortBy = needed.subtract(available).max(BigDecimal.ZERO);
+            schedule.add(new GoalScheduleLine(line.commitmentId(), line.name(), line.date(),
+                    MoneyScale.normalise(line.amount()), MoneyScale.normalise(line.paid()), MoneyScale.normalise(stillNeeded),
+                    MoneyScale.normalise(needed), MoneyScale.normalise(shortBy),
+                    shortBy.signum() > 0 ? GoalScheduleLine.Status.SHORT : GoalScheduleLine.Status.COVERED));
+        }
+        return schedule;
+    }
+
+    /** No payments planned: what's left of the target, spread over the months to its date. */
+    private static BigDecimal requiredByTargetDate(Goal goal, BigDecimal covered, LocalDate today) {
+        long monthsRemaining = ChronoUnit.MONTHS.between(today, goal.getTargetDate());
+        if (monthsRemaining <= 0) {
+            return null;
+        }
+        BigDecimal remaining = goal.getTargetAmount().subtract(covered);
+        return remaining.signum() <= 0
+                ? BigDecimal.ZERO
+                : MoneyScale.normalise(remaining.divide(BigDecimal.valueOf(monthsRemaining), 10, RoundingMode.HALF_UP));
+    }
+
+    /**
+     * With payments planned, the tightest deadline sets the pace: ₹5,000 short for a booking
+     * next month needs ₹5,000 this month, even if the trip itself is three months away. A
+     * deadline this month (or already passed) counts as one month - it's needed now.
+     */
+    private static BigDecimal requiredByTightestDeadline(List<GoalScheduleLine> schedule, LocalDate today) {
+        BigDecimal required = BigDecimal.ZERO;
+        for (GoalScheduleLine line : schedule) {
+            if (line.status() != GoalScheduleLine.Status.SHORT) {
+                continue;
+            }
+            long months = Math.max(1, ChronoUnit.MONTHS.between(today, line.date()));
+            required = required.max(line.shortBy().divide(BigDecimal.valueOf(months), 10, RoundingMode.HALF_UP));
+        }
+        return MoneyScale.normalise(required);
     }
 
     /** Share of the goal's time gone: from the day it was added to its target date. */

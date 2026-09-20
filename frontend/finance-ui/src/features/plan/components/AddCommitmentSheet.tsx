@@ -5,18 +5,33 @@ import { CheckCircle2 } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/Button';
 import { Select } from '@/components/Select';
-import { FormRow } from '@/components/FormRow';
+import { FormRow, FORM_ROW_CONTROL } from '@/components/FormRow';
 import { useGetAccountsQuery } from '@/services/accountService';
 import { useGetCategoriesQuery } from '@/services/categoryService';
-import { useGetCurrentCycleQuery } from '@/services/cycleService';
-import { useGetCommitmentInstancesForCycleQuery } from '@/services/commitmentInstanceService';
+import { useGetCurrentCycleQuery, useLazyGetCycleForDateQuery } from '@/services/cycleService';
+import {
+  useGetCommitmentInstancesForCycleQuery,
+  useLazyGetCommitmentInstancesForCycleQuery,
+  useSetCommitmentInstanceAmountMutation,
+} from '@/services/commitmentInstanceService';
 import { useCreateCommitmentRuleMutation } from '@/services/commitmentRuleService';
-import { cycleMonthName, formatShortDate, shiftIsoDays, shiftIsoMonths } from '@/lib/dates';
-import type { CommitmentFrequency } from '@/types/commitmentRule';
+import {
+  cycleMonthName,
+  firstDueOnOrAfter,
+  formatDayMonthYear,
+  formatShortDate,
+  salaryMonthContaining,
+  shiftIsoDays,
+  shiftIsoMonths,
+} from '@/lib/dates';
+import { formatMoney } from '@/lib/money';
+import type { CommitmentFrequency, CommitmentResponse } from '@/types/commitmentRule';
 import { handleEnterAdvance } from '@/lib/formKeyboard';
 import { CommitmentFields } from './CommitmentFields';
-import { SalaryMonthPicker } from './SalaryMonthPicker';
+import { PaymentMonthPicker } from './PaymentMonthPicker';
 import { commitmentSchema, useLastPayment, type CommitmentFormValues } from './commitmentForm';
+
+const VALID_AMOUNT = /^\d+(\.\d{1,2})?$/;
 
 /** How far back and ahead a bill's start can be picked. */
 const MONTHS_BACK = 6;
@@ -90,8 +105,12 @@ interface AddedBill {
   income: boolean;
   /** A one-off in a single month. */
   once: boolean;
-  /** Set when the bill starts in a month after the current one. */
-  startsLaterIn: string | null;
+  /** The first payment's date. */
+  firstDue: string | null;
+  /** The first payment is in a salary month after the current one. */
+  startsLater: boolean;
+  /** What happened to a "First amount" typed for a changing bill - null when none was typed. */
+  firstAmount: { saved: true; amount: string } | { saved: false } | null;
 }
 
 interface AddCommitmentSheetProps {
@@ -120,6 +139,19 @@ export type AddBillPreset = (
       name: string;
       /** Pay day, when known - the day the financial month starts. */
       dueDay?: number;
+    }
+  | {
+      /** A payment a goal is for, on a date - a trip's bookings, or the trip itself. Paid as
+       *  an expense and linked to the goal, so the goal counts it and Months plans for it. */
+      kind: 'GOAL_PAYMENT';
+      name: string;
+      sourceId: number;
+      goalName: string;
+      /** Paid from the goal's own account by default, when it has one. */
+      accountId?: number | null;
+      amount?: string;
+      /** The payment's calendar month, `YYYY-MM`. */
+      month?: string;
     }
   | {
       /** Money moved to one of your own accounts or a debt - e.g. a loan prepayment. */
@@ -169,8 +201,12 @@ export function AddCommitmentSheet({ open, onClose, defaultStart, preset }: AddC
   const [added, setAdded] = useState<AddedBill | null>(null);
   /** Whether the start month's bill counts when its due date has already passed. */
   const [countThisCycle, setCountThisCycle] = useState(true);
-  /** '' means "use the default" - the month the sheet was opened from. */
-  const [startChoice, setStartChoice] = useState('');
+  /** The first payment's calendar month, `YYYY-MM`; '' means the one in the month the sheet was opened from. */
+  const presetMonth = preset?.kind === 'GOAL_PAYMENT' ? (preset.month ?? '') : '';
+  const [firstMonth, setFirstMonth] = useState(presetMonth);
+  /** A changing bill's first amount, if already known - '' leaves it "amount unknown". */
+  const [firstAmount, setFirstAmount] = useState('');
+  const [firstAmountError, setFirstAmountError] = useState<string | null>(null);
 
   const { data: accountsPage } = useGetAccountsQuery();
   const { data: categoriesPage } = useGetCategoriesQuery();
@@ -178,7 +214,11 @@ export function AddCommitmentSheet({ open, onClose, defaultStart, preset }: AddC
   const { data: instances, isFetching: checkingPlan } = useGetCommitmentInstancesForCycleQuery(cycle?.id ?? 0, {
     skip: !cycle || !added,
   });
-  const [createCommitment, { isLoading }] = useCreateCommitmentRuleMutation();
+  const [createCommitment, { isLoading: creating }] = useCreateCommitmentRuleMutation();
+  const [resolveCycle] = useLazyGetCycleForDateQuery();
+  const [loadInstances] = useLazyGetCommitmentInstancesForCycleQuery();
+  const [setInstanceAmount, { isLoading: savingAmount }] = useSetCommitmentInstanceAmountMutation();
+  const isLoading = creating || savingAmount;
 
   // Every usable account and category - the fields offer the ones that fit how it's paid.
   const accounts = accountsPage?.content.filter((a) => !a.archived) ?? [];
@@ -188,6 +228,14 @@ export function AddCommitmentSheet({ open, onClose, defaultStart, preset }: AddC
   const initial: CommitmentFormValues =
     preset?.kind === 'GOAL' || preset?.kind === 'TRANSFER'
       ? { ...base, name: preset.name, settleAs: 'TRANSFER', toAccountId: preset.toAccountId }
+      : preset?.kind === 'GOAL_PAYMENT'
+        ? {
+            ...base,
+            name: preset.name,
+            settleAs: 'EXPENSE',
+            ...(preset.accountId ? { accountId: preset.accountId } : {}),
+            ...(preset.amount ? { fixedAmount: preset.amount } : {}),
+          }
       : preset?.kind === 'INCOME'
         ? { ...base, name: preset.name, settleAs: 'INCOME', dueDay: preset.dueDay ? String(Math.min(preset.dueDay, 28)) : '' }
         : base;
@@ -201,25 +249,29 @@ export function AddCommitmentSheet({ open, onClose, defaultStart, preset }: AddC
   const isIncome = watch('settleAs') === 'INCOME';
   const once = watch('frequency') === 'ONCE';
 
-  const selectedStart = startChoice || defaultStart || cycle?.startDate || null;
-  // The chosen salary month's own dates - any month, not a fixed window (FIX_BACKLOG 2.3).
-  const startOption = selectedStart ? { start: selectedStart, end: shiftIsoDays(shiftIsoMonths(selectedStart, 1), -1) } : undefined;
-  const startIsCurrent = selectedStart != null && cycle != null && selectedStart === cycle.startDate;
-  const startsLater = selectedStart != null && cycle != null && selectedStart > cycle.startDate;
+  // The first payment is picked as a calendar month and shown as a real date ("5 Oct 2026");
+  // the salary month it falls in - what the server needs - is worked out from that date.
+  const viewedStart = defaultStart || cycle?.startDate || null;
   const enteredDueDay = Number(watch('dueDay'));
-  const startMonthDue =
-    selectedStart && Number.isInteger(enteredDueDay) && enteredDueDay >= 1 && enteredDueDay <= 28
-      ? cycleOccurrenceDate(selectedStart, enteredDueDay)
-      : null;
+  const validDueDay = Number.isInteger(enteredDueDay) && enteredDueDay >= 1 && enteredDueDay <= 28;
+  const defaultFirstDue = viewedStart && validDueDay ? cycleOccurrenceDate(viewedStart, enteredDueDay) : null;
+  const pickerMonth =
+    firstMonth || defaultFirstDue?.slice(0, 7) || (viewedStart ? shiftIsoDays(shiftIsoMonths(viewedStart, 1), -1).slice(0, 7) : today.slice(0, 7));
+  const firstDue = validDueDay ? `${pickerMonth}-${String(enteredDueDay).padStart(2, '0')}` : null;
+  const firstCycle = firstDue && cycle ? salaryMonthContaining(cycle.startDate, firstDue) : undefined;
+  const startIsCurrent = firstCycle != null && cycle != null && firstCycle.start === cycle.startDate;
+  const startsLater = firstCycle != null && cycle != null && firstCycle.start > cycle.startDate;
   // ISO strings compare correctly as text.
-  const duePassed = startMonthDue != null && startMonthDue < today;
+  const duePassed = firstDue != null && firstDue < today;
 
-  const lastPayment = useLastPayment(enteredDueDay, startMonthDue);
+  const lastPayment = useLastPayment(enteredDueDay, firstDue);
 
   const resetChoices = () => {
     setAdded(null);
     setCountThisCycle(true);
-    setStartChoice('');
+    setFirstMonth(presetMonth);
+    setFirstAmount('');
+    setFirstAmountError(null);
     lastPayment.clear();
   };
 
@@ -236,8 +288,16 @@ export function AddCommitmentSheet({ open, onClose, defaultStart, preset }: AddC
 
   const onSubmit = async (values: CommitmentFormValues) => {
     if (!once && lastPayment.error) return;
+    const amount = values.amountType === 'VARIABLE' ? firstAmount.trim() : '';
+    if (amount && (!VALID_AMOUNT.test(amount) || Number(amount) <= 0)) {
+      setFirstAmountError('Enter an amount like 1200 - or leave it blank');
+      return;
+    }
+    setFirstAmountError(null);
+    const startsFromNext = !once && duePassed && !countThisCycle;
+    let created: CommitmentResponse;
     try {
-      const created = await createCommitment({
+      created = await createCommitment({
         name: values.name.trim(),
         amountType: values.amountType,
         fixedAmount: values.amountType === 'FIXED' ? (values.fixedAmount ?? null) : null,
@@ -250,28 +310,53 @@ export function AddCommitmentSheet({ open, onClose, defaultStart, preset }: AddC
         settleAs: values.settleAs,
         toAccountId: values.toAccountId,
         ...(preset?.kind === 'GOAL' ? { sourceType: preset.sourceType, sourceId: preset.sourceId } : {}),
+        ...(preset?.kind === 'GOAL_PAYMENT' ? { sourceType: 'GOAL' as const, sourceId: preset.sourceId } : {}),
         // The start of the chosen month, not today - "today" read as "this bill began
         // today", so a bill due on the 2nd added on the 12th owed nothing that month.
         // Today is only sent when the user says it genuinely starts from its next due date.
-        activeFrom: once ? (selectedStart ?? today) : selectedStart && (countThisCycle || !duePassed) ? selectedStart : today,
-        activeTo: once ? (startOption?.end ?? startMonthDue) : lastPayment.lastDue,
+        activeFrom: startsFromNext ? today : (firstCycle?.start ?? today),
+        activeTo: once ? (firstCycle?.end ?? firstDue) : lastPayment.lastDue,
         why: values.why?.trim() || null,
         ifSkipped: values.ifSkipped?.trim() || null,
       }).unwrap();
-      setAdded({
-        id: created.id,
-        name: created.name,
-        dueDay: Number(values.dueDay),
-        frequency: values.frequency === 'ONCE' ? 'MONTHLY' : values.frequency,
-        mandatory: values.mandatory,
-        income: values.settleAs === 'INCOME',
-        once: values.frequency === 'ONCE',
-        startsLaterIn: startsLater && startOption ? cycleMonthName(startOption.end) : null,
-      });
     } catch (err) {
       const appError = err as { message?: string; field?: string };
       setError('name', { message: appError.message ?? "Couldn't save that commitment." });
+      return;
     }
+
+    // The first occurrence only exists once the rule does (the server plans it), so its amount
+    // is a second call - but still part of this one Save, not a step left for later.
+    const firstOccurrence = startsFromNext ? firstDueOnOrAfter(today, Number(values.dueDay)) : firstDue;
+    let firstAmountResult: AddedBill['firstAmount'] = null;
+    if (amount && firstOccurrence) {
+      try {
+        const month = await resolveCycle(firstOccurrence).unwrap();
+        const planned = await loadInstances(month.id).unwrap();
+        const occurrence = planned.find((i) => i.commitmentId === created.id);
+        if (occurrence) {
+          await setInstanceAmount({ id: occurrence.id, expectedAmount: amount }).unwrap();
+          firstAmountResult = { saved: true, amount };
+        } else {
+          firstAmountResult = { saved: false };
+        }
+      } catch {
+        firstAmountResult = { saved: false };
+      }
+    }
+
+    setAdded({
+      id: created.id,
+      name: created.name,
+      dueDay: Number(values.dueDay),
+      frequency: values.frequency === 'ONCE' ? 'MONTHLY' : values.frequency,
+      mandatory: values.mandatory,
+      income: values.settleAs === 'INCOME',
+      once: values.frequency === 'ONCE',
+      firstDue: firstOccurrence,
+      startsLater,
+      firstAmount: firstAmountResult,
+    });
   };
 
   const inThisCycle = added ? instances?.find((i) => i.commitmentId === added.id) : undefined;
@@ -280,7 +365,19 @@ export function AddCommitmentSheet({ open, onClose, defaultStart, preset }: AddC
     <Modal
       open={open}
       onClose={close}
-      title={added ? (added.income ? 'Income added' : 'Commitment added') : once ? 'Plan a one-off' : isIncome ? 'Add expected income' : 'Add a commitment'}
+      title={
+        added
+          ? added.income
+            ? 'Income added'
+            : 'Commitment added'
+          : preset?.kind === 'GOAL_PAYMENT'
+            ? `A payment for ${preset.goalName}`
+            : once
+              ? 'Plan a one-off'
+              : isIncome
+                ? 'Add expected income'
+                : 'Add a commitment'
+      }
       footer={
         added ? (
           <div className="flex w-full gap-space-3">
@@ -305,15 +402,15 @@ export function AddCommitmentSheet({ open, onClose, defaultStart, preset }: AddC
             <p className="text-body text-ink">
               <strong className="font-medium">{added.name}</strong> is saved.
             </p>
-            {added.once && added.startsLaterIn ? (
+            {added.once && added.startsLater && added.firstDue ? (
               <p className="text-body text-ink-soft">
-                It’s a one-off in {added.startsLaterIn}. It shows in that month’s plan, counts there, and is reminded about if
-                its date passes without it being recorded.
+                It happens once, on {formatDayMonthYear(added.firstDue)}. It shows in that month’s plan on Months and
+                counts there.
               </p>
-            ) : added.startsLaterIn ? (
+            ) : added.startsLater && added.firstDue ? (
               <p className="text-body text-ink-soft">
-                It starts in {added.startsLaterIn}. Move to {added.startsLaterIn} on Months to see it in that month’s
-                plan.
+                Its first payment is on {formatDayMonthYear(added.firstDue)}. On Months, use the arrow beside the month
+                name to move ahead and see it in that month’s plan.
               </p>
             ) : checkingPlan || !instances ? (
               <p className="text-body text-ink-soft">Checking this cycle’s plan…</p>
@@ -349,6 +446,17 @@ export function AddCommitmentSheet({ open, onClose, defaultStart, preset }: AddC
                 It isn’t due in this cycle, so it isn’t in the plan yet. It appears when it next falls due.
               </p>
             )}
+            {added.firstAmount?.saved === true && (
+              <p className="text-body text-ink-soft">
+                First amount saved: <span className="num">{formatMoney(added.firstAmount.amount)}</span>. Later ones start as
+                “amount unknown” - give each one on Months with Estimate when you know it.
+              </p>
+            )}
+            {added.firstAmount?.saved === false && (
+              <p className="text-body text-attention">
+                The commitment is saved, but its first amount couldn’t be - give it on Months with Estimate.
+              </p>
+            )}
           </div>
         </div>
       ) : (
@@ -370,39 +478,72 @@ export function AddCommitmentSheet({ open, onClose, defaultStart, preset }: AddC
                   </span>
                   <span className="text-caption text-ink-muted">For your {preset.goalName} goal.</span>
                 </span>
+              ) : preset?.kind === 'GOAL_PAYMENT' ? (
+                <span className="flex flex-col gap-space-1">
+                  <span className="text-label text-ink">Payment · for your {preset.goalName} goal</span>
+                  <span className="text-caption text-ink-muted">
+                    Money leaving for it on this date - a booking, a deposit, the trip itself. It shows on Months in that
+                    month, and the goal counts it once it’s paid.
+                  </span>
+                </span>
               ) : undefined
             }
             startSlot={
-              cycle &&
-              selectedStart && (
-                <FormRow label={once ? 'In' : 'Starts'} hint={once ? 'The salary month this one-off belongs to.' : 'The salary month of its first payment - past, this one, or any month ahead.'}>
-                  <SalaryMonthPicker
-                    value={selectedStart}
-                    knownStart={cycle.startDate}
-                    onChange={setStartChoice}
-                    ariaLabel={once ? 'Which month this one-off is in' : 'Which month this starts in'}
+              cycle && (
+                <FormRow
+                  label={once ? 'When' : isIncome ? 'First one' : 'First payment'}
+                  hint={
+                    once
+                      ? 'The month it happens - the exact date is shown beside it.'
+                      : 'The month of the first one - the exact date is shown beside it. Pick an earlier month if it has already been running for a while.'
+                  }
+                >
+                  <PaymentMonthPicker
+                    value={pickerMonth}
+                    onChange={setFirstMonth}
+                    dueDay={enteredDueDay}
+                    ariaLabel={once ? 'Which month it happens' : 'Month of the first payment'}
                   />
                 </FormRow>
               )
             }
+            amountSlot={
+              <FormRow
+                label="First amount"
+                error={firstAmountError ?? undefined}
+                hint="Optional. If you already know what the first one comes to, enter it. Each later one starts as “amount unknown” until you give it a number on Months."
+              >
+                <span className="flex items-center gap-space-1">
+                  <span className="num text-ink-muted">₹</span>
+                  <input
+                    value={firstAmount}
+                    onChange={(e) => setFirstAmount(e.target.value)}
+                    inputMode="decimal"
+                    placeholder="Optional - leave blank if not known yet"
+                    className={FORM_ROW_CONTROL + ' num'}
+                  />
+                </span>
+              </FormRow>
+            }
             afterEndSlot={
               // Only asked when it matters: the start month's due date has already gone by.
               duePassed &&
-              startMonthDue && (
-                <FormRow label={startIsCurrent ? 'This month' : 'That month'}>
+              firstDue && (
+                <FormRow label={startIsCurrent ? 'This month' : 'That one'}>
                   <Select
                     variant="row"
                     className="-ml-space-1 max-w-full"
                     ariaLabel="Whether the start month's bill counts"
                     value={countThisCycle ? 'count' : 'next'}
                     options={[
-                      { value: 'count', label: `Count it - it was due ${formatShortDate(startMonthDue)}` },
-                      { value: 'next', label: 'Starts from its next due date' },
+                      { value: 'count', label: `Count it - it was due ${formatDayMonthYear(firstDue)}` },
+                      { value: 'next', label: 'Skip it - start from the next one' },
                     ]}
                     onChange={(v) => setCountThisCycle(v === 'count')}
                   />
                   <span className="mt-space-1 block text-caption text-ink-muted">
-                    Keep “Count it” if that month’s bill was real — even if you’ve already paid it.
+                    {formatDayMonthYear(firstDue)} has already gone by. Keep “Count it” if that payment was real - even if
+                    you’ve already paid it.
                   </span>
                 </FormRow>
               )
@@ -414,12 +555,7 @@ export function AddCommitmentSheet({ open, onClose, defaultStart, preset }: AddC
               Your salary each month, for planning: Months sets it against your bills before it lands. Record the credit
               when it arrives and it replaces this figure.
             </p>
-          ) : (
-            <p className="text-caption text-ink-muted">
-              "If skipped" is shown next to this commitment on Months, so when you're deciding what can wait, the
-              consequence is already written down - by you, on a calm day.
-            </p>
-          )}
+          ) : null}
         </form>
       )}
     </Modal>

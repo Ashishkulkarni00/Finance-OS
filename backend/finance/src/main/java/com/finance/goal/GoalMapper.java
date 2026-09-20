@@ -11,8 +11,12 @@ public class GoalMapper {
         return new GoalResponse(
                 goal.getId(), goal.getName(), goal.getTargetAmount(), goal.getTargetDate(), goal.getPriority(),
                 goal.getLinkedReservationId(), goal.getLinkedAccountId(),
-                view.currentAmount(), view.progressPercent(), view.requiredPerMonth(),
+                view.currentAmount(), view.spentAmount(), view.progressPercent(), view.requiredPerMonth(),
                 view.pace(), view.timeElapsedPercent(),
+                view.schedule().stream()
+                        .map(l -> new GoalResponse.ScheduleLine(l.commitmentId(), l.name(), l.date(), l.amount(), l.paid(),
+                                l.stillNeeded(), l.neededByThen(), l.shortBy(), l.status()))
+                        .toList(),
                 goal.isArchived(), goal.getArchivedAt(), goal.getCreatedAt(), goal.getUpdatedAt());
     }
 }

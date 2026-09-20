@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, type FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/Button';
 import { Skeleton } from '@/components/Skeleton';
 import { Select } from '@/components/Select';
-import { FormRow } from '@/components/FormRow';
+import { FormRow, FORM_ROW_CONTROL } from '@/components/FormRow';
 import { useGetAccountsQuery } from '@/services/accountService';
 import { useGetCategoriesQuery } from '@/services/categoryService';
 import {
@@ -14,11 +14,12 @@ import {
   useUpdateCommitmentRuleMutation,
 } from '@/services/commitmentRuleService';
 import { handleEnterAdvance } from '@/lib/formKeyboard';
+import { useSetCommitmentInstanceAmountMutation } from '@/services/commitmentInstanceService';
 import type { CommitmentResponse, UpdateCommitmentRequest } from '@/types/commitmentRule';
 import { CommitmentFields } from './CommitmentFields';
 import { cycleOptions } from './AddCommitmentSheet';
-import { SalaryMonthPicker } from './SalaryMonthPicker';
-import { cycleMonthName, shiftIsoDays, shiftIsoMonths } from '@/lib/dates';
+import { PaymentMonthPicker } from './PaymentMonthPicker';
+import { firstDueOnOrAfter, formatDayMonthYear, formatShortDate, salaryMonthContaining, shiftIsoDays, shiftIsoMonths } from '@/lib/dates';
 import { useGetCurrentCycleQuery } from '@/services/cycleService';
 import { commitmentSchema, isOneOff, MONTH_NAMES, useLastPayment, type CommitmentFormValues } from './commitmentForm';
 import {
@@ -38,20 +39,28 @@ interface EditCommitmentSheetProps {
   onClose: () => void;
   /** After a delete - e.g. leave a detail page that no longer has a bill behind it. */
   onDeleted?: () => void;
+  /** The occurrence being viewed, if any - lets a "Varies" bill's current month be given
+   *  its own amount without leaving Edit, instead of only via Months' inline "Estimate". */
+  instanceId?: number | null;
+  /** That occurrence's expected amount, if it already has one - prefills the field below
+   *  so editing doesn't blank out a number that was already set. */
+  instanceAmount?: string | null;
+  /** That occurrence's due date - names which one "This time" is. */
+  instanceDueDate?: string | null;
 }
 
 /**
- * "Edit bill" - every field of a bill, and delete.
+ * "Edit" - every field of a commitment, and delete.
  *
  * <p>An edit applies to every month that isn't paid yet, this one and any already planned
  * ahead; paid months keep what was recorded. That's done server-side, so this sheet only
  * sends the rule's new values.
  */
-export function EditCommitmentSheet({ commitmentId, onClose, onDeleted }: EditCommitmentSheetProps) {
+export function EditCommitmentSheet({ commitmentId, onClose, onDeleted, instanceId, instanceAmount, instanceDueDate }: EditCommitmentSheetProps) {
   const { data: rule, isLoading } = useGetCommitmentRuleQuery(commitmentId ?? 0, { skip: commitmentId == null });
 
   return (
-    <Modal open={commitmentId != null} onClose={onClose} title={rule ? `Edit ${rule.name}` : 'Edit bill'} footer={null}>
+    <Modal open={commitmentId != null} onClose={onClose} title={rule ? `Edit ${rule.name}` : 'Edit commitment'} footer={null}>
       {isLoading || !rule ? (
         <div className="flex flex-col gap-space-3">
           <Skeleton className="h-10 w-full" />
@@ -60,38 +69,92 @@ export function EditCommitmentSheet({ commitmentId, onClose, onDeleted }: EditCo
         </div>
       ) : (
         // Keyed on the rule so each opening starts from its saved values.
-        <EditForm key={`${rule.id}-${rule.updatedAt}`} rule={rule} onClose={onClose} onDeleted={onDeleted} />
+        <EditForm
+          key={`${rule.id}-${rule.updatedAt}`}
+          rule={rule}
+          onClose={onClose}
+          onDeleted={onDeleted}
+          instanceId={instanceId ?? null}
+          instanceAmount={instanceAmount ?? null}
+          instanceDueDate={instanceDueDate ?? null}
+        />
       )}
     </Modal>
   );
 }
 
+/** What each form field is called on screen - for naming the one that stopped a save. */
+const FIELD_LABELS: Partial<Record<keyof CommitmentFormValues, string>> = {
+  name: 'What',
+  amountType: 'Amount',
+  fixedAmount: 'How much',
+  frequency: 'How often',
+  dueDay: 'Due on',
+  accountId: 'Paid from',
+  settleAs: 'Type',
+  toAccountId: 'Into',
+  categoryId: 'Category',
+  mandatory: 'Must pay?',
+  why: 'Note',
+  ifSkipped: 'If skipped',
+};
+
+/** Same format `InstanceAmountForm` validates against - one amount, up to 2 decimal places. */
+const VALID_INSTANCE_AMOUNT = /^\d+(\.\d{1,2})?$/;
+
 /**
- * The edit form. "Follows" links the bill to what it pays - a loan's EMI, a holding's
+ * The edit form. "Linked to" ties the commitment to what it pays - a loan's EMI, a holding's
  * instalment, a goal's monthly transfer - so those figures are entered once, on the loan or
  * holding, and the bill keeps up. A hand-typed bill that looks like one of them gets a
  * one-click suggestion; nothing is linked without the user choosing it.
  */
-function EditForm({ rule, onClose, onDeleted }: { rule: CommitmentResponse; onClose: () => void; onDeleted?: () => void }) {
+function EditForm({
+  rule,
+  onClose,
+  onDeleted,
+  instanceId,
+  instanceAmount,
+  instanceDueDate,
+}: {
+  rule: CommitmentResponse;
+  onClose: () => void;
+  onDeleted?: () => void;
+  instanceId: number | null;
+  instanceAmount: string | null;
+  instanceDueDate: string | null;
+}) {
   const { data: accountsPage } = useGetAccountsQuery();
   const { data: categoriesPage } = useGetCategoriesQuery();
   const [updateRule, { isLoading: saving }] = useUpdateCommitmentRuleMutation();
   const [deleteRule, { isLoading: deleting }] = useDeleteCommitmentRuleMutation();
+  const [setInstanceAmount, { isLoading: savingAmount }] = useSetCommitmentInstanceAmountMutation();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  // Shown right above Save, in addition to any field-level error - so a rejected save is
+  // never silent just because its field isn't the one currently in view.
+  const [formError, setFormError] = useState<string | null>(null);
+  // A plain field, not react-hook-form/zod: it belongs to the occurrence, not the rule, and
+  // is saved with a separate call inside the same Save action rather than a schema field
+  // that would apply to every month. '' means "leave it as it is" (see onSubmit).
+  const [instanceAmountInput, setInstanceAmountInput] = useState(instanceAmount ?? '');
   const [followKey, setFollowKey] = useState<SourceKey | null>(sourceKey(rule.sourceType, rule.sourceId));
   const sources = useBillSources(rule.id);
   const oneOff = isOneOff(rule);
   const { data: cycle } = useGetCurrentCycleQuery();
   /** '' = this month and every unpaid month (the default); else a later cycle's start. */
   const [applyFrom, setApplyFrom] = useState('');
-  /** A one-off's month: '' keeps the one it's in. */
-  const [onceIn, setOnceIn] = useState('');
-  /** A repeating bill's new start: '' keeps it (FIX_BACKLOG 2.3). */
-  const [startIn, setStartIn] = useState('');
+  /** The calendar month (`YYYY-MM`) of the first payment - or of a one-off's only one; '' keeps it. */
+  const [firstMonth, setFirstMonth] = useState('');
+  const savedFirstMonth = firstDueOnOrAfter(rule.activeFrom, rule.dueDay).slice(0, 7);
   // Turning a repeating bill into a one-off keeps only the month it starts in.
   const startCycleEnd = shiftIsoDays(shiftIsoMonths(rule.activeFrom, 1), -1);
-  const laterMonths = cycle ? cycleOptions(cycle.startDate).filter((o) => o.start > cycle.startDate) : [];
+  // Only dates after the commitment's own start (and before its end) - a "from" on or before
+  // its start changes it throughout, which is just "Now" under another name.
+  const laterMonths = cycle
+    ? cycleOptions(cycle.startDate).filter(
+        (o) => o.start > cycle.startDate && o.start > rule.activeFrom && (!rule.activeTo || o.start <= rule.activeTo),
+      )
+    : [];
 
   const accounts = accountsPage?.content.filter((a) => !a.archived || a.id === rule.account.id || a.id === rule.toAccountId) ?? [];
   const categories = categoriesPage?.content.filter((c) => !c.archived || c.id === rule.category?.id) ?? [];
@@ -106,7 +169,9 @@ function EditForm({ rule, onClose, onDeleted }: { rule: CommitmentResponse; onCl
       dueDay: String(rule.dueDay),
       accountId: rule.account.id,
       settleAs: rule.settleAs,
-      toAccountId: rule.toAccountId,
+      // The API omits a null field, so a payment's or income's missing "Into" arrives as
+      // undefined - which the schema rejects, on a row that isn't even shown. Normalise it.
+      toAccountId: rule.toAccountId ?? null,
       categoryId: rule.category?.id ?? null,
       mandatory: rule.mandatory,
       why: rule.why ?? '',
@@ -114,6 +179,7 @@ function EditForm({ rule, onClose, onDeleted }: { rule: CommitmentResponse; onCl
     },
   });
   const { handleSubmit, watch, setError, setValue } = form;
+  const settleAs = watch('settleAs');
 
   const lastPayment = useLastPayment(Number(watch('dueDay')), rule.activeFrom, rule.activeTo);
 
@@ -125,7 +191,7 @@ function EditForm({ rule, onClose, onDeleted }: { rule: CommitmentResponse; onCl
   const suggestion =
     rule.sourceType === 'MANUAL' && followKey == null
       ? suggestSource(
-          { name: rule.name, amountType: rule.amountType, fixedAmount: rule.fixedAmount, toAccountId: rule.toAccountId, accountId: rule.account.id },
+          { name: rule.name, amountType: rule.amountType, fixedAmount: rule.fixedAmount, toAccountId: rule.toAccountId ?? null, accountId: rule.account.id },
           sources,
         )
       : null;
@@ -133,16 +199,27 @@ function EditForm({ rule, onClose, onDeleted }: { rule: CommitmentResponse; onCl
 
   const chooseFollow = (key: SourceKey | null) => {
     setFollowKey(key);
-    // Funding a goal is a transfer into its account - set it so the form validates.
+    // A Payment linked to a goal is money the goal pays out (a trip's booking) and stays a
+    // payment. Anything else linked to a goal funds it: a transfer into its account.
     const next = parseSourceKey(key);
     const nextGoal = next?.type === 'GOAL' ? sources.goals.find((g) => g.id === next.id) : undefined;
-    if (nextGoal) {
+    if (nextGoal && watch('settleAs') !== 'EXPENSE') {
       setValue('settleAs', 'TRANSFER', { shouldValidate: true });
-      setValue('toAccountId', nextGoal.linkedAccountId, { shouldValidate: true });
+      setValue('toAccountId', nextGoal.linkedAccountId ?? null, { shouldValidate: true });
     }
   };
 
   const onSubmit = async (values: CommitmentFormValues) => {
+    setFormError(null);
+    // '' means "leave it as it is" - the endpoint has no way to unset an amount, only set
+    // one, so an emptied field is never sent rather than treated as a validation failure.
+    const trimmedInstanceAmount = instanceAmountInput.trim();
+    const instanceAmountEligible = !termsLocked && values.amountType === 'VARIABLE' && instanceId != null;
+    const instanceAmountChanged = instanceAmountEligible && trimmedInstanceAmount !== '' && trimmedInstanceAmount !== (instanceAmount ?? '');
+    if (instanceAmountChanged && !VALID_INSTANCE_AMOUNT.test(trimmedInstanceAmount)) {
+      setFormError('This occurrence’s amount looks wrong - enter something like 1200.');
+      return;
+    }
     const own = {
       name: values.name.trim(),
       ...(values.categoryId != null ? { categoryId: values.categoryId } : rule.category ? { clearCategory: true } : {}),
@@ -152,12 +229,20 @@ function EditForm({ rule, onClose, onDeleted }: { rule: CommitmentResponse; onCl
       ifSkipped: values.ifSkipped?.trim() ?? '',
     };
     const link = follow ? { sourceType: follow.type, sourceId: follow.id } : rule.sourceType !== 'MANUAL' ? { clearSource: true } : {};
+    // The first payment is picked as a calendar month; the salary month it falls in is the rule's window.
+    const pickedMonth = firstMonth && firstMonth !== savedFirstMonth ? firstMonth : '';
+    const picked =
+      pickedMonth && cycle ? salaryMonthContaining(cycle.startDate, `${pickedMonth}-${String(Number(values.dueDay)).padStart(2, '0')}`) : null;
+    const newStart = picked && picked.start !== rule.activeFrom ? picked.start : '';
 
     let body: UpdateCommitmentRequest;
     if (termsLocked) {
       // Amount, day, account and how it's paid come from the loan or holding. A holding's
       // instalment can still be stopped - ending an RD or SIP is the user's call.
-      if (investment && lastPayment.error) return;
+      if (investment && lastPayment.error) {
+        setFormError(lastPayment.error);
+        return;
+      }
       body = {
         ...own,
         ...link,
@@ -171,7 +256,10 @@ function EditForm({ rule, onClose, onDeleted }: { rule: CommitmentResponse; onCl
       };
     } else {
       const once = values.frequency === 'ONCE';
-      if (!once && lastPayment.error) return;
+      if (!once && lastPayment.error) {
+        setFormError(lastPayment.error);
+        return;
+      }
       body = {
         ...own,
         ...link,
@@ -182,8 +270,8 @@ function EditForm({ rule, onClose, onDeleted }: { rule: CommitmentResponse; onCl
         dueDay: Number(values.dueDay),
         accountId: values.accountId,
         ...(once
-          ? onceIn
-            ? { activeFrom: onceIn, activeTo: shiftIsoDays(shiftIsoMonths(onceIn, 1), -1) }
+          ? picked
+            ? { activeFrom: picked.start, activeTo: picked.end }
             : oneOff
               ? {}
               : { activeTo: startCycleEnd }
@@ -191,18 +279,46 @@ function EditForm({ rule, onClose, onDeleted }: { rule: CommitmentResponse; onCl
         settleAs: values.settleAs,
         ...(values.toAccountId != null ? { toAccountId: values.toAccountId } : {}),
         // Moving the start re-plans the unpaid months around it; the server retires or restores them.
-        ...(!once && startIn ? { activeFrom: startIn } : {}),
-        ...(applyFrom && !startIn ? { applyFrom } : {}),
+        ...(!once && newStart ? { activeFrom: newStart } : {}),
+        ...(applyFrom && !newStart ? { applyFrom } : {}),
       };
     }
     try {
       await updateRule({ id: rule.id, body }).unwrap();
-      onClose();
     } catch (err) {
       const appError = err as { message?: string; field?: string };
-      const field = appError.field === 'fixedAmount' || appError.field === 'dueDay' || appError.field === 'toAccountId' ? appError.field : 'name';
-      setError(field, { message: appError.message ?? "Couldn't save the changes." });
+      const message = appError.message ?? "Couldn't save the changes.";
+      // Field-specific, for the row it's next to - but a field far from where the user is
+      // scrolled to is easy to miss, so the same message always shows as a banner too.
+      if (appError.field === 'fixedAmount' || appError.field === 'dueDay' || appError.field === 'toAccountId') {
+        setError(appError.field, { message });
+      }
+      setFormError(message);
+      return;
     }
+    // One Save does both: the bill's own fields, and (if it changed) this occurrence's
+    // amount - no second button needed for what reads as one action to the user.
+    if (instanceAmountChanged) {
+      try {
+        await setInstanceAmount({ id: instanceId!, expectedAmount: trimmedInstanceAmount }).unwrap();
+      } catch (err) {
+        const appError = err as { message?: string };
+        // The bill itself already saved - say so, rather than let a second failure read as
+        // if nothing happened.
+        setFormError(`The bill saved, but this occurrence's amount didn't: ${appError.message ?? "couldn't save it"}.`);
+        return;
+      }
+    }
+    onClose();
+  };
+
+  // A rule the form checks but has no row to show it on (or a row scrolled out of view)
+  // must never make Save look dead - name the field and say what's wrong, above Save.
+  const onInvalid = (errs: FieldErrors<CommitmentFormValues>) => {
+    const first = Object.entries(errs)[0];
+    if (!first) return;
+    const [field, error] = first;
+    setFormError(`${FIELD_LABELS[field as keyof CommitmentFormValues] ?? field}: ${error?.message ?? 'this needs a look'}`);
   };
 
   const onDelete = async () => {
@@ -216,35 +332,7 @@ function EditForm({ rule, onClose, onDeleted }: { rule: CommitmentResponse; onCl
   };
 
   return (
-    <form id="edit-commitment" onSubmit={handleSubmit(onSubmit)} onKeyDown={handleEnterAdvance} autoComplete="off" className="flex flex-col gap-space-6">
-      {options.length > 0 && (
-        <div className="flex flex-col gap-space-2">
-          <div className="rounded-lg border border-line">
-            <FormRow label="Follows" hint="Link the loan, investment or goal this bill pays, and its figures come from there.">
-              <Select
-                variant="row"
-                className="-ml-space-1 max-w-full"
-                ariaLabel="What this bill pays"
-                value={followKey ?? ''}
-                placeholder="Nothing - I set the figures"
-                clearable
-                options={options}
-                onChange={(v) => chooseFollow((v || null) as SourceKey | null)}
-              />
-            </FormRow>
-          </div>
-          {suggestion && (
-            <p className="text-caption text-ink-soft">
-              This looks like {suggestion.label}.{' '}
-              <button type="button" className="text-accent underline-offset-2 hover:underline" onClick={() => chooseFollow(suggestion.key)}>
-                Link it
-              </button>{' '}
-              so the two stay in step.
-            </p>
-          )}
-        </div>
-      )}
-
+    <form id="edit-commitment" onSubmit={handleSubmit(onSubmit, onInvalid)} onKeyDown={handleEnterAdvance} autoComplete="off" className="flex flex-col gap-space-6">
       <CommitmentFields
         form={form}
         accounts={accounts}
@@ -254,37 +342,46 @@ function EditForm({ rule, onClose, onDeleted }: { rule: CommitmentResponse; onCl
         allowOnce
         startSlot={
           !termsLocked && cycle ? (
-            watch('frequency') === 'ONCE' ? (
-              <FormRow label="In" hint="The salary month this one-off belongs to.">
-                <SalaryMonthPicker
-                  value={onceIn || rule.activeFrom}
-                  knownStart={cycle.startDate}
-                  onChange={(v) => setOnceIn(v === rule.activeFrom ? '' : v)}
-                  ariaLabel="Which month this one-off is in"
+            <FormRow
+              label={watch('frequency') === 'ONCE' ? 'When' : settleAs === 'INCOME' ? 'First one' : 'First payment'}
+              hint={
+                watch('frequency') === 'ONCE'
+                  ? 'The month it happens - the exact date is shown beside it.'
+                  : 'The month of the first one - the exact date is shown beside it. Moving it later removes the unpaid ones before it; paid ones stay.'
+              }
+            >
+              <PaymentMonthPicker
+                value={firstMonth || savedFirstMonth}
+                onChange={setFirstMonth}
+                dueDay={Number(watch('dueDay'))}
+                ariaLabel={watch('frequency') === 'ONCE' ? 'Which month it happens' : 'Month of the first payment'}
+              />
+            </FormRow>
+          ) : undefined
+        }
+        amountSlot={
+          instanceId != null && !termsLocked ? (
+            <FormRow
+              label="This time"
+              hint={`The amount for the one due ${instanceDueDate ? formatShortDate(instanceDueDate) : 'now'}. Each month's is its own - later ones stay “amount unknown” until you give them one. Saved with “Save changes”.`}
+            >
+              <span className="flex items-center gap-space-1">
+                <span className="num text-ink-muted">₹</span>
+                <input
+                  inputMode="decimal"
+                  value={instanceAmountInput}
+                  onChange={(e) => setInstanceAmountInput(e.target.value)}
+                  placeholder={instanceDueDate ? `Amount due ${formatShortDate(instanceDueDate)} - optional` : 'Optional'}
+                  aria-label={`Amount for ${rule.name} this time`}
+                  className={FORM_ROW_CONTROL + ' num'}
                 />
-              </FormRow>
-            ) : (
-              <FormRow label="Starts" hint="The salary month of its first payment. Months before it drop out of the plan unless already paid.">
-                <SalaryMonthPicker
-                  value={startIn || rule.activeFrom}
-                  knownStart={cycle.startDate}
-                  onChange={(v) => setStartIn(v === rule.activeFrom ? '' : v)}
-                  ariaLabel="Which month this starts in"
-                />
-              </FormRow>
-            )
+              </span>
+            </FormRow>
           ) : undefined
         }
         lockedTerms={termsLocked ? <LockedTerms loan={loan} investment={investment} /> : undefined}
-        lockedSettlement={goal ? <GoalSettlement goal={goal} accounts={accounts} /> : undefined}
+        lockedSettlement={goal && settleAs !== 'EXPENSE' ? <GoalSettlement goal={goal} accounts={accounts} /> : undefined}
       />
-
-      {!termsLocked && watch('frequency') === 'ONCE' && (
-        <p className="text-caption text-ink-soft">
-          Just once: only in {cycleMonthName(shiftIsoDays(shiftIsoMonths(onceIn || rule.activeFrom, 1), -1))}, on the{' '}
-          {watch('dueDay') || '…'}th - it won’t come back in later months.
-        </p>
-      )}
 
       {investment && (
         <div className="rounded-lg border border-line">
@@ -314,17 +411,51 @@ function EditForm({ rule, onClose, onDeleted }: { rule: CommitmentResponse; onCl
         </div>
       )}
 
+      {(followKey != null || (settleAs !== 'INCOME' && options.length > 0)) && (
+        <div className="flex flex-col gap-space-2">
+          <div className="rounded-lg border border-line">
+            <FormRow
+              label="Linked to"
+              hint="Only for a loan EMI, a SIP or RD, or a goal you've already added. A loan or SIP gives it its amount and date. For a goal: a Payment linked to it is money the goal pays out, like a trip booking; a Saving linked to it puts money into the goal. Leave it as “Not linked” for anything else."
+            >
+              <Select
+                variant="row"
+                className="-ml-space-1 max-w-full"
+                ariaLabel="Loan, investment or goal this is linked to"
+                value={followKey ?? ''}
+                placeholder="Not linked - I enter the amount"
+                clearable
+                options={options}
+                onChange={(v) => chooseFollow((v || null) as SourceKey | null)}
+              />
+            </FormRow>
+          </div>
+          {suggestion && (
+            <p className="text-caption text-ink-soft">
+              This looks like {suggestion.label}.{' '}
+              <button type="button" className="text-accent underline-offset-2 hover:underline" onClick={() => chooseFollow(suggestion.key)}>
+                Link it
+              </button>{' '}
+              so the two stay in step.
+            </p>
+          )}
+        </div>
+      )}
+
       {!termsLocked && !oneOff && watch('frequency') !== 'ONCE' && (rule.sourceType === 'MANUAL' || rule.sourceType === 'GOAL') && laterMonths.length > 0 && (
         <div className="rounded-lg border border-line">
-          <FormRow label="Apply from" hint="A change that starts later - earlier months keep the bill as it is now.">
+          <FormRow
+            label="Changes start"
+            hint="Only if the change begins later - like rent going up from January. Payments before then keep the old figures."
+          >
             <Select
               variant="row"
               className="-ml-space-1 max-w-full"
               ariaLabel="When these changes start"
               value={applyFrom}
               options={[
-                { value: '', label: 'This month and every month after it' },
-                ...laterMonths.map((o) => ({ value: o.start, label: `From ${o.label}` })),
+                { value: '', label: 'Now - this one and every one after' },
+                ...laterMonths.map((o) => ({ value: o.start, label: `Payments from ${formatDayMonthYear(o.start)}` })),
               ]}
               onChange={(v) => setApplyFrom(v ?? '')}
             />
@@ -334,16 +465,18 @@ function EditForm({ rule, onClose, onDeleted }: { rule: CommitmentResponse; onCl
 
       <p className="text-caption text-ink-muted">
         {applyFrom
-          ? 'Months before then keep the bill exactly as it is now; from then on it uses these figures. To stop it instead, set its last payment.'
-          : 'Changes apply to this month and every month after it that isn’t paid yet. Months already paid keep what was recorded.'}
+          ? `Payments before ${formatDayMonthYear(applyFrom)} keep the old figures; from then on it uses these. To stop it instead, set its last payment.`
+          : 'Saving updates every one not yet paid - this month’s and later ones. Paid ones keep what was recorded.'}
       </p>
+
+      {formError && <p className="text-caption text-critical">{formError}</p>}
 
       {confirmingDelete ? (
         <div className="flex flex-col gap-space-3 rounded-lg border border-line p-space-4">
           <p className="text-body text-ink">Delete {rule.name}?</p>
           <p className="text-caption text-ink-muted">
-            It stops appearing in future months, and this month’s unpaid one is removed. Months already paid stay in your
-            history. To end it after a final payment instead, set “Last payment”.
+            It stops appearing in future months, and this month’s unpaid one is removed. Paid ones stay in your history. To
+            stop it after a final payment instead, set “Last payment”.
           </p>
           {deleteError && <p className="text-caption text-critical">{deleteError}</p>}
           <div className="flex gap-space-3">
@@ -351,7 +484,7 @@ function EditForm({ rule, onClose, onDeleted }: { rule: CommitmentResponse; onCl
               Keep it
             </Button>
             <Button type="button" variant="primary" onClick={onDelete} disabled={deleting} className="flex-1 !bg-critical">
-              Delete bill
+              Delete
             </Button>
           </div>
         </div>
@@ -360,7 +493,7 @@ function EditForm({ rule, onClose, onDeleted }: { rule: CommitmentResponse; onCl
           <Button type="button" variant="secondary" onClick={() => setConfirmingDelete(true)}>
             Delete
           </Button>
-          <Button type="submit" variant="primary" disabled={saving} className="flex-1">
+          <Button type="submit" variant="primary" disabled={saving || savingAmount} className="flex-1">
             Save changes
           </Button>
         </div>

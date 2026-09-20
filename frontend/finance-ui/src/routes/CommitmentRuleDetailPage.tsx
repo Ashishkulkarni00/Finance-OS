@@ -98,7 +98,7 @@ export default function CommitmentRuleDetailPage() {
           </div>
           <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
             <Pencil size={14} strokeWidth={1.5} />
-            Edit bill
+            Edit
           </Button>
         </div>
         {rule.why && <p className="font-serif text-editorial text-ink">{rule.why}</p>}
