@@ -51,6 +51,7 @@ public class CommitmentInstanceServiceImpl implements CommitmentInstanceService 
     private final CurrentUserProvider currentUser;
     private final Clock clock;
     private final CommitmentAutoMatcher autoMatcher;
+    private final CommitmentBucketClassifier bucketClassifier;
 
     public CommitmentInstanceServiceImpl(CommitmentInstanceRepository repository,
                                          CommitmentRepository commitmentRepository,
@@ -62,7 +63,8 @@ public class CommitmentInstanceServiceImpl implements CommitmentInstanceService 
                                          CategoryService categoryService,
                                          CurrentUserProvider currentUser,
                                          Clock clock,
-                                         CommitmentAutoMatcher autoMatcher) {
+                                         CommitmentAutoMatcher autoMatcher,
+                                         CommitmentBucketClassifier bucketClassifier) {
         this.repository = repository;
         this.commitmentRepository = commitmentRepository;
         this.generator = generator;
@@ -74,6 +76,7 @@ public class CommitmentInstanceServiceImpl implements CommitmentInstanceService 
         this.currentUser = currentUser;
         this.clock = clock;
         this.autoMatcher = autoMatcher;
+        this.bucketClassifier = bucketClassifier;
     }
 
     @Override
@@ -321,7 +324,7 @@ public class CommitmentInstanceServiceImpl implements CommitmentInstanceService 
                 unknown++;
                 continue;
             }
-            switch (bucketOf(commitment)) {
+            switch (bucketClassifier.classify(commitment)) {
                 case PAYMENT -> committed = committed.add(amount);
                 case SET_ASIDE -> savings = savings.add(amount);
                 default -> { }
@@ -346,32 +349,6 @@ public class CommitmentInstanceServiceImpl implements CommitmentInstanceService 
 
     /** Which part of the month's outline a plan item belongs to - one definition for the
      *  outline (shape) and the review, so they can't disagree. */
-    enum Bucket { INCOME, PAYMENT, SET_ASIDE, NEITHER }
-
-    private Bucket bucketOf(Commitment commitment) {
-        TransactionType kind = commitment.getSettleAs();
-        if (kind == TransactionType.INCOME) {
-            return Bucket.INCOME;
-        }
-        // Money moved or invested out of an account that isn't spending money (cash kept for
-        // the emergency fund) was set aside already - it isn't taken from this month's income.
-        if ((kind == TransactionType.INVESTMENT || kind == TransactionType.TRANSFER)
-                && !accountService.getByIdIncludingDeleted(commitment.getAccountId()).countsAsSpendable()) {
-            return Bucket.NEITHER;
-        }
-        if (kind == TransactionType.INVESTMENT) {
-            return Bucket.SET_ASIDE;
-        }
-        if (kind == TransactionType.TRANSFER) {
-            Account to = accountService.getByIdIncludingDeleted(commitment.getToAccountId());
-            if (to.getType() == AccountType.CREDIT_CARD || to.getType() == AccountType.LOAN) {
-                return Bucket.PAYMENT;   // paying a debt is spoken-for money
-            }
-            return to.countsAsSpendable() ? Bucket.NEITHER : Bucket.SET_ASIDE;
-        }
-        return Bucket.PAYMENT;
-    }
-
     private static final int LARGEST_UNPLANNED = 3;
 
     @Override
@@ -394,16 +371,16 @@ public class CommitmentInstanceServiceImpl implements CommitmentInstanceService 
         for (CommitmentInstanceView view : views) {
             CommitmentInstance instance = view.instance();
             Commitment commitment = view.commitment();
-            Bucket bucket = bucketOf(commitment);
+            CommitmentBucket bucket = bucketClassifier.classify(commitment);
             BigDecimal planned = instance.getExpectedAmount() != null ? instance.getExpectedAmount() : instance.getConfirmedAmount();
-            if (bucket == Bucket.INCOME) {
+            if (bucket == CommitmentBucket.INCOME) {
                 incomeExpected = incomeExpected.add(orZero(instance.getExpectedAmount()));
                 continue;
             }
-            if (bucket == Bucket.NEITHER) {
+            if (bucket == CommitmentBucket.NEITHER) {
                 continue;
             }
-            boolean savings = bucket == Bucket.SET_ASIDE;
+            boolean savings = bucket == CommitmentBucket.SET_ASIDE;
             if (instance.getStatus() == CommitmentInstanceStatus.SKIPPED) {
                 skipped.add(new CycleReview.Item(instance.getId(), commitment.getName(), planned, instance.getDueDate(),
                         commitment.isMandatory(), savings));
