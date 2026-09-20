@@ -81,7 +81,7 @@ public class PositionServiceImpl implements PositionService {
      * brings money in, and a transfer between two spendable accounts only moves it -
      * neither is spoken-for. A transfer to savings, an investment or an expense is.
      */
-    private static boolean leavesHeldMoney(Commitment commitment, java.util.Set<Long> spendableIds) {
+    private static boolean leavesHeldMoney(Commitment commitment, java.util.Set<Long> spendableIds, java.util.Set<Long> cardIds) {
         return switch (commitment.getSettleAs()) {
             case INCOME, REFUND -> false;
             // Moving or investing money only reduces what's free when it leaves spending
@@ -89,7 +89,10 @@ public class PositionServiceImpl implements PositionService {
             case TRANSFER -> spendableIds.contains(commitment.getAccountId())
                     && (commitment.getToAccountId() == null || !spendableIds.contains(commitment.getToAccountId()));
             case INVESTMENT -> spendableIds.contains(commitment.getAccountId());
-            case EXPENSE -> true;
+            // Spent from spending money, or on a card (owed, so it leaves held money when the
+            // bill is paid). Spent from savings - a trip booking paid from the trip's own
+            // account - was already taken out when it was moved there (FIX_BACKLOG 2.11).
+            case EXPENSE -> spendableIds.contains(commitment.getAccountId()) || cardIds.contains(commitment.getAccountId());
         };
     }
 
@@ -147,9 +150,13 @@ public class PositionServiceImpl implements PositionService {
 
         java.util.Set<Long> spendableIds = spendableAccounts.stream().map(Account::getId)
                 .collect(Collectors.toSet());
+        java.util.Set<Long> cardIds = activeAccounts.stream()
+                .filter(a -> a.getType() == AccountType.CREDIT_CARD)
+                .map(Account::getId)
+                .collect(Collectors.toSet());
         for (CommitmentInstance instance : open) {
             Commitment commitment = commitmentsById.get(instance.getCommitmentId());
-            if (commitment != null && !leavesHeldMoney(commitment, spendableIds)) {
+            if (commitment != null && !leavesHeldMoney(commitment, spendableIds, cardIds)) {
                 continue;
             }
             String name = commitment == null ? "A commitment" : commitment.getName();

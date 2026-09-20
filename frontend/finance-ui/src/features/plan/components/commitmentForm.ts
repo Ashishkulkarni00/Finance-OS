@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { z } from 'zod';
 import { formatShortDate } from '@/lib/dates';
 
-/** The fields "Add a bill" and "Edit bill" share. */
+/** The fields "Add a commitment" and "Edit" share. */
 export const commitmentSchema = z
   .object({
     name: z.string().min(1, 'What is this commitment?').max(100),

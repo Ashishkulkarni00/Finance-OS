@@ -72,8 +72,8 @@ export interface CommitmentResponse {
   sourceType: CommitmentSource;
   sourceId: number | null;
   settleAs: SettleAs;
-  /** Where the money goes for a TRANSFER or INVESTMENT bill. */
-  toAccountId: number | null;
+  /** Where the money goes for a TRANSFER or INVESTMENT bill. Left out of the JSON (not null) for any other kind. */
+  toAccountId?: number | null;
   mandatory: boolean;
   requiresVerification: boolean;
   activeFrom: string;

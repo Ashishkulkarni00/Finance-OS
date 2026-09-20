@@ -64,6 +64,7 @@ Rewritten from scratch 2026-09-17 (end of day).
 
 ## 3. What exists (feature map)
 - **Navigation (since 2026-09-18):** Today · Months · Ahead · Money (tabs: Overview · Cards · Debts · Investments) · Ledger, plus Add.
+- **Ahead (since 2026-09-19):** a 12-month forecast (`GET /forecast`, a pure rule projection - not blended with actuals) with a money-unlock calendar, above the Goals section. Reserve-ahead, what-if and Get back on track are next.
 - **Accounts:**
   - Typed accounts (bank, cash, card, loan, investment); "spending money?" decides what counts as held.
   - "Update balance" re-bases the opening anchor. This is design hole H6.

@@ -20,7 +20,7 @@ export function PageAddHost() {
   const close = () => dispatch(closePageAdd());
 
   // A bill added while viewing another month starts in that month, as the plan's own
-  // "+ Add a bill" does.
+  // "+ Add a commitment" does.
   const cycleId = pageAdd?.kind === 'bill' ? pageAdd.cycleId : null;
   const { data: cycle, isFetching } = useGetCycleQuery(cycleId ?? 0, { skip: cycleId == null });
 

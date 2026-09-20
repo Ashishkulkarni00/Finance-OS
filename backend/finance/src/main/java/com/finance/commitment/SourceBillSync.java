@@ -117,7 +117,18 @@ public class SourceBillSync {
         }
     }
 
+    /**
+     * A bill linked to a goal is one of two things. Paid as an expense, it's a payment the goal
+     * is for - a trip's bookings - and stays exactly as entered: any account, any amount.
+     * Otherwise it funds the goal: a transfer into the goal's account.
+     */
     private void applyGoal(Commitment bill, Goal goal) {
+        if (bill.getSettleAs() == TransactionType.EXPENSE) {
+            if (goal.isDeleted() || goal.isArchived()) {
+                endToday(bill);
+            }
+            return;
+        }
         if (goal.getLinkedAccountId() == null) {
             throw new BusinessRuleException(ErrorCode.SOURCE_NOT_SUPPORTED,
                     "This goal isn't kept in an account, so there's nowhere to move the money to.", "sourceId");

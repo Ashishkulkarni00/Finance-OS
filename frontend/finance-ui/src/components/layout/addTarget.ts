@@ -8,7 +8,7 @@ export type AddTarget =
 
 export const ADD_LABEL: Record<AddTarget['kind'], string> = {
   transaction: 'Add transaction',
-  bill: 'Add bill',
+  bill: 'Add commitment',
   account: 'Add account',
   card: 'Add credit card',
   loan: 'Add loan',

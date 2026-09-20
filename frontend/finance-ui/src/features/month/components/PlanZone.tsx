@@ -349,7 +349,8 @@ export function PlanZone({ cycle, instances: allInstances, progress, isLoading, 
   const [adding, setAdding] = useState(false);
   const [addingIncome, setAddingIncome] = useState<'salary' | 'extra' | null>(null);
   const { data: me } = useGetMeQuery();
-  const [editingId, setEditingId] = useState<number | null>(null);
+  /** The occurrence whose pencil was clicked - Edit changes its commitment, and "This time" is its own amount. */
+  const [editing, setEditing] = useState<CommitmentInstanceResponse | null>(null);
   const [managingCategories, setManagingCategories] = useState(false);
   const [grouping, setGroupingState] = useState<Grouping>(readGrouping);
   const setGrouping = (next: Grouping) => {
@@ -410,11 +411,11 @@ export function PlanZone({ cycle, instances: allInstances, progress, isLoading, 
         <SectionHeader>The plan</SectionHeader>
         <EmptyState
           icon={ListChecks}
-          headline="No bills in this cycle yet."
-          body="Add what leaves your account every month - rent, EMIs, subscriptions, family support - and the rest builds itself."
+          headline="No commitments in this month yet."
+          body="Add what leaves your account every month - rent, EMIs, subscriptions, family support - and your salary coming in. The rest builds itself."
           action={
             <Button variant="secondary" onClick={() => setAdding(true)}>
-              Add a bill
+              Add a commitment
             </Button>
           }
         />
@@ -424,7 +425,7 @@ export function PlanZone({ cycle, instances: allInstances, progress, isLoading, 
   }
 
   const byDueDate = (a: CommitmentInstanceResponse, b: CommitmentInstanceResponse) => a.dueDate.localeCompare(b.dueDate);
-  const edit = (instance: CommitmentInstanceResponse) => () => setEditingId(instance.commitmentId);
+  const edit = (instance: CommitmentInstanceResponse) => () => setEditing(instance);
   // Expected income has its own block; everything below is bills.
   const income = allInstances.filter((i) => i.settleAs === 'INCOME');
   const instances = allInstances.filter((i) => i.settleAs !== 'INCOME');
@@ -480,7 +481,7 @@ export function PlanZone({ cycle, instances: allInstances, progress, isLoading, 
               Manage categories
             </button>
             <button type="button" onClick={() => setAdding(true)} className="text-accent underline-offset-4 hover:underline">
-              + Add a bill
+              + Add a commitment
             </button>
           </span>
         }
@@ -521,7 +522,7 @@ export function PlanZone({ cycle, instances: allInstances, progress, isLoading, 
                   figure={<Amount value={group.plannedTotal} role="caption" className="text-ink" />}
                   caption={
                     categoryId == null
-                      ? 'planned · use the pencil on a bill to give it one'
+                      ? 'planned · use the pencil on one to give it a category'
                       : open.length > 0
                         ? `planned · ${formatMoney(group.outstandingTotal)} still to pay`
                         : 'planned · all paid'
@@ -573,7 +574,13 @@ export function PlanZone({ cycle, instances: allInstances, progress, isLoading, 
       )}
 
       {addSheet}
-      <EditCommitmentSheet commitmentId={editingId} onClose={() => setEditingId(null)} />
+      <EditCommitmentSheet
+        commitmentId={editing?.commitmentId ?? null}
+        instanceId={editing?.id ?? null}
+        instanceAmount={editing?.expectedAmount ?? null}
+        instanceDueDate={editing?.dueDate ?? null}
+        onClose={() => setEditing(null)}
+      />
       <ManageCategoriesSheet open={managingCategories} onClose={() => setManagingCategories(false)} />
     </section>
   );

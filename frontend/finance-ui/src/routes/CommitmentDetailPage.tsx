@@ -126,7 +126,7 @@ export default function CommitmentDetailPage() {
             )}
             <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
               <Pencil size={14} strokeWidth={1.5} />
-              {isIncome ? 'Edit' : 'Edit bill'}
+              Edit
             </Button>
           </span>
         </div>
@@ -136,6 +136,9 @@ export default function CommitmentDetailPage() {
         commitmentId={editing ? data.commitmentId : null}
         onClose={() => setEditing(false)}
         onDeleted={() => navigate('/month')}
+        instanceId={id}
+        instanceAmount={data.expectedAmount}
+        instanceDueDate={data.dueDate}
       />
 
       {(data.status === 'UNVERIFIED' || data.status === 'NEEDS_REVIEW') && (

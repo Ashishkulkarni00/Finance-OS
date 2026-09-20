@@ -42,8 +42,8 @@ export function WorklistRow({ instanceId, primary, secondary, meta, amount, acti
           <button
             type="button"
             onClick={onEdit}
-            aria-label="Edit bill"
-            title="Edit bill"
+            aria-label="Edit"
+            title="Edit"
             className="rounded-md p-space-1 text-ink-muted transition-colors hover:bg-sunken hover:text-ink"
           >
             <Pencil size={15} strokeWidth={1.5} aria-hidden />
