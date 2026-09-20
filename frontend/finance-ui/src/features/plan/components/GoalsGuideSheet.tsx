@@ -17,7 +17,7 @@ const CASES: { question: string; answer: string }[] = [
   {
     question: 'How does a goal know how much I’ve saved?',
     answer:
-      'From what you chose under “Tracked in”. Linked to an account, saved is that account’s balance — money in or out moves the goal. Linked to a reservation, saved is the amount reserved — raise the reservation and the goal moves. A goal linked to nothing stays at zero.',
+      'From what you chose under “Saved in”. Linked to an account, saved is that account’s balance — money in or out moves the goal. Linked to a reservation, saved is the amount reserved — raise the reservation and the goal moves. A goal linked to nothing stays at zero.',
   },
   {
     question: 'What should I track a goal in?',
@@ -28,6 +28,16 @@ const CASES: { question: string; answer: string }[] = [
     question: 'Why did “a month” go up?',
     answer:
       'Either less went in than planned, or the date came closer with the same gap still to close. It’s the honest cost of the target and date you set — change either and it recalculates.',
+  },
+  {
+    question: 'A trip in December, but bookings to pay in October',
+    answer:
+      'Make the goal the whole trip, by the day you travel. On its page, add the bookings under Payments with their date and amount. The goal then says what you need by each date - the October bookings set the pace, not December - and the bookings show on Months in October, taken out of what’s free there. The rest is due on the trip date; plan it as a payment too if you want December set aside for it.',
+  },
+  {
+    question: 'Paying a booking made my goal go down?',
+    answer:
+      'It doesn’t: progress counts what’s saved plus what the goal has already paid out, so money leaving for the trip still counts toward it.',
   },
   {
     question: 'Is a goal the same as a budget?',

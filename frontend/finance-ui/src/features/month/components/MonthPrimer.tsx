@@ -1,9 +1,9 @@
 import { PagePrimer } from '@/components/PagePrimer';
 
 const RULES = [
-  { term: 'Free this cycle', means: 'yours after every bill still due' },
-  { term: 'Needs you', means: 'overdue, due in 2 days, or missing an amount' },
-  { term: 'Settle', means: 'record that you paid it' },
+  { term: 'Free until salary', means: 'what’s left after everything still due' },
+  { term: 'Settle', means: 'mark it paid' },
+  { term: 'Estimate', means: 'give a changing one a rough amount' },
 ];
 
 /** Months in one sentence - see `PagePrimer`. */
@@ -11,8 +11,8 @@ export function MonthPrimer({ onOpenGuide }: { onOpenGuide: () => void }) {
   return (
     <PagePrimer
       storageKey="kosh.month.primer.dismissed"
-      headline="Every salary month in one place — plan the ones ahead, run this one, look back on the last."
-      detail="Bills that need you come first. Paid ones stay listed, so nothing quietly disappears."
+      headline="One month, salary to salary: what still has to be paid before your next salary, and what’s free after it."
+      detail="Add each rent, EMI, bill or salary once as a commitment - it then shows up in every month it applies to."
       rules={RULES}
       guideLabel="How it works"
       onOpenGuide={onOpenGuide}

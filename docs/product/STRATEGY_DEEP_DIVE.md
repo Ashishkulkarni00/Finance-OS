@@ -300,13 +300,22 @@ no points, no nagging.
 6. **Import screen (backend exists) + entry memory - effort reduction.** Raised in priority
    after the retention research (§B.1): manual entry is the category's #1 churn cause.
 
-**Phase 2 - Differentiation**
-1. **Ahead**: 12-month obligation forecast (rules, one-offs, loans, annual items, expected
-   income) with assumptions labelled.
-2. **Money unlocking**: freed cash-flow calendar + "where should it go?" decision.
-3. **Reserve ahead** for annual/large obligations ("₹2,500/month makes March comfortable").
+**Phase 2 - Differentiation** *(started 2026-09-19, one item at a time; status per item)*
+1. ✅ **Ahead**: 12-month obligation forecast (rules, one-offs, loans, annual items, expected
+   income) with assumptions labelled. Built as `GET /forecast` + `AheadForecast.tsx`.
+2. ✅ **Money unlocking**: freed cash-flow calendar + "where should it go?" decision. Built
+   as the `unlocks` field on each forecast month + `UnlockCalendar` inside `AheadForecast.tsx`
+   (the "where should it go?" decision UI is not yet built - it currently only shows *that*
+   and *when* money frees up, not a prompt to allocate it).
+3. **Reserve ahead** for annual/large obligations ("₹2,500/month makes March comfortable") -
+   *next; needs a schema decision (§I7), see CONTINUE_HERE.md*.
 4. **Decision preview (what-if)** on the forecast; Adopt → planned changes.
 5. **Get back on track** (drift → options → remembered choice).
+6. **Month-end surplus suggestion** (user-requested 2026-09-18, added here retroactively - see
+   §I and CONTINUE_HERE.md "Surplus suggestion" for the design): at month end/close, suggest
+   moving genuinely spare money toward the top-priority goal, showing the date it moves. One-off,
+   never automatic; reuses `CycleReview`/`CycleShape` + goal priority; no schema needed unless
+   a custom buffer amount must persist.
 
 **Phase 3 - Intelligence**
 Baselines ("above your usual"), recurring detection → "add as bill", goal chains, emergency

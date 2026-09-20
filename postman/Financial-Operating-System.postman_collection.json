@@ -291,6 +291,10 @@
 		{
 			"key": "importRowId",
 			"value": ""
+		},
+		{
+			"key": "tripGoalId",
+			"value": "6"
 		}
 	],
 	"item": [
@@ -4507,6 +4511,114 @@
 							"body": ""
 						}
 					]
+				},
+				{
+					"name": "Get goal with payments (schedule)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/goals/{{tripGoalId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"goals",
+								"{{tripGoalId}}"
+							]
+						},
+						"description": "A goal with dated payments (2026-09-19). `schedule` lists each payment linked to the goal and paid as an expense (a trip's bookings), plus \"The rest\" (commitmentId null) due on the target date, earliest first; each line is PAID / COVERED / SHORT / AMOUNT_UNKNOWN against what is saved now. `spentAmount` = already paid out; progressPercent = (saved + spent) / target; `requiredPerMonth` is set by the tightest deadline. Null fields (e.g. linkedAccountId) are omitted. Example: a real goal with no payments planned yet."
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200', () => pm.response.to.have.status(200));",
+									"const g = pm.response.json();",
+									"pm.test('money is a string', () => { pm.expect(g.currentAmount).to.be.a('string'); pm.expect(g.spentAmount).to.be.a('string'); });",
+									"pm.test('schedule is date-ordered', () => { const d = g.schedule.map(l => l.date); pm.expect(d).to.eql([...d].sort()); });",
+									"pm.test('known statuses', () => g.schedule.forEach(l => pm.expect(['PAID','COVERED','SHORT','AMOUNT_UNKNOWN']).to.include(l.status)));"
+								]
+							}
+						}
+					],
+					"response": [
+						{
+							"name": "200 - real goal, no payments planned yet",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/goals/{{tripGoalId}}",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"goals",
+										"{{tripGoalId}}"
+									]
+								},
+								"description": "A goal with dated payments (2026-09-19). `schedule` lists each payment linked to the goal and paid as an expense (a trip's bookings), plus \"The rest\" (commitmentId null) due on the target date, earliest first; each line is PAID / COVERED / SHORT / AMOUNT_UNKNOWN against what is saved now. `spentAmount` = already paid out; progressPercent = (saved + spent) / target; `requiredPerMonth` is set by the tightest deadline. Null fields (e.g. linkedAccountId) are omitted. Example: a real goal with no payments planned yet."
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"body": "{\n  \"id\": 6,\n  \"name\": \"Bangalore trip\",\n  \"targetAmount\": \"12000.00\",\n  \"targetDate\": \"2026-10-31\",\n  \"priority\": 0,\n  \"currentAmount\": \"0.00\",\n  \"spentAmount\": \"0.00\",\n  \"progressPercent\": 0.0,\n  \"requiredPerMonth\": \"12000.00\",\n  \"pace\": \"ON_TRACK\",\n  \"timeElapsedPercent\": 0.0,\n  \"schedule\": [],\n  \"archived\": false,\n  \"createdAt\": \"2026-09-19T07:47:40.721901Z\",\n  \"updatedAt\": \"2026-09-19T07:47:40.721901Z\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Update goal",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/goals/{{tripGoalId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"goals",
+								"{{tripGoalId}}"
+							]
+						},
+						"body": {
+							"mode": "raw",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							},
+							"raw": "{\n  \"name\": \"Bangalore trip\",\n  \"targetAmount\": \"15000\",\n  \"targetDate\": \"2026-10-31\"\n}"
+						},
+						"description": "Only the fields sent change. A goal can move to another account but not be unlinked (null = unchanged). Body as the Edit goal sheet sends it - captured in the browser 2026-09-19 with the request blocked, so no example response yet."
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200', () => pm.response.to.have.status(200));",
+									"pm.test('target updated', () => pm.expect(pm.response.json().targetAmount).to.eql('15000.00'));"
+								]
+							}
+						}
+					],
+					"response": []
 				}
 			]
 		},
@@ -6787,6 +6899,52 @@
 							"body": "{\n    \"incomeTotal\": \"57700.00\",\n    \"expenseTotal\": \"57755.00\",\n    \"investedTotal\": \"2500.00\",\n    \"transferredTotal\": \"10000.00\",\n    \"net\": \"-55.00\",\n    \"savingsRate\": -0.001\n}"
 						}
 					]
+				},
+				{
+					"name": "Plan a goal payment (expense linked to a goal)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/commitments",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"commitments"
+							]
+						},
+						"body": {
+							"mode": "raw",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							},
+							"raw": "{\n  \"name\": \"Bangalore trip - bookings\",\n  \"amountType\": \"FIXED\",\n  \"fixedAmount\": \"8000\",\n  \"frequency\": \"MONTHLY\",\n  \"dueDay\": 5,\n  \"accountId\": 2,\n  \"categoryId\": null,\n  \"mandatory\": true,\n  \"settleAs\": \"EXPENSE\",\n  \"toAccountId\": null,\n  \"sourceType\": \"GOAL\",\n  \"sourceId\": {{tripGoalId}},\n  \"activeFrom\": \"2026-09-28\",\n  \"activeTo\": \"2026-10-27\"\n}"
+						},
+						"description": "A goal-linked bill paid as an EXPENSE is a payment the goal makes on a date - it stays an expense (only non-expense goal links become transfers that fund the goal). A one-month window makes it a one-off. Body captured from \"+ Add a payment\" (2026-09-19, blocked before sending - no example response yet)."
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('201', () => pm.response.to.have.status(201));",
+									"const b = pm.response.json();",
+									"pm.test('stays an expense', () => pm.expect(b.settleAs).to.eql('EXPENSE'));",
+									"pm.test('linked to the goal', () => pm.expect(b.sourceType).to.eql('GOAL'));"
+								]
+							}
+						}
+					],
+					"response": []
 				}
 			]
 		},
@@ -9329,6 +9487,83 @@
 								}
 							],
 							"body": "{\n    \"id\": 7,\n    \"originalFilename\": \"hdfc-oct.csv\",\n    \"status\": \"COMMITTED\",\n    \"totalRows\": 3,\n    \"duplicateRows\": 1,\n    \"invalidRows\": 0,\n    \"uploadedAt\": \"2026-10-08T10:00:00Z\",\n    \"rows\": [\n        {\n            \"id\": 1,\n            \"rowNumber\": 4,\n            \"duplicate\": true,\n            \"date\": \"2026-10-05\",\n            \"description\": \"EMI BIKE LOAN\",\n            \"type\": \"EXPENSE\",\n            \"amount\": \"6145.00\",\n            \"accountId\": 2,\n            \"categoryId\": 9,\n            \"duplicateOfTransactionId\": 88\n        },\n        {\n            \"id\": 2,\n            \"rowNumber\": 5,\n            \"duplicate\": false,\n            \"date\": \"2026-09-28\",\n            \"description\": \"SALARY SEP 2026\",\n            \"type\": \"INCOME\",\n            \"amount\": \"57700.00\",\n            \"accountId\": 2,\n            \"categoryId\": 20,\n            \"committedTransactionId\": 140\n        },\n        {\n            \"id\": 3,\n            \"rowNumber\": 6,\n            \"duplicate\": false,\n            \"date\": \"2026-10-07\",\n            \"description\": \"UPI-SWIGGY\",\n            \"type\": \"EXPENSE\",\n            \"amount\": \"349.50\",\n            \"accountId\": 2,\n            \"categoryId\": 16,\n            \"committedTransactionId\": 141\n        }\n    ],\n    \"committedAt\": \"2026-10-08T10:02:00Z\"\n}"
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Forecast",
+			"description": "Ahead's backbone (Phase 2 piece 1).",
+			"item": [
+				{
+					"name": "12-month forecast",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+									"const b = pm.response.json();",
+									"pm.test(\"money as strings, dates as ISO\", () => b.months.forEach((m) => { pm.expect(m.incomeExpected).to.be.a(\"string\"); pm.expect(m.committed).to.be.a(\"string\"); pm.expect(m.cycleStart).to.match(/^\\d{4}-\\d{2}-\\d{2}$/); }));",
+									"pm.test(\"months are consecutive salary cycles\", () => { for (let i = 1; i < b.months.length; i++) { const prevEnd = new Date(b.months[i - 1].cycleEnd); const thisStart = new Date(b.months[i].cycleStart); pm.expect(thisStart - prevEnd).to.eql(86400000); } });",
+									"pm.test(\"flexible only when something is coming in\", () => b.months.forEach((m) => { if (Number(m.incomeExpected) === 0) pm.expect(m.flexible == null).to.be.true; }));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/forecast?months=12",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"forecast"
+							],
+							"query": [
+								{
+									"key": "months",
+									"value": "12"
+								}
+							]
+						},
+						"description": "Phase 2 piece 1 (backbone): the plan projected forward, one salary month at a time - the same rule engine and bucket classification as the current month's own shape/review (CommitmentInstanceGenerator + CommitmentBucketClassifier), never a second engine. `months[0]` is the current cycle. **This is the plan as written, not blended with what has actually happened** - a variable bill is always `unknownAmountCount` here even for the current month, even once its real occurrence has been given an estimate; use `GET /cycles/{id}/shape` for the live, actuals-blended current-month figure. `unlocks` = bills whose last occurrence was last month (PAYMENT/SET_ASIDE only - income ending isn't listed). `annualItems` = bills due this month that aren't MONTHLY (quarterly/annual), so nothing is forgotten between occurrences. `months` is capped at 24. Real example below, from the dev database, read-only. (2026-09-19: a one-off item's own end is never listed as an unlock - only a genuinely recurring bill freeing up.)"
+					},
+					"response": [
+						{
+							"name": "200 - real (3 months)",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/forecast?months=12",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"forecast"
+									],
+									"query": [
+										{
+											"key": "months",
+											"value": "12"
+										}
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"body": "{\n    \"months\": [\n        {\n            \"cycleStart\": \"2026-08-28\",\n            \"cycleEnd\": \"2026-09-27\",\n            \"incomeExpected\": \"0.00\",\n            \"committed\": \"0.00\",\n            \"setAside\": \"0.00\",\n            \"unknownAmountCount\": 0,\n            \"unlocks\": [],\n            \"annualItems\": []\n        },\n        {\n            \"cycleStart\": \"2026-09-28\",\n            \"cycleEnd\": \"2026-10-27\",\n            \"incomeExpected\": \"57700.00\",\n            \"committed\": \"33557.00\",\n            \"setAside\": \"10000.00\",\n            \"flexible\": \"14143.00\",\n            \"unknownAmountCount\": 3,\n            \"unlocks\": [],\n            \"annualItems\": [\n                {\n                    \"commitmentId\": 44,\n                    \"name\": \"Bike Servicing\",\n                    \"dueDate\": \"2026-09-28\"\n                }\n            ]\n        },\n        {\n            \"cycleStart\": \"2026-10-28\",\n            \"cycleEnd\": \"2026-11-27\",\n            \"incomeExpected\": \"103700.00\",\n            \"committed\": \"33557.00\",\n            \"setAside\": \"40000.00\",\n            \"flexible\": \"30143.00\",\n            \"unknownAmountCount\": 2,\n            \"unlocks\": [],\n            \"annualItems\": [\n                {\n                    \"commitmentId\": 42,\n                    \"name\": \"Diwali Bonus\",\n                    \"amount\": \"46000.00\",\n                    \"dueDate\": \"2026-11-02\"\n                }\n            ]\n        }\n    ]\n}"
 						}
 					]
 				}

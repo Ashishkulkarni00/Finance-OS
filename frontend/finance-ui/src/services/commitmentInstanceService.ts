@@ -75,6 +75,7 @@ export const commitmentInstanceService = baseApi.injectEndpoints({
 
 export const {
   useGetCommitmentInstancesForCycleQuery,
+  useLazyGetCommitmentInstancesForCycleQuery,
   useGetCommitmentPlanProgressQuery,
   useGetCycleStandingQuery,
   useGetCycleShapeQuery,

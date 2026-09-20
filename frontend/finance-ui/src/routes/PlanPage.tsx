@@ -5,6 +5,7 @@ import { GoalsSection } from '@/features/plan/components/GoalsSection';
 import { GoalsPrimer } from '@/features/plan/components/GoalsPrimer';
 import { GoalsGuideSheet } from '@/features/plan/components/GoalsGuideSheet';
 import { AddGoalSheet } from '@/features/plan/components/AddGoalSheet';
+import { AheadForecast } from '@/features/ahead/components/AheadForecast';
 
 /**
  * Goals - served at /goals (with /plan redirecting here).
@@ -25,7 +26,9 @@ export default function PlanPage() {
 
   return (
     <div className="flex flex-col gap-space-8">
-      <div className="flex flex-col gap-space-6">
+      <AheadForecast />
+
+      <div className="flex flex-col gap-space-6 border-t border-line pt-space-8">
         <div className="flex items-start justify-between gap-space-4">
           <div className="flex flex-col gap-space-1">
             <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">Ahead · Goals</span>
@@ -50,7 +53,7 @@ export default function PlanPage() {
         <GoalsPrimer onOpenGuide={() => setGuideOpen(true)} />
       </div>
 
-      <div className="border-t border-line pt-space-8">
+      <div>
         <GoalsSection onAdd={() => setAdding(true)} />
       </div>
 

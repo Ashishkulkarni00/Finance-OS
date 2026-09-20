@@ -3,7 +3,7 @@ import type { UseFormReturn } from 'react-hook-form';
 import { Select } from '@/components/Select';
 import { FormRow, FORM_ROW_CONTROL } from '@/components/FormRow';
 import { CategorySelect } from '@/features/transactions/components/CategorySelect';
-import { formatShortDate } from '@/lib/dates';
+import { formatDayMonthYear } from '@/lib/dates';
 import type { AccountResponse, AccountType } from '@/types/api';
 import type { CategoryResponse } from '@/types/category';
 import type { CommitmentAmountType, CommitmentFrequency, SettleAs } from '@/types/commitmentRule';
@@ -16,8 +16,10 @@ interface CommitmentFieldsProps {
   /** Every usable category - income ones are offered only for expected income. */
   categories: CategoryResponse[];
   lastPayment: LastPayment;
-  /** Rendered between "Due on" and "Last payment" - Add's "Starts". */
+  /** Rendered between "Due on" and "Last payment" - the first payment's month. */
   startSlot?: ReactNode;
+  /** Rendered under "Amount" when it changes each month - that occurrence's own amount. */
+  amountSlot?: ReactNode;
   /** Rendered after "Last payment" - Add's "count this month?" question. */
   afterEndSlot?: ReactNode;
   autoFocus?: boolean;
@@ -32,11 +34,21 @@ interface CommitmentFieldsProps {
 }
 
 const SETTLE_OPTIONS: { value: SettleAs; label: string }[] = [
-  { value: 'EXPENSE', label: 'Spent - rent, an EMI, a subscription' },
-  { value: 'TRANSFER', label: 'Moved to my own account - savings' },
-  { value: 'INVESTMENT', label: 'Invested - a SIP or RD' },
-  { value: 'INCOME', label: 'Money coming in - salary' },
+  { value: 'EXPENSE', label: 'Payment - rent, EMI, a bill, family support' },
+  { value: 'TRANSFER', label: 'Saving - into my own savings account' },
+  { value: 'INVESTMENT', label: 'Investing - SIP or RD' },
+  { value: 'INCOME', label: 'Income - salary or money coming in' },
 ];
+
+const TYPE_HINT = (
+  <span className="flex flex-col gap-space-1">
+    <span>What this money does:</span>
+    <span><strong className="font-medium">Payment</strong> - it leaves you: rent, EMIs, bills, subscriptions, family support. Most things are this.</span>
+    <span><strong className="font-medium">Saving</strong> - moved into your own savings account. It's still yours, so it isn't counted as spent.</span>
+    <span><strong className="font-medium">Investing</strong> - a SIP or RD going into an investment account.</span>
+    <span><strong className="font-medium">Income</strong> - salary or other money you receive.</span>
+  </span>
+);
 
 /** Mirrors TransactionType.acceptsSource / acceptsDestination on the server. */
 const SOURCE_TYPES: Record<SettleAs, AccountType[]> = {
@@ -56,10 +68,10 @@ export function sourceAccountsFor(settleAs: SettleAs, accounts: AccountResponse[
 }
 
 /**
- * Every field of a bill, shared by "Add a bill" and "Edit bill" so the two can't drift -
+ * Every field of a commitment, shared by "Add a commitment" and "Edit" so the two can't drift -
  * the add form's rows used to be inline in its sheet.
  *
- * <p>"Paid as" decides the rest: a bill can be spent (an expense), money moved to your own
+ * <p>"Type" decides the rest: a bill can be spent (an expense), money moved to your own
  * savings, an investment, or income you expect. Only the accounts and categories that fit
  * are offered, the same rules the Ledger applies when the payment is recorded.
  */
@@ -69,6 +81,7 @@ export function CommitmentFields({
   categories,
   lastPayment,
   startSlot,
+  amountSlot,
   afterEndSlot,
   autoFocus,
   allowOnce,
@@ -116,13 +129,13 @@ export function CommitmentFields({
       </FormRow>
 
       {lockedTerms ? (
-        <FormRow label="Paid as">{lockedTerms}</FormRow>
+        <FormRow label="Type">{lockedTerms}</FormRow>
       ) : (
         <>
           {lockedSettlement ? (
-            <FormRow label="Paid as">{lockedSettlement}</FormRow>
+            <FormRow label="Type">{lockedSettlement}</FormRow>
           ) : (
-            <FormRow label="Paid as" hint="What happens to the money: spent, moved to your own savings, invested, or coming in.">
+            <FormRow label="Type" hint={TYPE_HINT}>
               <Select
                 variant="row"
                 className="-ml-space-1 max-w-full"
@@ -134,19 +147,24 @@ export function CommitmentFields({
             </FormRow>
           )}
 
-          <FormRow label="Amount">
+          <FormRow
+            label="Amount"
+            hint="Fixed if it's the same every time, like rent or an EMI. Changes each month for things like electricity - you give each month's amount as you learn it."
+          >
             <Select
               variant="row"
               className="-ml-space-1 max-w-full"
               ariaLabel="Whether the amount is the same every time"
               value={amountType}
               options={[
-                { value: 'FIXED', label: 'Same every time' },
-                { value: 'VARIABLE', label: 'Varies - a bill I read each month' },
+                { value: 'FIXED', label: 'Fixed - same every time' },
+                { value: 'VARIABLE', label: 'Changes each month - like electricity' },
               ]}
               onChange={(v) => setValue('amountType', v as CommitmentAmountType, { shouldValidate: true })}
             />
           </FormRow>
+
+          {amountType === 'VARIABLE' && amountSlot}
 
           {amountType === 'FIXED' && (
             <FormRow label="How much" error={errors.fixedAmount?.message}>
@@ -165,15 +183,19 @@ export function CommitmentFields({
               value={watch('frequency')}
               options={[
                 { value: 'MONTHLY', label: 'Every month' },
-                { value: 'QUARTERLY', label: 'Every quarter' },
-                { value: 'ANNUAL', label: 'Every year - repeats each year' },
-                ...(allowOnce ? [{ value: 'ONCE', label: 'Just once - only this month, never again' }] : []),
+                { value: 'QUARTERLY', label: 'Every 3 months' },
+                { value: 'ANNUAL', label: 'Every year' },
+                ...(allowOnce ? [{ value: 'ONCE', label: 'Just once - it won’t repeat' }] : []),
               ]}
               onChange={(v) => setValue('frequency', v as CommitmentFrequency | 'ONCE', { shouldValidate: true })}
             />
           </FormRow>
 
-          <FormRow label={isIncome ? 'Arrives on' : 'Due on'} error={errors.dueDay?.message}>
+          <FormRow
+            label={isIncome ? 'Arrives on' : 'Due on'}
+            error={errors.dueDay?.message}
+            hint={isIncome ? 'The day of the month it usually arrives (1-28).' : 'The day of the month it’s paid (1-28). For one every 3 months or every year, the day in the month it falls due.'}
+          >
             <span className="flex items-center gap-space-2">
               <input {...register('dueDay')} inputMode="numeric" placeholder="5" className="w-12 bg-transparent text-label text-ink outline-none num" />
               <span className="text-caption text-ink-muted">of the month</span>
@@ -186,7 +208,7 @@ export function CommitmentFields({
           <FormRow
             label={isIncome ? 'Last one' : 'Last payment'}
             error={lastPayment.error ?? undefined}
-            hint="The month of the final payment, like your last EMI; leave it blank if the bill has no end."
+            hint="Only if it ends - like the month of your final EMI. Leave it as “No end” if it keeps going."
           >
             <span className="flex flex-wrap items-center gap-space-2">
               <Select
@@ -209,7 +231,7 @@ export function CommitmentFields({
                 onChange={lastPayment.setEndYear}
               />
               {lastPayment.lastDue && !lastPayment.error && (
-                <span className="text-caption text-ink-muted">last one {formatShortDate(lastPayment.lastDue)}</span>
+                <span className="num text-caption text-ink-muted">on {formatDayMonthYear(lastPayment.lastDue)}</span>
               )}
             </span>
           </FormRow>
@@ -217,7 +239,11 @@ export function CommitmentFields({
 
           {!once && afterEndSlot}
 
-          <FormRow label={isIncome ? 'Arrives in' : 'Leaves from'} error={errors.accountId?.message}>
+          <FormRow
+            label={isIncome ? 'Arrives in' : 'Paid from'}
+            error={errors.accountId?.message}
+            hint={isIncome ? 'The account it’s paid into.' : 'The account the money goes out of.'}
+          >
             <Select
               variant="row"
               className="-ml-space-1 max-w-full"
@@ -230,7 +256,7 @@ export function CommitmentFields({
           </FormRow>
 
           {destinationTypes && !lockedSettlement && (
-            <FormRow label="Into" error={errors.toAccountId?.message}>
+            <FormRow label="Into" error={errors.toAccountId?.message} hint="Your own account the money goes to - it stays yours.">
               <Select
                 variant="row"
                 className="-ml-space-1 max-w-full"
@@ -251,20 +277,24 @@ export function CommitmentFields({
             className="-ml-space-1 max-w-full"
             value={watch('categoryId') ?? ''}
             categories={fittingCategories}
+            income={isIncome}
             onChange={(v) => setValue('categoryId', v)}
           />
         </FormRow>
       )}
 
       {!isIncome && (
-        <FormRow label="Must pay?">
+        <FormRow
+          label="Must pay?"
+          hint="Yes if missing it costs you - a late fee, a penalty, a mark on your credit. No if you could skip it in a tight month."
+        >
           <Select
             variant="row"
             className="-ml-space-1 max-w-full"
             ariaLabel="Whether this is mandatory"
             value={watch('mandatory') ? 'yes' : 'no'}
             options={[
-              { value: 'yes', label: 'Yes - there are consequences' },
+              { value: 'yes', label: 'Yes - missing it costs me' },
               { value: 'no', label: 'No - I could skip it' },
             ]}
             onChange={(v) => setValue('mandatory', v === 'yes', { shouldValidate: true })}
@@ -272,13 +302,13 @@ export function CommitmentFields({
         </FormRow>
       )}
 
-      <FormRow label="Why">
-        <input {...register('why')} placeholder="Optional - why this matters" className={FORM_ROW_CONTROL} />
+      <FormRow label="Note">
+        <input {...register('why')} placeholder="Optional - what it's for" className={FORM_ROW_CONTROL} />
       </FormRow>
 
       {!isIncome && (
-        <FormRow label="If skipped">
-          <input {...register('ifSkipped')} placeholder="Optional - 'Family depends on it'" className={FORM_ROW_CONTROL} />
+        <FormRow label="If skipped" hint="Optional. Shown beside it on Months, so on a tight month you remember what skipping it would mean.">
+          <input {...register('ifSkipped')} placeholder="Optional - e.g. late fee of ₹500" className={FORM_ROW_CONTROL} />
         </FormRow>
       )}
     </div>

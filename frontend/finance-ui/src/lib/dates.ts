@@ -47,6 +47,29 @@ export function salaryMonth(knownStart: string, year: number, month: number): { 
   return { start: shiftIsoMonths(knownStart, k), end: shiftIsoDays(shiftIsoMonths(knownStart, k + 1), -1) };
 }
 
+/** The salary month (start and end) that `date` falls in, stepped from a known cycle start. */
+export function salaryMonthContaining(knownStart: string, date: string): { start: string; end: string } {
+  const months = (Number(date.slice(0, 4)) - Number(knownStart.slice(0, 4))) * 12 + Number(date.slice(5, 7)) - Number(knownStart.slice(5, 7));
+  for (const k of [months - 1, months, months + 1]) {
+    const start = shiftIsoMonths(knownStart, k);
+    const end = shiftIsoDays(shiftIsoMonths(knownStart, k + 1), -1);
+    if (start <= date && date <= end) return { start, end };
+  }
+  const start = shiftIsoMonths(knownStart, months);
+  return { start, end: shiftIsoDays(shiftIsoMonths(knownStart, months + 1), -1) };
+}
+
+/** The first date on or after `from` that falls on `dueDay` (1-28) - a bill's first payment. */
+export function firstDueOnOrAfter(from: string, dueDay: number): string {
+  const sameMonth = `${from.slice(0, 7)}-${String(dueDay).padStart(2, '0')}`;
+  return sameMonth >= from.slice(0, 10) ? sameMonth : `${shiftIsoMonths(`${from.slice(0, 7)}-01`, 1).slice(0, 7)}-${String(dueDay).padStart(2, '0')}`;
+}
+
+/** "5 Oct 2026" - for a single date where the year matters (a first or last payment). */
+export function formatDayMonthYear(iso: string): string {
+  return new Date(`${iso.slice(0, 10)}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+}
+
 /** The year and month (1-12) a salary month starting on `start` is named for. */
 export function salaryMonthOf(start: string): { year: number; month: number } {
   const end = shiftIsoDays(shiftIsoMonths(start, 1), -1);

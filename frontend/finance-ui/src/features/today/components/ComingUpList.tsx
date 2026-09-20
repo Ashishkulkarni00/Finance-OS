@@ -19,7 +19,7 @@ const WEEKDAY = new Intl.DateTimeFormat('en-IN', { weekday: 'short' });
 /** What kind of payment, in words - the three sources look identical otherwise, and "IDBI
  *  EMI" vs a bill vs a card statement changes what you'd do about it. */
 const KIND: Record<TimelineItemType, string> = {
-  COMMITMENT: 'Bill',
+  COMMITMENT: 'Commitment',
   LOAN_EMI: 'EMI',
   CARD_STATEMENT: 'Card bill',
   INCOME: 'Coming in',
