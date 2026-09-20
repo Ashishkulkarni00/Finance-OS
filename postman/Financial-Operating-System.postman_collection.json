@@ -9333,6 +9333,83 @@
 					]
 				}
 			]
+		},
+		{
+			"name": "Forecast",
+			"description": "Ahead's backbone (Phase 2 piece 1).",
+			"item": [
+				{
+					"name": "12-month forecast",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+									"const b = pm.response.json();",
+									"pm.test(\"money as strings, dates as ISO\", () => b.months.forEach((m) => { pm.expect(m.incomeExpected).to.be.a(\"string\"); pm.expect(m.committed).to.be.a(\"string\"); pm.expect(m.cycleStart).to.match(/^\\d{4}-\\d{2}-\\d{2}$/); }));",
+									"pm.test(\"months are consecutive salary cycles\", () => { for (let i = 1; i < b.months.length; i++) { const prevEnd = new Date(b.months[i - 1].cycleEnd); const thisStart = new Date(b.months[i].cycleStart); pm.expect(thisStart - prevEnd).to.eql(86400000); } });",
+									"pm.test(\"flexible only when something is coming in\", () => b.months.forEach((m) => { if (Number(m.incomeExpected) === 0) pm.expect(m.flexible == null).to.be.true; }));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/forecast?months=12",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"forecast"
+							],
+							"query": [
+								{
+									"key": "months",
+									"value": "12"
+								}
+							]
+						},
+						"description": "Phase 2 piece 1 (backbone): the plan projected forward, one salary month at a time - the same rule engine and bucket classification as the current month's own shape/review (CommitmentInstanceGenerator + CommitmentBucketClassifier), never a second engine. `months[0]` is the current cycle. **This is the plan as written, not blended with what has actually happened** - a variable bill is always `unknownAmountCount` here even for the current month, even once its real occurrence has been given an estimate; use `GET /cycles/{id}/shape` for the live, actuals-blended current-month figure. `unlocks` = bills whose last occurrence was last month (PAYMENT/SET_ASIDE only - income ending isn't listed). `annualItems` = bills due this month that aren't MONTHLY (quarterly/annual), so nothing is forgotten between occurrences. `months` is capped at 24. Real example below, from the dev database, read-only. (2026-09-19: a one-off item's own end is never listed as an unlock - only a genuinely recurring bill freeing up.)"
+					},
+					"response": [
+						{
+							"name": "200 - real (3 months)",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/forecast?months=12",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"forecast"
+									],
+									"query": [
+										{
+											"key": "months",
+											"value": "12"
+										}
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"body": "{\n    \"months\": [\n        {\n            \"cycleStart\": \"2026-08-28\",\n            \"cycleEnd\": \"2026-09-27\",\n            \"incomeExpected\": \"0.00\",\n            \"committed\": \"0.00\",\n            \"setAside\": \"0.00\",\n            \"unknownAmountCount\": 0,\n            \"unlocks\": [],\n            \"annualItems\": []\n        },\n        {\n            \"cycleStart\": \"2026-09-28\",\n            \"cycleEnd\": \"2026-10-27\",\n            \"incomeExpected\": \"57700.00\",\n            \"committed\": \"33557.00\",\n            \"setAside\": \"10000.00\",\n            \"flexible\": \"14143.00\",\n            \"unknownAmountCount\": 3,\n            \"unlocks\": [],\n            \"annualItems\": [\n                {\n                    \"commitmentId\": 44,\n                    \"name\": \"Bike Servicing\",\n                    \"dueDate\": \"2026-09-28\"\n                }\n            ]\n        },\n        {\n            \"cycleStart\": \"2026-10-28\",\n            \"cycleEnd\": \"2026-11-27\",\n            \"incomeExpected\": \"103700.00\",\n            \"committed\": \"33557.00\",\n            \"setAside\": \"40000.00\",\n            \"flexible\": \"30143.00\",\n            \"unknownAmountCount\": 2,\n            \"unlocks\": [],\n            \"annualItems\": [\n                {\n                    \"commitmentId\": 42,\n                    \"name\": \"Diwali Bonus\",\n                    \"amount\": \"46000.00\",\n                    \"dueDate\": \"2026-11-02\"\n                }\n            ]\n        }\n    ]\n}"
+						}
+					]
+				}
+			]
 		}
 	]
 }
