@@ -13,7 +13,13 @@ import { Amount } from '@/components/Amount';
 import { Skeleton } from '@/components/Skeleton';
 import { ErrorState } from '@/components/ErrorState';
 import { formatShortDate, formatFullDate } from '@/lib/dates';
-import { useGetAccountQuery } from '@/services/accountService';
+import {
+  useArchiveAccountMutation,
+  useDeleteAccountMutation,
+  useGetAccountQuery,
+  useUnarchiveAccountMutation,
+} from '@/services/accountService';
+import { SetAsideSection } from '@/features/accounts/components/SetAsideSection';
 import { useGetProjectionQuery } from '@/services/projectionService';
 import { useGetTransactionsQuery } from '@/services/transactionService';
 
@@ -29,10 +35,25 @@ export default function AccountDetailPage() {
   const id = Number(accountId);
   const [editingDetails, setEditingDetails] = useState(false);
   const [updatingBalance, setUpdatingBalance] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const { data: account, isLoading, isError, refetch } = useGetAccountQuery(id, { skip: !id });
   const { data: projection } = useGetProjectionQuery(id, { skip: !id || !account?.countsAsSpendable });
   const { data: transactionsPage } = useGetTransactionsQuery({ accountId: id }, { skip: !id });
+  const [archiveAccount, { isLoading: archiving }] = useArchiveAccountMutation();
+  const [unarchiveAccount, { isLoading: unarchiving }] = useUnarchiveAccountMutation();
+  const [deleteAccount, { isLoading: deleting }] = useDeleteAccountMutation();
+
+  const run = async (action: () => Promise<unknown>, after?: () => void) => {
+    setActionError(null);
+    try {
+      await action();
+      after?.();
+    } catch (err) {
+      setActionError((err as { message?: string }).message ?? "That didn't work. Try again.");
+    }
+  };
 
   if (isLoading) {
     return (
@@ -103,9 +124,52 @@ export default function AccountDetailPage() {
                   Open card
                 </Button>
               )}
+              <Button variant="ghost" size="sm" disabled={archiving} onClick={() => run(() => archiveAccount(account.id).unwrap())}>
+                Archive
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setConfirmingDelete(true)} className="text-critical">
+                Delete
+              </Button>
             </div>
           )}
+          {account.archived && (
+            <Button variant="secondary" size="sm" disabled={unarchiving} onClick={() => run(() => unarchiveAccount(account.id).unwrap())}>
+              Unarchive
+            </Button>
+          )}
         </div>
+
+        {account.archived && (
+          <p className="text-caption text-ink-muted">
+            Archived: it stays out of your lists and totals, and nothing new can be recorded on it. Everything it already
+            holds is untouched - unarchive to use it again.
+          </p>
+        )}
+
+        {confirmingDelete && (
+          <div className="flex flex-col gap-space-3 rounded-lg border border-line p-space-4">
+            <p className="text-body text-ink">Delete {account.name}?</p>
+            <p className="text-caption text-ink-muted">
+              An account with any history can’t be deleted - archive it instead, which keeps the record and takes it out of
+              your lists. Deleting only works for one added by mistake.
+            </p>
+            <div className="flex gap-space-3">
+              <Button type="button" variant="secondary" onClick={() => setConfirmingDelete(false)} className="flex-1">
+                Keep it
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                disabled={deleting}
+                onClick={() => run(() => deleteAccount(account.id).unwrap(), () => navigate('/money/accounts', { replace: true }))}
+                className="flex-1 !bg-critical"
+              >
+                Delete account
+              </Button>
+            </div>
+          </div>
+        )}
+        {actionError && <p className="text-caption text-critical">{actionError}</p>}
         {/* Keyed on open state so each opening starts from the account's current values. */}
         <UpdateBalanceSheet
           key={`balance-${account.id}-${updatingBalance}`}
@@ -188,6 +252,8 @@ export default function AccountDetailPage() {
           </div>
         </div>
       )}
+
+      {account.type !== 'CREDIT_CARD' && !account.archived && <SetAsideSection accountId={account.id} />}
 
       <section>
         <SectionHeader trailing={transactions.length > 0 ? `${transactions.length} recent` : undefined}>Recent activity</SectionHeader>

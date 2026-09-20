@@ -65,6 +65,29 @@ export const commitmentRuleService = baseApi.injectEndpoints({
       ],
     }),
 
+    /** Stops it generating from now on, keeping every month it already ran in. */
+    archiveCommitmentRule: build.mutation<CommitmentResponse, number>({
+      query: (id) => ({ url: `/commitments/${id}/archive`, method: 'POST' }),
+      invalidatesTags: (_r, _e, id) => [
+        { type: 'Commitment', id },
+        { type: 'Commitment', id: 'LIST' },
+        'CommitmentInstance',
+        'Position',
+        'Timeline',
+      ],
+    }),
+
+    unarchiveCommitmentRule: build.mutation<CommitmentResponse, number>({
+      query: (id) => ({ url: `/commitments/${id}/unarchive`, method: 'POST' }),
+      invalidatesTags: (_r, _e, id) => [
+        { type: 'Commitment', id },
+        { type: 'Commitment', id: 'LIST' },
+        'CommitmentInstance',
+        'Position',
+        'Timeline',
+      ],
+    }),
+
     deleteCommitmentRule: build.mutation<void, number>({
       query: (id) => ({ url: `/commitments/${id}`, method: 'DELETE' }),
       invalidatesTags: (_result, _error, id) => [
@@ -87,6 +110,8 @@ export const {
   useGetCommitmentRuleInstancesQuery,
   useCreateCommitmentRuleMutation,
   useUpdateCommitmentRuleMutation,
+  useArchiveCommitmentRuleMutation,
+  useUnarchiveCommitmentRuleMutation,
   useDeleteCommitmentRuleMutation,
   useCreateBillFromLoanMutation,
   useCreateBillFromInvestmentMutation,
