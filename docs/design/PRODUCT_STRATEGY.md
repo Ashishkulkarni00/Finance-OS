@@ -1,4 +1,8 @@
 # Product Strategy — beyond the spreadsheet
+> **SUPERSEDED 2026-09-20.** The product's source of truth is now `docs/FINANCIAL_OS.md`
+> (product), `docs/FINANCIAL_STATE.md` (model) and `docs/ROADMAP.md` (order of work).
+> Keep this file as history; do not cite it as current truth. See `docs/DOC_INDEX.md`.
+
 
 **Written 2026-09-10.** Supersedes the framing of `SCREEN_PURPOSE_AUDIT.md` (which stays
 valid as a *diagnosis* of what is broken, but proposed the wrong ceiling). Study only —

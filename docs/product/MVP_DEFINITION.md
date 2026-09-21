@@ -1,4 +1,8 @@
 # MVP Definition
+> **SUPERSEDED 2026-09-20.** The product's source of truth is now `docs/FINANCIAL_OS.md`
+> (product), `docs/FINANCIAL_STATE.md` (model) and `docs/ROADMAP.md` (order of work).
+> Keep this file as history; do not cite it as current truth. See `docs/DOC_INDEX.md`.
+
 
 **Goal:** replace the Excel workbook for one real user, without losing a single
 capability he depends on, and remove the six failure modes that nearly corrupted it.
