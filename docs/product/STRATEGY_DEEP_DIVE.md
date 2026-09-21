@@ -1,4 +1,8 @@
 # Kosh — product strategy, UX and backend deep-dive
+> **SUPERSEDED 2026-09-20.** The product's source of truth is now `docs/FINANCIAL_OS.md`
+> (product), `docs/FINANCIAL_STATE.md` (model) and `docs/ROADMAP.md` (order of work).
+> Keep this file as history; do not cite it as current truth. See `docs/DOC_INDEX.md`.
+
 
 Written 2026-09-18 in answer to the brief "Product strategy + UX + backend deep-dive".
 **Design only - nothing here is built.** Supersedes nothing silently: where it changes an
