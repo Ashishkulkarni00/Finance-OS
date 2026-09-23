@@ -20,6 +20,9 @@ import com.finance.common.exception.ErrorCode;
 import com.finance.common.exception.ResourceNotFoundException;
 import com.finance.common.user.CurrentUserProvider;
 import com.finance.cycle.CycleService;
+import com.finance.plan.PlanChangeDraft;
+import com.finance.plan.PlanRevisionRecorder;
+import com.finance.plan.domain.PlanRevisionType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -46,6 +49,7 @@ public class CommitmentServiceImpl implements CommitmentService {
     private final LoanBillSync loanBillSync;
     private final SourceBillSync sourceBillSync;
     private final InvestmentRepository investmentRepository;
+    private final PlanRevisionRecorder planRevisions;
 
     public CommitmentServiceImpl(CommitmentRepository repository,
                                  CommitmentMapper mapper,
@@ -57,7 +61,8 @@ public class CommitmentServiceImpl implements CommitmentService {
                                  LoanRepository loanRepository,
                                  LoanBillSync loanBillSync,
                                  SourceBillSync sourceBillSync,
-                                 InvestmentRepository investmentRepository) {
+                                 InvestmentRepository investmentRepository,
+                                 PlanRevisionRecorder planRevisions) {
         this.repository = repository;
         this.mapper = mapper;
         this.accountService = accountService;
@@ -69,6 +74,7 @@ public class CommitmentServiceImpl implements CommitmentService {
         this.loanBillSync = loanBillSync;
         this.sourceBillSync = sourceBillSync;
         this.investmentRepository = investmentRepository;
+        this.planRevisions = planRevisions;
     }
 
     /**
@@ -111,6 +117,7 @@ public class CommitmentServiceImpl implements CommitmentService {
         loanBillSync.apply(bill, loan);
         Commitment saved = repository.save(bill);
         log.info("Commitment created from loan id={} loanId={}", saved.getId(), loanId);
+        recordStarted(saved, PlanRevisionType.CREATED, "Follows the loan");
         syncCurrentCycle();
         return resolveView(saved);
     }
@@ -140,6 +147,7 @@ public class CommitmentServiceImpl implements CommitmentService {
         requireValidSettlement(bill);
         Commitment saved = repository.save(bill);
         log.info("Commitment created from investment id={} investmentId={}", saved.getId(), investmentId);
+        recordStarted(saved, PlanRevisionType.CREATED, "Follows the holding");
         syncCurrentCycle();
         return resolveView(saved);
     }
@@ -153,11 +161,71 @@ public class CommitmentServiceImpl implements CommitmentService {
             return;
         }
         for (Commitment bill : bills) {
+            CommitmentPlanFields before = capture(bill);
             sourceBillSync.apply(bill);
             repository.save(bill);
             log.info("Commitment synced from source id={} sourceType={} sourceId={}", bill.getId(), sourceType, sourceId);
+            // A real change to the plan, but decided at the source, not here - SYNCED lets
+            // "what did I decide?" exclude it while "what changed?" keeps it (ADR-0015).
+            recordChange(bill, before, PlanRevisionType.SYNCED, null,
+                    sourceType == CommitmentSource.GOAL ? "Followed its goal" : "Followed its holding", null);
         }
         syncCurrentCycle();
+    }
+
+    // ---------------------------------------------------------------------------------
+    // Plan history (ADR-0015). Every path that changes a rule records what changed, when
+    // it takes effect, why, and what it does to the monthly cash requirement. The recorder
+    // joins this transaction, so a rule can never change without its record changing too.
+    // ---------------------------------------------------------------------------------
+
+    /** Names, not ids - "Paid from: HDFC → Kotak" is the change; "4 → 7" is not. */
+    private CommitmentPlanFields capture(Commitment commitment) {
+        return CommitmentPlanFields.of(commitment,
+                id -> accountService.getByIdIncludingDeleted(id).getName(),
+                id -> categoryService.getByIdIncludingDeleted(id).getName());
+    }
+
+    /**
+     * A rule that was added or resumed: its full monthly cost is the effect.
+     *
+     * <p>A new bill takes effect when it starts, which may be next month. A resumed one
+     * takes effect now - its original start date is history, not a plan for the future,
+     * so the recorder's default of today is left to stand.
+     */
+    private void recordStarted(Commitment commitment, PlanRevisionType type, String reason) {
+        planRevisions.record(PlanChangeDraft
+                .forCommitment(commitment.getId(), commitment.getName(), type)
+                .effectiveFrom(type == PlanRevisionType.CREATED ? commitment.getActiveFrom() : null)
+                .reason(reason)
+                .monthlyEffect(CommitmentMonthlyCost.none(), CommitmentMonthlyCost.of(commitment)));
+    }
+
+    /**
+     * A rule that changed: every field that moved, plus what the move costs per month.
+     *
+     * @param before captured before the change was applied
+     * @param supersededId the rule this one replaced, on a split; null on a plain amendment
+     */
+    private void recordChange(Commitment commitment, CommitmentPlanFields before, PlanRevisionType type,
+                              java.time.LocalDate effectiveFrom, String reason, Long supersededId) {
+        CommitmentPlanFields after = capture(commitment);
+        PlanChangeDraft draft = PlanChangeDraft
+                .forCommitment(commitment.getId(), commitment.getName(), type)
+                .effectiveFrom(effectiveFrom)
+                .reason(reason)
+                .supersedes(supersededId)
+                .monthlyEffect(before.monthlyCost(), after.monthlyCost());
+        before.diffInto(draft, after);
+        planRevisions.record(draft);
+    }
+
+    /** A rule that stops: the effect is losing its cost, so the sign flips. */
+    private void recordStopped(Commitment commitment, PlanRevisionType type, String reason) {
+        planRevisions.record(PlanChangeDraft
+                .forCommitment(commitment.getId(), commitment.getName(), type)
+                .reason(reason)
+                .monthlyEffect(CommitmentMonthlyCost.of(commitment), CommitmentMonthlyCost.none()));
     }
 
     private static Commitment copyStartingOn(Commitment rule, java.time.LocalDate start) {
@@ -254,9 +322,11 @@ public class CommitmentServiceImpl implements CommitmentService {
             if (loan == null) {
                 continue;
             }
+            CommitmentPlanFields before = capture(bill);
             loanBillSync.apply(bill, loan);
             repository.save(bill);
             log.info("Commitment synced from loan id={} loanId={}", bill.getId(), loanId);
+            recordChange(bill, before, PlanRevisionType.SYNCED, null, "Followed its loan", null);
         }
         syncCurrentCycle();
     }
@@ -293,6 +363,7 @@ public class CommitmentServiceImpl implements CommitmentService {
         requireValidSettlement(bill);
         Commitment saved = repository.save(bill);
         log.info("Commitment created id={}", saved.getId());
+        recordStarted(saved, PlanRevisionType.CREATED, request.reason());
         syncCurrentCycle();
         // Re-read: a bill that follows a loan or holding may leave a different account.
         return resolveView(saved);
@@ -317,6 +388,11 @@ public class CommitmentServiceImpl implements CommitmentService {
     public CommitmentView update(Long id, UpdateCommitmentRequest request) {
         Commitment current = requireOwned(id);
         Commitment commitment = current;
+        // The plan as it stands, read before anything moves - the "before" side of the
+        // revision this write will record (ADR-0015).
+        CommitmentPlanFields before = capture(current);
+        Long supersededId = null;
+
         if (request.applyFrom() != null && request.applyFrom().isAfter(current.getActiveFrom())) {
             if (current.getSourceType() == CommitmentSource.LOAN || current.getSourceType() == CommitmentSource.INVESTMENT) {
                 throw new BusinessRuleException(ErrorCode.VALIDATION_FAILED,
@@ -331,6 +407,10 @@ public class CommitmentServiceImpl implements CommitmentService {
             commitment = copyStartingOn(current, request.applyFrom());
             current.setActiveTo(request.applyFrom().minusDays(1));
             repository.save(current);
+            supersededId = current.getId();
+            // The split moves the start date by mechanism, not by decision; the revision
+            // records the supersession itself, so the date is not also logged as a change.
+            before = before.startingOn(request.applyFrom());
             log.info("Commitment split id={} from={}", current.getId(), request.applyFrom());
         }
 
@@ -424,6 +504,10 @@ public class CommitmentServiceImpl implements CommitmentService {
 
         Commitment saved = repository.save(commitment);
         log.info("Commitment updated id={}", saved.getId());
+        recordChange(saved, before,
+                supersededId == null ? PlanRevisionType.AMENDED : PlanRevisionType.SUPERSEDED,
+                supersededId == null ? null : request.applyFrom(),
+                request.reason(), supersededId);
         syncCurrentCycle();
         return resolveView(saved);
     }
@@ -436,6 +520,8 @@ public class CommitmentServiceImpl implements CommitmentService {
             commitment.archive();
             repository.save(commitment);
             log.info("Commitment archived id={}", id);
+            // Pausing a SIP changes no field, but it is very much a decision with a price.
+            recordStopped(commitment, PlanRevisionType.PAUSED, null);
         }
         return resolveView(commitment);
     }
@@ -448,6 +534,7 @@ public class CommitmentServiceImpl implements CommitmentService {
             commitment.unarchive();
             repository.save(commitment);
             log.info("Commitment unarchived id={}", id);
+            recordStarted(commitment, PlanRevisionType.RESUMED, null);
         }
         return resolveView(commitment);
     }
@@ -459,6 +546,8 @@ public class CommitmentServiceImpl implements CommitmentService {
         commitment.markDeleted();
         repository.save(commitment);
         log.info("Commitment soft-deleted id={}", id);
+        // The revision outlives the rule - that is the point of an append-only log.
+        recordStopped(commitment, PlanRevisionType.ENDED, null);
         syncCurrentCycle();
     }
 

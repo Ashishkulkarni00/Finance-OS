@@ -8,7 +8,8 @@ import org.springframework.stereotype.Component;
 public class ForecastMapper {
 
     public ForecastResponse toResponse(ForecastResult result) {
-        return new ForecastResponse(result.months().stream().map(this::toMonth).toList());
+        return new ForecastResponse(result.months().stream().map(this::toMonth).toList(),
+                MoneyScale.normalise(result.unlockedMonthlyTotal()));
     }
 
     private ForecastResponse.Month toMonth(ForecastMonth m) {

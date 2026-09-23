@@ -16,8 +16,12 @@ import java.time.LocalDate;
  *                             needs the rate to split EMIs into principal and interest, so
  *                             it's null without one (or at TBD confidence)
  * @param payoffDate           the last remaining EMI's due date - known without a rate
- * @param paidPeriods          EMIs since the balance date whose due date has passed,
- *                             counted as paid
+ * @param paidPeriods          EMIs recorded as paid since the balance date - settled on
+ *                             Months, not merely elapsed (ROADMAP 0.2)
+ * @param unrecordedEmis       EMIs whose due date has passed with nothing recorded against
+ *                             them. Never assumed either way: the balance doesn't move for
+ *                             them, and the user is told (ADR-0006)
+ * @param oldestUnrecordedDue  the due date of the earliest of those, for naming it
  * @param emisLeft             EMIs still to come today
  * @param remainingPayments    {@code emisLeft × emi}
  * @param firstEmiDate         the first EMI after the balance date
@@ -29,7 +33,8 @@ import java.time.LocalDate;
  */
 public record LoanView(Loan loan, Account account, Account payFromAccount,
                        BigDecimal outstandingPrincipal, LocalDate payoffDate,
-                       int paidPeriods, int emisLeft, BigDecimal remainingPayments,
+                       int paidPeriods, int unrecordedEmis, LocalDate oldestUnrecordedDue,
+                       int emisLeft, BigDecimal remainingPayments,
                        LocalDate firstEmiDate, Integer impliedEmisRemaining, Boolean termsConsistent,
                        Long planCommitmentId) {
 }

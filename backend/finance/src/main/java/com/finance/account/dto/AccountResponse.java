@@ -1,5 +1,7 @@
 package com.finance.account.dto;
 
+import com.finance.effect.dto.WriteEffectResponse;
+
 import tools.jackson.databind.annotation.JsonSerialize;
 import com.finance.account.domain.AccountType;
 import com.finance.account.domain.BalanceConfidence;
@@ -64,6 +66,19 @@ public record AccountResponse(
         boolean archived,
         Instant archivedAt,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+
+        /** What this write just did (ADR-0017). Re-basing an opening balance moves Real
+         *  Balance directly, which is exactly when the user should hear about it. */
+        WriteEffectResponse effect
 ) {
+
+    public AccountResponse withEffect(WriteEffectResponse effect) {
+        return new AccountResponse(id, name, type, typeLabel, institution, lastFour, currency, openingBalance,
+                openingAsOf, openingConfidence, currentBalance, balanceAsOf, available, hold, minimumBalance,
+                minimumBalanceMandatory, belowMinimumBalance, includeInSpendable, includeInNetWorth,
+                countsAsSpendable, asset, liability, purpose, displayOrder, archived, archivedAt,
+                createdAt, updatedAt, effect);
+    }
+
 }

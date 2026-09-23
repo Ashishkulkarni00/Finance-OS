@@ -1,0 +1,57 @@
+package com.finance.commitment;
+
+import com.finance.common.money.MoneyScale;
+import com.finance.commitment.domain.Commitment;
+import com.finance.transaction.domain.TransactionType;
+
+import java.math.BigDecimal;
+
+/**
+ * What a commitment adds to the monthly cash requirement - the figure that turns a plan
+ * change from a diff into a decision with a price (ADR-0015).
+ *
+ * <p>Two rules worth stating, because both are easy to get silently wrong:
+ *
+ * <ul>
+ *   <li><strong>Null is unknown, not zero.</strong> A {@code VARIABLE} commitment has no
+ *       monthly figure. Treating it as zero would report "+₹0/month" for a change that
+ *       might cost anything - precisely the confident wrong answer ADR-0006 forbids.</li>
+ *   <li><strong>Income is negated.</strong> A commitment settled as {@code INCOME} is money
+ *       arriving, so expecting more of it <em>lowers</em> what has to be found each month.
+ *       Positive always means "more money needed".</li>
+ * </ul>
+ *
+ * <p>A quarterly or annual bill is spread across the months it covers. That is the right
+ * comparison for "what did this decision cost me per month", even though the cash lands in
+ * one cycle - the cycle-level view of that is what commitment instances already show.
+ */
+public final class CommitmentMonthlyCost {
+
+    private CommitmentMonthlyCost() {
+    }
+
+    /** Null when the amount is not known. */
+    public static BigDecimal of(Commitment commitment) {
+        if (commitment == null || commitment.getFixedAmount() == null) {
+            return null;
+        }
+        BigDecimal perMonth = switch (commitment.getFrequency()) {
+            case MONTHLY -> commitment.getFixedAmount();
+            case QUARTERLY -> divide(commitment.getFixedAmount(), 3);
+            case ANNUAL -> divide(commitment.getFixedAmount(), 12);
+        };
+        return commitment.getSettleAs() == TransactionType.INCOME
+                ? MoneyScale.normalise(perMonth.negate())
+                : MoneyScale.normalise(perMonth);
+    }
+
+    /** The cost of a commitment that is about to stop, or has not started: zero, not unknown. */
+    public static BigDecimal none() {
+        return MoneyScale.ZERO;
+    }
+
+    private static BigDecimal divide(BigDecimal amount, int months) {
+        // Full precision through the division; rounded once at the boundary by normalise.
+        return amount.divide(BigDecimal.valueOf(months), MoneyScale.SCALE + 4, MoneyScale.ROUNDING);
+    }
+}

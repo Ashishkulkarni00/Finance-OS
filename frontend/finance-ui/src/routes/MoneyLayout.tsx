@@ -6,13 +6,16 @@ const TABS = [
   { to: '/money/cards', label: 'Cards' },
   { to: '/money/debts', label: 'Debts' },
   { to: '/money/investments', label: 'Investments' },
+  // The fifth register answers a different question from the other four: not what you have
+  // or owe, but what you wouldn't have to find if something happened (ADR-0016).
+  { to: '/money/cover', label: 'Cover' },
 ] as const;
 
 /**
- * Money - "what do I have and owe?" (STRATEGY_DEEP_DIVE §D, decision S2). The four
- * registers that used to be four menu items are tabs of one place: people come to check
- * their money, not to "open Cards". Each tab is the existing page, unchanged; the old
- * addresses (/accounts, /cards, /debts, /investments) redirect here.
+ * Money - "what do I have and owe?" (STRATEGY_DEEP_DIVE §D, decision S2). The registers
+ * that used to be separate menu items are tabs of one place: people come to check their
+ * money, not to "open Cards". The old addresses (/accounts, /cards, /debts, /investments)
+ * redirect here.
  */
 export default function MoneyLayout() {
   return (

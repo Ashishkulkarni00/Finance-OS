@@ -30,6 +30,9 @@ public class CycleMapper {
                 snapshot.getInvestedTotal(), snapshot.getTransferredTotal(),
                 snapshot.getNet(), snapshot.getSavingsRate(),
                 snapshot.getRealBalance(), snapshot.getNetWorth(), snapshot.getTotalDebt(),
+                snapshot.getPlannedCommittedTotal(), snapshot.getActualCommittedTotal(),
+                snapshot.getCommitmentsPlanned(), snapshot.getCommitmentsKept(),
+                snapshot.getPlanRevisionsCount(),
                 snapshot.getCreatedAt());
     }
 

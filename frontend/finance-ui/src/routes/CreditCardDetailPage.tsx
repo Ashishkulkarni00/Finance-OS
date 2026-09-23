@@ -190,6 +190,18 @@ export default function CreditCardDetailPage() {
               note={`Statement on the ${ordinal(card.statementDay!)}, bill due the ${ordinal(card.dueDay!)}.`}
             />
           )}
+          {/* A lender blocks EMI principal against the limit until it's repaid, so it is
+              not credit you can spend. Shown as its own deduction rather than folded
+              silently into the total - the card used to read as fully available while a
+              large part of it was already committed. */}
+          {card.emiPrincipalBlocked != null && Number(card.emiPrincipalBlocked) > 0 && (
+            <StatementRow
+              label="Blocked for EMIs"
+              value={card.emiPrincipalBlocked}
+              deduct
+              note="Still owed on EMIs on this card. Your bank holds it against the limit until it's paid off."
+            />
+          )}
           {card.setUp && (
             <StatementRow
               variant="subtotal"

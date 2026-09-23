@@ -11,13 +11,18 @@ fix) or move it to **Done** with the date.
 
 ## 1. Correctness: numbers the user sees are wrong
 
-### 1.5 Net worth doesn't move as loan EMIs pass
+### 1.5 Net worth doesn't move as loan EMIs are paid
 - **Problem.** Total debt uses the LOAN account balance, which only changes when the loan's
   outstanding principal is edited (V13 re-bases the account then). The loan page's
-  "Outstanding today" is derived and does fall with each EMI.
+  "Outstanding today" is derived and does fall as payments are recorded.
 - **Cost.** Net worth reads more pessimistic every month until the user edits the loan.
-- **Fix.** Derive the loan account's balance from the loan (outstanding today) in the net
-  worth / account balance calculation instead of the opening balance. Nothing stored (ADR-0011).
+- **Fix.** Derive the loan account's balance from the loan's outstanding in the net worth /
+  account balance calculation instead of the opening balance. Nothing stored (ADR-0011).
+- **Changed by ADR-0018 (2026-09-21), still open.** The loan's own figure is no longer a
+  calendar guess — it now falls only when a payment is *recorded*, which makes this fix both
+  safer and more valuable: net worth would move on evidence rather than on a date. The
+  divergence is still live and **will become visible on 5 October**, when the first three
+  EMIs fall due and the loan pages move while net worth does not.
 
 ---
 
@@ -82,11 +87,6 @@ fix) or move it to **Done** with the date.
   Consider excluding `target/test-classes` from the restart trigger, or running tests with a
   separate build directory.
 
-### 4.3 Loan payments aren't recorded one by one (by design, for now)
-- An EMI counts as paid once its due date passes; a missed or extra payment is corrected by
-  editing the loan's outstanding principal. If this proves too loose, link a Ledger EMI
-  expense to the loan period (a LoanPayment write path exists in the schema, not in the API).
-
 ### 4.4 Switching a bill from fixed to "varies" keeps the old amount on unpaid months
 - Deliberate: that figure is the best estimate available. Revisit if users expect those months
   to show "needs an amount" instead.
@@ -128,6 +128,20 @@ fix) or move it to **Done** with the date.
 ---
 
 ## Done
+
+- **2026-09-23 - 4.3 closed by ROADMAP 0.2 / ADR-0018.** A settled EMI now files a
+  `LoanPayment` against its period (`LoanPaymentRecorder`), and outstanding, EMIs left and
+  repaid all derive from recorded payments rather than elapsed dates. An unrecorded EMI is
+  **flagged** (`unrecordedEmis`, `DebtsNeedsALook`) rather than assumed paid. The user's
+  decision, 2026-09-21: record *and* flag, and an overpayment counts against principal.
+  **Not yet exercised** - no EMI has fallen due; first real test is 5 October.
+
+- **2026-09-22 - card available credit ignored EMI principal.** HDFC Money back read
+  ₹1,31,000 available and 0% used while carrying ₹55,302 of EMI principal converted onto that
+  same card. EMIs on a card are modelled as separate LOAN accounts, so their balances never
+  touched the card's own. Now `limit - outstanding - emiPrincipalBlocked`, derived from the
+  same recorded payments as the loan page so the two cannot disagree, shown as its own
+  deduction and deliberately **not floored at zero** - over the limit is a real state.
 
 - **2026-09-19 - 2.11 fixed:** an expense bill only reduces Free when it leaves a spendable
   account or a credit card (`PositionServiceImpl.leavesHeldMoney`). Needed for goal payments

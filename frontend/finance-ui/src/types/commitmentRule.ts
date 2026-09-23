@@ -1,3 +1,4 @@
+import type { WriteEffect } from '@/types/effect';
 import type { Money } from '@/lib/money';
 import type { AccountSummary } from '@/types/api';
 import type { CategorySummary } from '@/types/category';
@@ -58,6 +59,9 @@ export interface UpdateCommitmentRequest {
   toAccountId?: number;
   /** "Apply from" - a cycle start date; earlier months keep the bill as it was (the rule is split). */
   applyFrom?: string;
+  /** Why, in the user's own words. Optional and never demanded - recorded on the plan
+   *  revision, where it is the part worth reading back a year later. ADR-0015. */
+  reason?: string;
 }
 
 export interface CommitmentResponse {
@@ -84,4 +88,6 @@ export interface CommitmentResponse {
   archivedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  /** What this plan change just did - absent when nothing moved (ADR-0017). */
+  effect?: WriteEffect;
 }

@@ -13,8 +13,8 @@ import { InstanceAmountForm } from '@/features/commitments/components/InstanceAm
 import { AddCommitmentSheet } from '@/features/plan/components/AddCommitmentSheet';
 import { EditCommitmentSheet } from '@/features/plan/components/EditCommitmentSheet';
 import { ManageCategoriesSheet } from '@/features/ledger/components/ManageCategoriesSheet';
+import { StoppedBills, useStoppedBills } from '@/features/plan/components/StoppedBills';
 import { WorklistRow } from './WorklistRow';
-import { PlanChanges } from './PlanChanges';
 import { formatShortDate, daysBetween } from '@/lib/dates';
 import { formatMoney, splitMoney } from '@/lib/money';
 import { cn } from '@/lib/cn';
@@ -78,11 +78,12 @@ function UnsettledRow({ instance, onEdit }: { instance: CommitmentInstanceRespon
       : 'Due date passed · paid already? Settle it, or link the Ledger entry'
     : instance.sourceType === 'LOAN'
       ? 'Loan EMI · amount and dates follow the loan'
-      : instance.ifSkipped
-        ? `If skipped: ${instance.ifSkipped}`
-        : instance.mandatory
-          ? 'Mandatory'
-          : 'Optional';
+      : // "If skipped: …" used to sit here, ahead of Mandatory/Optional. Removed with its
+        // input: in practice it restated the bill's own name, and it outranked the one word
+        // that actually tells you whether this row can wait.
+        instance.mandatory
+        ? 'Mandatory'
+        : 'Optional';
 
   return (
     <Fragment>
@@ -352,6 +353,8 @@ export function PlanZone({ cycle, instances: allInstances, progress, isLoading, 
   /** The occurrence whose pencil was clicked - Edit changes its commitment, and "This time" is its own amount. */
   const [editing, setEditing] = useState<CommitmentInstanceResponse | null>(null);
   const [managingCategories, setManagingCategories] = useState(false);
+  const [showStopped, setShowStopped] = useState(false);
+  const stoppedBills = useStoppedBills();
   const [grouping, setGroupingState] = useState<Grouping>(readGrouping);
   const setGrouping = (next: Grouping) => {
     setGroupingState(next);
@@ -477,6 +480,18 @@ export function PlanZone({ cycle, instances: allInstances, progress, isLoading, 
                 </button>
               ))}
             </span>
+            {/* Only when there is something stopped - an always-on "0 stopped" would be
+                noise, and the point of this is that a stopped bill stops being findable. */}
+            {stoppedBills.length > 0 && (
+              <button
+                type="button"
+                aria-expanded={showStopped}
+                onClick={() => setShowStopped((v) => !v)}
+                className={cn('underline-offset-4 hover:underline', showStopped ? 'font-medium text-ink' : 'text-ink-muted')}
+              >
+                {stoppedBills.length} stopped
+              </button>
+            )}
             <button type="button" onClick={() => setManagingCategories(true)} className="text-accent underline-offset-4 hover:underline">
               Manage categories
             </button>
@@ -489,7 +504,11 @@ export function PlanZone({ cycle, instances: allInstances, progress, isLoading, 
         The plan
       </SectionHeader>
 
-      <PlanChanges cycle={cycle} />
+      {/* "What's different" and "What you changed" used to sit here. They moved to the
+          MonthBriefing tab strip directly under the month's numbers: they describe the
+          shape of the month, and belonged above the plan rather than inside it. */}
+
+      {showStopped && <StoppedBills bills={stoppedBills} onClose={() => setShowStopped(false)} />}
 
       <IncomeBlock
         income={income}

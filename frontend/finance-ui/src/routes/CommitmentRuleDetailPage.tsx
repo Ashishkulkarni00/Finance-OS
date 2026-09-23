@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, AlertCircle, Pencil } from 'lucide-react';
+import { ArrowLeft, Pencil } from 'lucide-react';
 import { Button } from '@/components/Button';
 import { EditCommitmentSheet } from '@/features/plan/components/EditCommitmentSheet';
 import { Row } from '@/components/Row';
-import { Card } from '@/components/Card';
 import { StatusPill } from '@/components/StatusPill';
 import { Statement, StatementRow } from '@/components/Statement';
 import { SectionHeader } from '@/components/SectionHeader';
@@ -160,16 +159,6 @@ export default function CommitmentRuleDetailPage() {
           note={`Due the ${ordinal(rule.dueDay)} · ${rule.account.name}`}
         />
       </Statement>
-
-      {rule.ifSkipped && (
-        <Card domainRule="commit" className="flex items-start gap-space-3">
-          <AlertCircle size={18} strokeWidth={1.5} className="mt-0.5 shrink-0 text-ink-soft" />
-          <div>
-            <span className="text-label font-semibold text-ink">If it's skipped</span>
-            <p className="mt-space-1 text-body text-ink-soft">{rule.ifSkipped}</p>
-          </div>
-        </Card>
-      )}
 
       <section>
         <SectionHeader>Details</SectionHeader>

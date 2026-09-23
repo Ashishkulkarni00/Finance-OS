@@ -1,3 +1,4 @@
+import type { WriteEffect } from '@/types/effect';
 import type { Money } from '@/lib/money';
 
 /** Whether saving is keeping up with the target date - GoalPace.java. */
@@ -28,6 +29,8 @@ export interface GoalResponse {
   archivedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  /** What this write just did - absent on reads and when nothing moved (ADR-0017). */
+  effect?: WriteEffect;
 }
 
 /** GoalScheduleLine.java - a payment planned against the goal, or "The rest" (commitmentId
@@ -52,6 +55,9 @@ export interface UpdateGoalRequest {
   targetAmount?: Money;
   targetDate?: string;
   linkedAccountId?: number;
+  /** Why, in the user's own words. Optional. Moving a target date is a decision, and the
+   *  reason is the part worth reading back a year later. ADR-0015. */
+  reason?: string;
 }
 
 export interface CreateGoalRequest {

@@ -1,3 +1,4 @@
+import type { WriteEffect } from '@/types/effect';
 import type { Money } from '@/lib/money';
 import type { AccountSummary } from '@/types/api';
 import type { CategorySummary } from '@/types/category';
@@ -51,6 +52,8 @@ export interface CommitmentInstanceResponse {
   attentionTier: AttentionTier;
   /** Positive = cost more than planned, negative = less. Null unless settled with both figures known. */
   variance: Money | null;
+  /** What this write just did - absent on reads and when nothing moved (ADR-0017). */
+  effect?: WriteEffect;
 }
 
 export interface CommitmentPlanProgressResponse {

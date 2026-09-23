@@ -19,6 +19,9 @@ export const TAG_TYPES = [
   'Goal',
   'Import',
   'User',
+  'Insurance',
+  /** The plan's change log - invalidated by every commitment and goal mutation. ADR-0015. */
+  'PlanRevision',
 ] as const;
 
 export type TagType = (typeof TAG_TYPES)[number];

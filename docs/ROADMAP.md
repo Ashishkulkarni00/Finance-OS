@@ -36,18 +36,22 @@ MySQL + Flyway; `mvn` is not on PATH (`.\mvnw.cmd`).
 
 Everything here unblocks the rest. Expect migrations; this is where the SQL freeze lifts.
 
-| # | Item | Impact |
-|---|---|---|
-| 0.1 | **Plan revisions + change log.** A commitment/goal edit records what changed, when, why, and its effect. Closed-cycle snapshot stores **planned** totals as well as actual | DB (2 tables, snapshot columns), backend (commitment/goal update paths), API, small UI |
-| 0.2 | **Loan payments wired.** Link an EMI transaction to its period; derive outstanding from recorded payments, falling back to the stated checkpoint | DB (none — table exists), backend (`LoanServiceImpl`, settle path), API, loan page UI |
-| 0.3 | **Protection primitive.** Insurance entity: cover, premium, frequency, renewal, insurer. Premium becomes an obligation; renewal a timeline event. Migrate the health-insurance-as-loan record | DB (1 table), backend (new package), API, new small screen |
-| 0.4 | **Reactive write path.** Every financial write returns the *effect* of what just happened (room after, nearest at-risk obligation, goal moved) and re-runs threshold rules | Backend (write paths + state service), API response shape, UI surfacing |
-| 0.5 | **Regression safety.** Re-enable tests: correctness invariants (money never double-counted, cycle boundaries, plan-vs-actual) before the engines multiply | Backend tests; a few frontend tests for money formatting |
-| 0.6 | **Documentation consolidation** (see `DOC_INDEX.md`) | Docs only — partly done 2026-09-20 |
+**Status 2026-09-23: complete except 0.5, which the user has frozen.** Four of the five exit
+criteria below are met. Three pieces are built but have **never executed** — see the notes.
 
-**Exit criteria:** a plan change is auditable; a loan's outstanding reflects payments; an
-insurance premium behaves like any other obligation; recording a transaction tells you what
-it cost; tests guard the invariants.
+| # | Item | Impact | Status |
+|---|---|---|---|
+| 0.1 | **Plan revisions + change log.** A commitment/goal edit records what changed, when, why, and its effect. Closed-cycle snapshot stores **planned** totals as well as actual | DB (2 tables, snapshot columns), backend (commitment/goal update paths), API, small UI | ✅ **Done** 2026-09-21 · V18 · ADR-0015 · in real use |
+| 0.2 | **Loan payments wired.** Link an EMI transaction to its period; derive outstanding from recorded payments, falling back to the stated checkpoint | DB (none — table exists), backend (`LoanServiceImpl`, settle path), API, loan page UI | ✅ **Done** 2026-09-21 · ADR-0018 · **never run** — first EMI falls 5 Oct |
+| 0.3 | **Protection primitive.** Insurance entity: cover, premium, frequency, renewal, insurer. Premium becomes an obligation; renewal a timeline event. ~~Migrate the health-insurance-as-loan record~~ | DB (1 table), backend (new package), API, new small screen | ✅ **Done** 2026-09-21 · V19 · ADR-0016 · **no policy recorded yet**. The migration was deliberately *not* done: that loan is a real ₹42,701 liability, and deleting it to tidy the model would erase a debt |
+| 0.4 | **Reactive write path.** Every financial write returns the *effect* of what just happened (room after, nearest at-risk obligation, goal moved) and re-runs threshold rules | Backend (write paths + state service), API response shape, UI surfacing | ✅ **Done** 2026-09-23 · V20 · ADR-0017 · **verified on real writes**: six transactions, one warning, announced once |
+| 0.5 | **Regression safety.** Re-enable tests: correctness invariants (money never double-counted, cycle boundaries, plan-vs-actual) before the engines multiply | Backend tests; a few frontend tests for money formatting | ⛔ **Frozen by the user** since 2026-09-17. Nothing has run since. See `CONTINUE_HERE.md` for what 0.1–0.4 introduced that wants covering |
+| 0.6 | **Documentation consolidation** (see `DOC_INDEX.md`) | Docs only | ✅ **Done** 2026-09-23 · living docs made true, ADRs 0018–0019 written, `INFORMATION_ARCHITECTURE.md` banner-flagged |
+
+**Exit criteria:** a plan change is auditable ✅; a loan's outstanding reflects payments ✅;
+an insurance premium behaves like any other obligation ✅; recording a transaction tells you
+what it cost ✅; **tests guard the invariants ⛔ — not met, and will not be until the freeze
+lifts.** Phase 0 is otherwise closed.
 
 ---
 

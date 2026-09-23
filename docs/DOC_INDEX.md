@@ -1,9 +1,10 @@
 # Documentation index — what is true, what is history
 
-Written 2026-09-20. There were **62 markdown files**, 56 untouched since 2026-09-18, with two
-competing strategy documents, three competitor analyses and four "experience" docs shadowing
-four "spec" docs. This index ends that: it names the living set and marks everything else as
-history.
+Written 2026-09-20, **closed out 2026-09-23** (ROADMAP 0.6). There were **62 markdown files**,
+56 untouched since 2026-09-18, with two competing strategy documents, three competitor
+analyses and four "experience" docs shadowing four "spec" docs. This index ends that: it names
+the living set and marks everything else as history. There are now 71; the living set is
+still ~12, and the growth is ADRs, which is where growth belongs.
 
 **Rule: if a document is not in §1, it does not define the product.** Older documents remain
 readable as a record of how we got here, and must not be cited as current truth.
@@ -45,18 +46,46 @@ readable as a record of how we got here, and must not be cited as current truth.
 
 ---
 
-## 3. Known drift to fix (not yet done)
+## 3. Drift — all cleared 2026-09-23
 
-- **`G:\FinanceOS\CLAUDE.md`** still asserts as fact: "frontend — empty (not started)",
-  "Nothing exists yet for: cycles, commitments, Real Balance, cards, loans, goals, or any
-  frontend", "do not start frontend work", "M2 status: done. Next: M3", and test counts
-  (77/77, 23) that no longer match (22 test files). It is the file a new session reads first,
-  so it is the highest-value correction outstanding.
-- `product/INFORMATION_ARCHITECTURE.md` contradicts itself (above); rewrite when the Pulse
-  lands in Phase 1.
-- ADR index should gain the reassessment decisions D1-D9 that are architectural: plan
-  versioning (D2), debt truth from payments (D3), reactive write path (D6), protection
-  primitive (D7), AI as interface (D8).
+- ~~**`G:\FinanceOS\CLAUDE.md`** asserts "frontend — empty (not started)", "M2 status: done.
+  Next: M3", stale test counts…~~ **Fixed 2026-09-21.** Rewritten to carry only what does not
+  change — origin, invariants, stack, Boot 4 traps, standing instructions — and **no milestone
+  status at all**, since a status line there is what went stale and then lied. It points at
+  this index and at `CONTINUE_HERE.md` for anything live. **Keep it that way: do not add
+  "current state" back to it.**
+- ~~`product/INFORMATION_ARCHITECTURE.md` contradicts itself~~ **Banner added 2026-09-23.**
+  It was the last unbannered document that a reader could plausibly have cited as truth. The
+  banner states the navigation that actually exists and points elsewhere. The **rewrite is
+  still owed in Phase 1**, when the Pulse gives the IA a settled shape to describe — a banner
+  stops it lying, it does not make it useful.
+- ~~ADR index should gain the architectural decisions from D1-D9~~ **Done.** D2 → ADR-0015,
+  D7 → ADR-0016, D6 → ADR-0017, D3 → **ADR-0018**, D8 → **ADR-0019**. D1, D4, D5 and D9 are
+  deliberately *not* ADRs yet: D1 (state is the unit) and D4/D5 (goals compete, decisions are
+  records) describe work that has not been built, and an ADR written before the decision is
+  actually faced records a guess. D9 (no monetisation that conflicts with advice) is a product
+  commitment, not a technical one, and lives in `FINANCIAL_OS.md`.
+
+### Living documents that were made true in the same pass
+
+- **`ROADMAP.md`** — Phase 0 now carries a status column and honest exit criteria: four of
+  five met, 0.5 frozen. Three items are marked **built but never executed**.
+- **`FINANCIAL_STATE.md`** §4 was a list of *missing* primitives, three of which now exist. It
+  is split into Built and Still missing, keeping each one's original reason, because the
+  reason is still why the thing behaves as it does.
+- **`SESSION_HANDOFF.md`** — said the latest migration was V17 (it is V20) and quoted
+  **125/125** tests as though current, when nothing has run since 2026-09-17. Both corrected;
+  the feature map gained Needs you and the write-effect toast, and the data snapshot is
+  refreshed and flagged where six test rows distort it.
+
+## 3a. What is *deliberately* not documented
+
+- **No OpenAPI/springdoc** — only Boot 3-targeting versions exist (ADR-0013 §6). The Postman
+  collection is the API documentation and is updated in the same change as the code.
+- **No per-screen spec for `/needs-you`.** It renders the insight engine's existing output
+  with the existing row component; a spec would describe `InsightList` twice.
+- **No document owns "current status".** `CONTINUE_HERE.md` does, and only it. Anything else
+  claiming to is drift by definition.
 
 ---
 

@@ -1,6 +1,8 @@
 package com.finance.transaction;
 
 import com.finance.common.web.PageResponse;
+import com.finance.effect.WriteEffects;
+import com.finance.effect.dto.WriteEffectResponse;
 import com.finance.transaction.domain.TransactionType;
 import com.finance.transaction.dto.CreateTransactionRequest;
 import com.finance.transaction.dto.DaySubtotalResponse;
@@ -39,21 +41,27 @@ public class TransactionController {
 
     private final TransactionService service;
     private final TransactionMapper mapper;
+    private final WriteEffects effects;
 
-    public TransactionController(TransactionService service, TransactionMapper mapper) {
+    public TransactionController(TransactionService service, TransactionMapper mapper, WriteEffects effects) {
         this.service = service;
         this.mapper = mapper;
+        this.effects = effects;
     }
 
     @PostMapping
     public ResponseEntity<TransactionResponse> create(
             @Valid @RequestBody CreateTransactionRequest request,
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
-        TransactionView created = service.create(request, idempotencyKey);
+        // Wrapped, not injected into the service: the effect is composed only once the
+        // write's own transaction has committed, so it can never roll one back (ADR-0017).
+        var reported = effects.around(() -> service.create(request, idempotencyKey));
+        TransactionView created = reported.value();
         return ResponseEntity
                 .created(URI.create("/api/v1/transactions/" + created.transaction().getId()))
                 .body(mapper.toResponse(created.transaction(), created.account(),
-                        created.toAccount(), created.category()));
+                                created.toAccount(), created.category())
+                        .withEffect(WriteEffectResponse.from(reported.effect())));
     }
 
     @GetMapping

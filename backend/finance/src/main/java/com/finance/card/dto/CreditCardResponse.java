@@ -34,12 +34,19 @@ public record CreditCardResponse(
         @JsonSerialize(using = MoneySerializer.class)
         BigDecimal outstanding,
 
-        /** Limit − outstanding. Null until set up. */
+        /** What you could still spend: limit − outstanding − EMI principal still blocked.
+         *  Null until set up. Can go negative if the card is over its limit. */
         @JsonSerialize(using = MoneySerializer.class)
         BigDecimal availableCredit,
 
-        /** Owed ÷ limit, as a fraction (0.42 = 42%). Null until set up. */
+        /** How much of the limit is used - owed plus blocked EMI principal, over the limit,
+         *  as a fraction (0.42 = 42%). Null until set up. */
         BigDecimal utilisation,
+
+        /** Principal still owed on EMIs on this card - blocked against the limit, so it is
+         *  already taken out of {@code availableCredit}. */
+        @JsonSerialize(using = MoneySerializer.class)
+        BigDecimal emiPrincipalBlocked,
 
         /** Spent on the card since the latest statement - heading for the next bill. Null
          *  when no statement has been recorded. */

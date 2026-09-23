@@ -46,6 +46,11 @@ export interface CreditCardResponse {
   /** Fraction of the limit used (0.42 = 42%). */
   utilisation: number | null;
   /** Spent since the latest statement; null when none is recorded. */
+  /**
+   * Principal still owed on EMIs converted onto this card. A lender blocks it against the
+   * limit until it's repaid, so it is already subtracted from `availableCredit`.
+   */
+  emiPrincipalBlocked: Money | null;
   unbilled: Money | null;
   trackedSince: string;
   nextStatementDate: string | null;

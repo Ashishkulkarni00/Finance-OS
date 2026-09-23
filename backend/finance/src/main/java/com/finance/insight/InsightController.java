@@ -22,4 +22,18 @@ public class InsightController {
         InsightService.Result result = service.forSurface(surface);
         return InsightListResponse.of(result.shown(), result.total());
     }
+
+    /**
+     * Everything that needs the user - no surface filter and no cap.
+     *
+     * <p>A screen's list is deliberately short, and said so ("3 of 7 shown") with nowhere to
+     * go. This is where the rest lives. Separate from {@code list} rather than a
+     * {@code surface=ALL} value, because a surface is a place a warning is shown and "all"
+     * is not a place.
+     */
+    @GetMapping("/all")
+    public InsightListResponse all() {
+        var insights = service.evaluateAll();
+        return InsightListResponse.of(insights, insights.size());
+    }
 }

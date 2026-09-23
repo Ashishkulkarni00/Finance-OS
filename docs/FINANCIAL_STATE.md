@@ -85,18 +85,33 @@ calendar periods* (D3 — should come from recorded payments).
 
 ---
 
-## 4. Missing primitives
+## 4. Primitives
+
+Written 2026-09-20 as a list of what was **missing**. Three were built in Phase 0; they stay
+here, marked, because the reason each had to exist is still the reason it behaves as it does.
+
+### Built
+
+| Primitive | Why it had to exist | Where it landed |
+|---|---|---|
+| **Protection / Insurance** | Health insurance was modelled as a **loan account** — the app knew ₹3,998 left each month and nothing about what it bought | `insurance_policies` (V19), ADR-0016. Premium is an ordinary commitment with `CommitmentSource.INSURANCE`. **Cover is never an asset** — adding ₹5,00,000 of cover would have flipped net worth positive while changing nothing |
+| **Plan revision** | Editing a commitment silently cloned the rule; no record of what changed or why | `plan_revisions` + `plan_revision_changes` (V18), ADR-0015. Carries `monthlyEffect`, which is what makes it a financial record rather than an audit trail |
+| **Loan payment (wire up)** | Table and entity existed, unused; a loan shrank on a date whether or not it was paid | ADR-0018, no migration. Outstanding, EMIs left and repaid all derive from recorded payments; what is unrecorded is **flagged**, not assumed |
+
+### Still missing
 
 | Primitive | Why it must exist | Notes |
 |---|---|---|
-| **Protection / Insurance** | Health insurance is currently modelled as a **loan account**. Cover, premium, renewal date and gaps drive runway and risk | New entity; premiums become obligations; renewals become timeline events |
-| **Plan revision** | Editing a commitment silently clones the rule; no record of what changed or why | `plan_revision` + change log; snapshot gains planned totals |
-| **Decision** | Advice with no memory is not accountability | `decision { situation, options, chosen, expectedEffect, madeAt, followedThrough }` |
+| **Decision** | Advice with no memory is not accountability | `decision { situation, options, chosen, expectedEffect, madeAt, followedThrough }` — Phase 3 |
 | **Commitment (promise)** | Distinct from a *bill*: "I will put ₹5,000 into the emergency fund this month" | Feeds recovery + momentum + North Star |
-| **Allocation** | Where free cash is *intended* to go, when several goals compete | Makes goal contention resolvable |
-| **Runway** | The single most legible safety metric ("X months if income stopped") | Derived: liquid assets ÷ essential monthly spend |
+| **Allocation** | Where free cash is *intended* to go, when several goals compete | Makes goal contention resolvable — Phase 4 |
+| **Runway** | The single most legible safety metric ("X months if income stopped") | Derived: liquid assets ÷ essential monthly spend — Phase 1.1 |
 | **Baseline** | "Is this month unusual?" needs the user's own history, not a budget | Derived from trailing cycles; needed before any "you're overspending" claim |
-| **Loan payment (wire up)** | Table and entity exist, unused | Link EMI transaction → period; outstanding from truth |
+
+**Notification state** arrived alongside these and is deliberately **not** a primitive of
+financial state: `insight_state` (V20, ADR-0017) records what the product has already *said*,
+never a figure anyone reads money out of. It is the memory that lets a warning be announced
+once when it becomes true rather than repeated on every write.
 
 ---
 

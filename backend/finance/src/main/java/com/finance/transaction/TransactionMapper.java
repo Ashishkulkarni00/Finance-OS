@@ -61,7 +61,9 @@ public class TransactionMapper {
                 transaction.getMerchant(),
                 transaction.getNote(),
                 transaction.getCreatedAt(),
-                transaction.getUpdatedAt()
+                transaction.getUpdatedAt(),
+                // Reads report no effect; a write attaches its own (ADR-0017).
+                null
         );
     }
 

@@ -1,5 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
+import type { WriteEffect } from '@/types/effect';
 
 /** Values "Add" opens with when the screen it's opened from already knows them - e.g.
  *  "Pay bill" on a card knows it's a transfer, how much, and to which card. */
@@ -15,6 +16,12 @@ export interface AddSheetPrefill {
 /** Things the rail's Add can open besides a transaction - see `addTargetFor`. */
 export type PageAddKind = 'bill' | 'account' | 'card' | 'loan' | 'holding' | 'goal';
 
+/** One effect waiting to be read, with an id so several can queue without colliding. */
+export interface EffectToast {
+  id: number;
+  effect: WriteEffect;
+}
+
 interface UiState {
   addSheetOpen: boolean;
   addSheetPrefill: AddSheetPrefill | null;
@@ -26,6 +33,10 @@ interface UiState {
   settlingInstanceId: number | null;
   /** The non-transaction add sheet the rail opened; for a bill, the month being viewed. */
   pageAdd: { kind: PageAddKind; cycleId: number | null } | null;
+  /** What recent writes did, waiting to be read. Global rather than per-sheet because the
+   *  sheet that caused it closes immediately - the report must outlive it (ADR-0017). */
+  effectToasts: EffectToast[];
+  nextToastId: number;
 }
 
 const initialState: UiState = {
@@ -34,6 +45,8 @@ const initialState: UiState = {
   selectedCycleId: null,
   settlingInstanceId: null,
   pageAdd: null,
+  effectToasts: [],
+  nextToastId: 1,
 };
 
 const uiSlice = createSlice({
@@ -57,6 +70,15 @@ const uiSlice = createSlice({
     closeSettleSheet: (state) => {
       state.settlingInstanceId = null;
     },
+    showEffect: (state, action: PayloadAction<WriteEffect>) => {
+      // Newest first, and never more than three on screen: a stack taller than that stops
+      // being read and starts being cleared.
+      state.effectToasts = [{ id: state.nextToastId, effect: action.payload }, ...state.effectToasts].slice(0, 3);
+      state.nextToastId += 1;
+    },
+    dismissEffect: (state, action: PayloadAction<number>) => {
+      state.effectToasts = state.effectToasts.filter((t) => t.id !== action.payload);
+    },
     openPageAdd: (state, action: PayloadAction<{ kind: PageAddKind; cycleId?: number }>) => {
       state.pageAdd = { kind: action.payload.kind, cycleId: action.payload.cycleId ?? null };
     },
@@ -66,6 +88,6 @@ const uiSlice = createSlice({
   },
 });
 
-export const { openAddSheet, closeAddSheet, selectCycle, openSettleSheet, closeSettleSheet, openPageAdd, closePageAdd } =
+export const { openAddSheet, closeAddSheet, selectCycle, openSettleSheet, closeSettleSheet, openPageAdd, closePageAdd, showEffect, dismissEffect } =
   uiSlice.actions;
 export default uiSlice.reducer;

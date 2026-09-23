@@ -69,11 +69,30 @@ public class InsightService {
     // reader of the plan does.
     @Transactional
     public Result forSurface(Insight.Surface surface) {
+        List<Insight> ranked = evaluate(surface);
+        int limit = limitFor(surface);
+        return new Result(ranked.subList(0, Math.min(limit, ranked.size())), ranked.size());
+    }
+
+    /**
+     * Every insight the rules produce, ranked, with no surface filter and no limit.
+     *
+     * <p>Crossing detection (ADR-0017) needs the whole set: a warning that appears only on
+     * Month is still a crossing, and truncating to what a screen shows would make the
+     * remainder look as though it had cleared.
+     */
+    @Transactional
+    public List<Insight> evaluateAll() {
+        return evaluate(null);
+    }
+
+    /** @param surface null for everything. */
+    private List<Insight> evaluate(Insight.Surface surface) {
         FinancialContext context = buildContext();
         Map<String, Insight> byKey = new LinkedHashMap<>();
         for (InsightRule rule : rules) {
             for (Insight insight : rule.evaluate(context)) {
-                if (insight.surfaces().contains(surface)) {
+                if (surface == null || insight.surfaces().contains(surface)) {
                     byKey.putIfAbsent(insight.key(), insight);
                 }
             }
@@ -83,8 +102,7 @@ public class InsightService {
                 .thenComparing(i -> i.when() == null ? LocalDate.MAX : i.when())
                 .thenComparing((Insight i) -> i.impact() == null ? java.math.BigDecimal.ZERO : i.impact(),
                         Comparator.reverseOrder()));
-        int limit = limitFor(surface);
-        return new Result(ranked.subList(0, Math.min(limit, ranked.size())), ranked.size());
+        return ranked;
     }
 
     private FinancialContext buildContext() {
