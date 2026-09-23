@@ -17,6 +17,12 @@ public record CreditCardView(
         BigDecimal outstanding,
         BigDecimal availableCredit,
         BigDecimal utilisation,
+        /**
+         * Principal still owed on EMIs converted onto this card. A lender blocks it against
+         * the limit until it is repaid, so it is not credit you can actually use - which is
+         * why {@code availableCredit} subtracts it.
+         */
+        BigDecimal emiPrincipalBlocked,
         BigDecimal unbilled,
         LocalDate nextStatementDate,
         LocalDate nextStatementDueDate,

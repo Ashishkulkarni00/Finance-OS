@@ -15,10 +15,14 @@ import java.util.List;
  * Derives a loan forward from where it stands - its outstanding balance on a date, with
  * a number of EMIs left (V13). Never stored (ADR-0011).
  *
- * <p>Progress is counted by the calendar: an EMI whose due date has passed is treated as
- * paid. There is no way to record a loan payment in the product, so the alternative -
- * counting only recorded payments - left every loan frozen at the day it was entered.
- * The loan's own page says this, and a missed EMI is corrected by editing what's owed.
+ * <p><strong>Progress is counted from recorded payments</strong> (Phase 0.2). It used to be
+ * counted by the calendar - an EMI whose due date had passed was treated as paid - because
+ * there was no way to record a loan payment at all. Settling a loan's EMI on Months now
+ * writes a {@code LoanPayment}, so the balance moves on evidence instead of on the date.
+ *
+ * <p>{@link #emisElapsed} is kept, but no longer decides the balance: it says how many EMIs
+ * <em>should</em> have been paid by now, and the difference against what was recorded is
+ * shown to the user rather than assumed either way (ADR-0006).
  *
  * <p>Anything that needs a principal/interest split needs a rate, so {@link #schedule}
  * returns an empty list without one; due dates, EMIs left and the payoff date don't, and
@@ -97,6 +101,58 @@ public class AmortisationCalculator {
             balance = MoneyScale.normalise(balance.subtract(principalPart));
         }
         return balance.signum() < 0 ? MoneyScale.ZERO : balance;
+    }
+
+    /**
+     * What's owed after these payments, in the order they were made - each one's interest
+     * taken at the balance it met, the rest coming off the principal.
+     *
+     * <p>Unlike {@link #balanceAfter}, the amount is per payment rather than a fixed EMI.
+     * That is what makes paying more than the EMI mean something: the surplus is principal,
+     * so the loan clears sooner. Paying less is equally honest - less principal comes off.
+     *
+     * <p>Floored at zero: a final payment that overshoots closes the loan, it doesn't turn
+     * the balance negative.
+     */
+    public BigDecimal balanceAfterPayments(BigDecimal principal, BigDecimal annualRate, List<BigDecimal> payments) {
+        BigDecimal monthlyRate = annualRate.divide(BigDecimal.valueOf(1200), 10, RoundingMode.HALF_UP);
+        BigDecimal balance = MoneyScale.normalise(principal);
+        for (BigDecimal paid : payments) {
+            if (balance.signum() <= 0) {
+                break;
+            }
+            BigDecimal interest = MoneyScale.normalise(balance.multiply(monthlyRate));
+            BigDecimal principalPart = MoneyScale.normalise(paid.subtract(interest));
+            if (principalPart.signum() < 0) {
+                // The payment didn't even cover the interest, so nothing came off the
+                // principal. The balance holds rather than growing: unpaid interest
+                // capitalising is a lender's rule we don't have, and inventing it would
+                // overstate what's owed (ADR-0006).
+                principalPart = MoneyScale.ZERO;
+            }
+            balance = MoneyScale.normalise(balance.subtract(principalPart));
+        }
+        return balance.signum() < 0 ? MoneyScale.ZERO : balance;
+    }
+
+    /**
+     * Which EMI number a due date is, counting from the first after the balance date -
+     * 1-based, or {@code -1} when the date isn't one of this loan's EMI dates.
+     *
+     * <p>Used to file a settled bill against the right period, so the same month can't be
+     * recorded twice and a skipped one leaves a visible hole.
+     */
+    public int periodFor(Loan loan, LocalDate dueDate) {
+        for (int k = 1; k <= MAX_PERIODS; k++) {
+            LocalDate due = dueDate(loan, k);
+            if (due.equals(dueDate)) {
+                return k;
+            }
+            if (due.isAfter(dueDate)) {
+                return -1;
+            }
+        }
+        return -1;
     }
 
     /** How many of the loan's remaining EMIs have fallen due on or before {@code today}. */

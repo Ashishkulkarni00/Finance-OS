@@ -120,6 +120,28 @@ export function formatShortDate(iso: string): string {
   return shortDate(iso);
 }
 
+/**
+ * "1st", "2nd", "3rd", "21st", "12th" - a day of the month with the right suffix.
+ *
+ * <p>Worth a helper rather than a template literal: `${day}th` is right for 21 days out of
+ * 28 and wrong for the rest, which is how "on the 2th" reached a screenshot. The teens are
+ * the exception that catches naive versions - 11th, 12th and 13th, not 11st/12nd/13rd.
+ */
+export function ordinalDay(day: number): string {
+  const lastTwo = day % 100;
+  if (lastTwo >= 11 && lastTwo <= 13) return `${day}th`;
+  switch (day % 10) {
+    case 1:
+      return `${day}st`;
+    case 2:
+      return `${day}nd`;
+    case 3:
+      return `${day}rd`;
+    default:
+      return `${day}th`;
+  }
+}
+
 const SALARY_DATE = new Intl.DateTimeFormat('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
 
 /** "Mon, 28 Sept" - the salary date a cycle runs toward, i.e. the day after its last day.

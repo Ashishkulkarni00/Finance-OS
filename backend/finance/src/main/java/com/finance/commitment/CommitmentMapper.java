@@ -69,7 +69,9 @@ public class CommitmentMapper {
                 c.isMandatory(), c.isRequiresVerification(),
                 c.getActiveFrom(), c.getActiveTo(),
                 c.getWhy(), c.getIfSkipped(),
-                c.isArchived(), c.getArchivedAt(), c.getCreatedAt(), c.getUpdatedAt());
+                c.isArchived(), c.getArchivedAt(), c.getCreatedAt(), c.getUpdatedAt(),
+                // Reads report no effect; a write attaches its own (ADR-0017).
+                null);
     }
 
     public CommitmentInstanceResponse toResponse(CommitmentInstanceView view) {
@@ -82,7 +84,9 @@ public class CommitmentMapper {
                 instance.getLinkedTransactionId(), commitment.isMandatory(), commitment.getIfSkipped(),
                 accountMapper.toSummary(view.account()), categoryMapper.toSummary(view.category()),
                 commitment.getSourceType(), commitment.getSourceId(), commitment.getSettleAs(), commitment.getToAccountId(),
-                AttentionTier.of(instance, commitment, LocalDate.now(clock)), instance.variance());
+                AttentionTier.of(instance, commitment, LocalDate.now(clock)), instance.variance(),
+                // Reads report no effect; a write attaches its own (ADR-0017).
+                null);
     }
 
     public CommitmentPlanProgressResponse toResponse(CommitmentPlanProgress progress) {

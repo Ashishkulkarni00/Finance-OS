@@ -5,6 +5,7 @@ import com.finance.goal.GoalScheduleLine;
 import tools.jackson.databind.annotation.JsonSerialize;
 import com.finance.common.money.MoneySerializer;
 
+import com.finance.effect.dto.WriteEffectResponse;
 import com.finance.goal.GoalPace;
 
 import java.math.BigDecimal;
@@ -49,8 +50,17 @@ public record GoalResponse(
         boolean archived,
         Instant archivedAt,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+
+        /** What this change just did to the month (ADR-0017). */
+        WriteEffectResponse effect
 ) {
+
+    public GoalResponse withEffect(WriteEffectResponse effect) {
+        return new GoalResponse(id, name, targetAmount, targetDate, priority, linkedReservationId, linkedAccountId,
+                currentAmount, spentAmount, progressPercent, requiredPerMonth, pace, timeElapsedPercent, schedule,
+                archived, archivedAt, createdAt, updatedAt, effect);
+    }
 
     /** See {@code GoalScheduleLine}. */
     public record ScheduleLine(

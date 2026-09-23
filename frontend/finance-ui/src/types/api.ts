@@ -1,3 +1,4 @@
+import type { WriteEffect } from '@/types/effect';
 /**
  * Hand-written types mirroring the backend's DTOs exactly.
  *
@@ -57,6 +58,8 @@ export interface AccountResponse {
   archivedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  /** What this write just did - absent on reads and when nothing moved (ADR-0017). */
+  effect?: WriteEffect;
 }
 
 export interface CreateAccountRequest {

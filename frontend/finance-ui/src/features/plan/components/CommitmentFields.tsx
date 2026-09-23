@@ -42,11 +42,10 @@ const SETTLE_OPTIONS: { value: SettleAs; label: string }[] = [
 
 const TYPE_HINT = (
   <span className="flex flex-col gap-space-1">
-    <span>What this money does:</span>
-    <span><strong className="font-medium">Payment</strong> - it leaves you: rent, EMIs, bills, subscriptions, family support. Most things are this.</span>
-    <span><strong className="font-medium">Saving</strong> - moved into your own savings account. It's still yours, so it isn't counted as spent.</span>
-    <span><strong className="font-medium">Investing</strong> - a SIP or RD going into an investment account.</span>
-    <span><strong className="font-medium">Income</strong> - salary or other money you receive.</span>
+    <span><strong className="font-medium">Payment</strong> - it leaves you. Rent, EMIs, bills.</span>
+    <span><strong className="font-medium">Saving</strong> - into your own savings. Still yours.</span>
+    <span><strong className="font-medium">Investing</strong> - a SIP or RD.</span>
+    <span><strong className="font-medium">Income</strong> - money you receive.</span>
   </span>
 );
 
@@ -147,18 +146,19 @@ export function CommitmentFields({
             </FormRow>
           )}
 
-          <FormRow
-            label="Amount"
-            hint="Fixed if it's the same every time, like rent or an EMI. Changes each month for things like electricity - you give each month's amount as you learn it."
-          >
+          {/* The question, not the noun: this row picks whether the amount is knowable up
+              front, and the next row ("How much") is the amount. Labelling both "Amount"
+              made the first one unreadable - and once the label asks the question, the
+              options answer it, so the hint had nothing left to add. */}
+          <FormRow label="Same every time?">
             <Select
               variant="row"
               className="-ml-space-1 max-w-full"
               ariaLabel="Whether the amount is the same every time"
               value={amountType}
               options={[
-                { value: 'FIXED', label: 'Fixed - same every time' },
-                { value: 'VARIABLE', label: 'Changes each month - like electricity' },
+                { value: 'FIXED', label: 'Yes - it’s the same amount' },
+                { value: 'VARIABLE', label: 'No - it changes, like electricity' },
               ]}
               onChange={(v) => setValue('amountType', v as CommitmentAmountType, { shouldValidate: true })}
             />
@@ -191,14 +191,13 @@ export function CommitmentFields({
             />
           </FormRow>
 
-          <FormRow
-            label={isIncome ? 'Arrives on' : 'Due on'}
-            error={errors.dueDay?.message}
-            hint={isIncome ? 'The day of the month it usually arrives (1-28).' : 'The day of the month it’s paid (1-28). For one every 3 months or every year, the day in the month it falls due.'}
-          >
+          {/* No hint: the label and the suffix already say the whole thing. The only fact
+              the hint carried that the field didn't was the 1-28 range, which now sits
+              inline where it's needed rather than behind an icon. */}
+          <FormRow label={isIncome ? 'Arrives on' : 'Due on'} error={errors.dueDay?.message}>
             <span className="flex items-center gap-space-2">
               <input {...register('dueDay')} inputMode="numeric" placeholder="5" className="w-12 bg-transparent text-label text-ink outline-none num" />
-              <span className="text-caption text-ink-muted">of the month</span>
+              <span className="text-caption text-ink-muted">of the month (1–28)</span>
             </span>
           </FormRow>
 
@@ -208,7 +207,7 @@ export function CommitmentFields({
           <FormRow
             label={isIncome ? 'Last one' : 'Last payment'}
             error={lastPayment.error ?? undefined}
-            hint="Only if it ends - like the month of your final EMI. Leave it as “No end” if it keeps going."
+            hint="The month of the final one. Leave blank if it keeps going."
           >
             <span className="flex flex-wrap items-center gap-space-2">
               <Select
@@ -239,11 +238,9 @@ export function CommitmentFields({
 
           {!once && afterEndSlot}
 
-          <FormRow
-            label={isIncome ? 'Arrives in' : 'Paid from'}
-            error={errors.accountId?.message}
-            hint={isIncome ? 'The account it’s paid into.' : 'The account the money goes out of.'}
-          >
+          {/* No hint: "Paid from" / "Arrives in" plus a list of your own accounts is the
+              whole explanation. */}
+          <FormRow label={isIncome ? 'Arrives in' : 'Paid from'} error={errors.accountId?.message}>
             <Select
               variant="row"
               className="-ml-space-1 max-w-full"
@@ -256,7 +253,7 @@ export function CommitmentFields({
           </FormRow>
 
           {destinationTypes && !lockedSettlement && (
-            <FormRow label="Into" error={errors.toAccountId?.message} hint="Your own account the money goes to - it stays yours.">
+            <FormRow label="Into" error={errors.toAccountId?.message} hint="Your own account - the money stays yours.">
               <Select
                 variant="row"
                 className="-ml-space-1 max-w-full"
@@ -286,7 +283,7 @@ export function CommitmentFields({
       {!isIncome && (
         <FormRow
           label="Must pay?"
-          hint="Yes if missing it costs you - a late fee, a penalty, a mark on your credit. No if you could skip it in a tight month."
+          hint="Yes if missing it costs you. No if you could skip it in a tight month."
         >
           <Select
             variant="row"
@@ -306,11 +303,12 @@ export function CommitmentFields({
         <input {...register('why')} placeholder="Optional - what it's for" className={FORM_ROW_CONTROL} />
       </FormRow>
 
-      {!isIncome && (
-        <FormRow label="If skipped" hint="Optional. Shown beside it on Months, so on a tight month you remember what skipping it would mean.">
-          <input {...register('ifSkipped')} placeholder="Optional - e.g. late fee of ₹500" className={FORM_ROW_CONTROL} />
-        </FormRow>
-      )}
+      {/* "If skipped" was here. Removed by the user 2026-09-21 after living with it: in
+          practice it filled up with restatements of the bill's own name ("TV + WiFi will
+          not work", "Won't be able to listen add free"), which pushed the facts that
+          matter - what's due, from where - off the end of every plan row. "Must pay?"
+          already carries the part that changes behaviour. The column and the API field
+          stay, and existing answers are left untouched rather than blanked. */}
     </div>
   );
 }

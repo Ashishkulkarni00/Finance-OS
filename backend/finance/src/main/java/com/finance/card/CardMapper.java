@@ -50,7 +50,7 @@ public class CardMapper {
                 terms == null ? null : terms.getStatementDay(),
                 terms == null ? null : terms.getDueDay(),
                 accountMapper.toSummary(view.payFromAccount()),
-                view.outstanding(), view.availableCredit(), view.utilisation(), view.unbilled(),
+                view.outstanding(), view.availableCredit(), view.utilisation(), view.emiPrincipalBlocked(), view.unbilled(),
                 account.getOpeningAsOf(), view.nextStatementDate(), view.nextStatementDueDate(),
                 latest == null ? null : new CreditCardResponse.LatestStatement(
                         latest.statement().getId(), latest.statement().getStatementDate(), latest.statement().getDueDate(),

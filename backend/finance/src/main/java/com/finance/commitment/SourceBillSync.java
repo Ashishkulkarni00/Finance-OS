@@ -4,6 +4,8 @@ import com.finance.commitment.domain.Commitment;
 import com.finance.commitment.domain.CommitmentAmountType;
 import com.finance.commitment.domain.CommitmentFrequency;
 import com.finance.commitment.domain.CommitmentSource;
+import com.finance.insurance.InsurancePolicyRepository;
+import com.finance.insurance.domain.InsurancePolicy;
 import com.finance.common.exception.BusinessRuleException;
 import com.finance.common.exception.ErrorCode;
 import com.finance.common.exception.ResourceNotFoundException;
@@ -44,14 +46,17 @@ public class SourceBillSync {
     private final LoanRepository loanRepository;
     private final InvestmentRepository investmentRepository;
     private final GoalRepository goalRepository;
+    private final InsurancePolicyRepository policyRepository;
     private final LoanBillSync loanBillSync;
     private final Clock clock;
 
     public SourceBillSync(LoanRepository loanRepository, InvestmentRepository investmentRepository,
-                          GoalRepository goalRepository, LoanBillSync loanBillSync, Clock clock) {
+                          GoalRepository goalRepository, InsurancePolicyRepository policyRepository,
+                          LoanBillSync loanBillSync, Clock clock) {
         this.loanRepository = loanRepository;
         this.investmentRepository = investmentRepository;
         this.goalRepository = goalRepository;
+        this.policyRepository = policyRepository;
         this.loanBillSync = loanBillSync;
         this.clock = clock;
     }
@@ -64,6 +69,7 @@ public class SourceBillSync {
                     .filter(i -> i.getUserId().equals(userId) && !i.isDeleted()).isPresent();
             case GOAL -> goalRepository.findById(id)
                     .filter(g -> g.getUserId().equals(userId) && !g.isDeleted()).isPresent();
+            case INSURANCE -> policyRepository.findByIdAndUserIdAndDeletedAtIsNull(id, userId).isPresent();
             case MANUAL -> true;
         };
         if (!exists) {
@@ -88,10 +94,45 @@ public class SourceBillSync {
             case GOAL -> goalRepository.findById(bill.getSourceId())
                     .filter(g -> g.getUserId().equals(userId))
                     .ifPresent(goal -> applyGoal(bill, goal));
+            case INSURANCE -> policyRepository.findByIdAndUserIdAndDeletedAtIsNull(bill.getSourceId(), userId)
+                    .ifPresent(policy -> applyPolicy(bill, policy));
             case MANUAL -> {
                 // Its figures are the user's.
             }
         }
+    }
+
+    /**
+     * A premium bill takes its amount and how often it falls due from the policy.
+     *
+     * <p>Unlike a loan's EMI, the paying account stays the bill's own: a policy records
+     * being covered, not which account happens to pay for it, and the same insurer is often
+     * paid from whichever account has room that month.
+     *
+     * <p>A premium the user doesn't pay (an employer policy) can't be a bill at all - there
+     * is no money to plan for - so linking one is refused rather than planned as zero.
+     */
+    private void applyPolicy(Commitment bill, InsurancePolicy policy) {
+        if (policy.getPremium() == null || policy.getPremiumFrequency() == null) {
+            throw new BusinessRuleException(ErrorCode.SOURCE_NOT_SUPPORTED,
+                    "Give this policy its premium and how often it's paid first.", "sourceId");
+        }
+        bill.setAmountType(CommitmentAmountType.FIXED);
+        bill.setFixedAmount(policy.getPremium());
+        bill.setFrequency(switch (policy.getPremiumFrequency()) {
+            case MONTHLY -> CommitmentFrequency.MONTHLY;
+            // A commitment knows monthly, quarterly and annual. Half-yearly has no counterpart,
+            // so it is planned quarterly - which asks for the money more often than it is
+            // really due. Wrong in the safe direction, and never a surprise.
+            case QUARTERLY, HALF_YEARLY -> CommitmentFrequency.QUARTERLY;
+            case ANNUAL, ONE_OFF -> CommitmentFrequency.ANNUAL;
+        });
+        if (policy.getRenewsOn() != null) {
+            bill.setDueDay(Math.min(policy.getRenewsOn().getDayOfMonth(), 28));
+        }
+        // A premium leaves you, like any bill.
+        bill.setSettleAs(TransactionType.EXPENSE);
+        bill.setToAccountId(null);
     }
 
     private void applyInvestment(Commitment bill, Investment investment) {

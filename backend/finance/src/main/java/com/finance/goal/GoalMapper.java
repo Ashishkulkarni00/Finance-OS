@@ -17,6 +17,8 @@ public class GoalMapper {
                         .map(l -> new GoalResponse.ScheduleLine(l.commitmentId(), l.name(), l.date(), l.amount(), l.paid(),
                                 l.stillNeeded(), l.neededByThen(), l.shortBy(), l.status()))
                         .toList(),
-                goal.isArchived(), goal.getArchivedAt(), goal.getCreatedAt(), goal.getUpdatedAt());
+                goal.isArchived(), goal.getArchivedAt(), goal.getCreatedAt(), goal.getUpdatedAt(),
+                // Reads report no effect; a write attaches its own (ADR-0017).
+                null);
     }
 }

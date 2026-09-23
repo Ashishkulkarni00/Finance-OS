@@ -9,7 +9,17 @@ import java.time.LocalDate;
 import java.util.List;
 
 /** {@code GET /api/v1/forecast?months=} - see {@code ForecastMonth}. Money as strings. */
-public record ForecastResponse(List<Month> months) {
+public record ForecastResponse(
+        List<Month> months,
+
+        /**
+         * What stops leaving every month across the whole horizon, once every bill that
+         * ends in it has ended. Summed on the server because the browser never adds money
+         * up (FRONTEND_CONVENTIONS §4 rule 2) - the UI used to reduce over the unlocks
+         * itself. Zero when nothing ends.
+         */
+        @JsonSerialize(using = MoneySerializer.class) BigDecimal unlockedMonthlyTotal
+) {
 
     public record Month(
             LocalDate cycleStart,

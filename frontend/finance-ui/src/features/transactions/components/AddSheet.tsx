@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { closeAddSheet } from '@/store/slices/uiSlice';
+import { closeAddSheet, showEffect } from '@/store/slices/uiSlice';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/Button';
 import { TransactionFormFields } from './TransactionFormFields';
@@ -85,7 +85,7 @@ export function AddSheet() {
   const onSubmit = async (values: TransactionFormValues) => {
     const activeType = activeTransactionType(values.type);
     try {
-      await createTransaction({
+      const saved = await createTransaction({
         date: values.date,
         description: values.description.trim(),
         type: values.type,
@@ -96,6 +96,10 @@ export function AddSheet() {
         merchant: null,
         note: values.note?.trim() || null,
       }).unwrap();
+      // Reported in a toast rather than by holding the sheet: recording a small expense
+      // should take one tap, and everything the toast says is also on Needs you, so
+      // nothing is lost when it fades (ADR-0017).
+      if (saved.effect) dispatch(showEffect(saved.effect));
       close();
     } catch (err) {
       // Never lose what was typed - the sheet stays open with values intact. SCREEN_SPECS S2.

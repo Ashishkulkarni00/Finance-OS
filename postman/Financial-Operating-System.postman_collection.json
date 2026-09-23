@@ -1170,7 +1170,24 @@
 									"pm.test('amount is a STRING, not a number', () => pm.expect(b.amount).to.be.a('string'));",
 									"pm.test('an expense counts as spending', () => pm.expect(b.countsAsSpending).to.be.true);",
 									"pm.test('category is attached', () => pm.expect(b.category.id).to.eql(Number(pm.collectionVariables.get('categoryId'))));",
-									"pm.test('no destination account on an expense', () => pm.expect(b.toAccount).to.be.null);"
+									"pm.test('no destination account on an expense', () => pm.expect(b.toAccount).to.be.null);",
+									"",
+									"// ADR-0017: a write reports its own effect. Present whenever money moved;",
+									"// absent is correct when nothing did, so this asserts the shape, not existence.",
+									"if (b.effect) {",
+									"    const e = b.effect;",
+									"    pm.test('effect: room is a STRING or absent (null = unknown, never 0)', () =>",
+									"        pm.expect(e.leftTodayAfter === undefined || typeof e.leftTodayAfter === 'string').to.be.true);",
+									"    pm.test('effect: what is left today moved', () => pm.expect(e.leftTodayAfter).to.not.eql(e.leftTodayBefore));",
+									"    pm.test('effect: prominence is HELD or QUIET', () =>",
+									"        pm.expect(['HELD', 'QUIET']).to.include(e.prominence));",
+									"    pm.test('effect: crossings are arrays', () => {",
+									"        pm.expect(e.started).to.be.an('array');",
+									"        pm.expect(e.cleared).to.be.an('array');",
+									"    });",
+									"    pm.test('effect: a started crossing carries its own explanation', () =>",
+									"        e.started.forEach((i) => pm.expect(i.explanation).to.be.a('string')));",
+									"}"
 								]
 							}
 						}
@@ -3317,6 +3334,163 @@
 							"body": "{\n    \"asOf\": \"2026-09-14\",\n    \"emi\": \"2400.00\",\n    \"lastEmiDate\": \"2028-10-10\",\n    \"emisRemaining\": 25,\n    \"nextEmiDate\": \"2026-10-10\",\n    \"outstandingBalance\": \"50000.00\"\n}"
 						}
 					]
+				}
+			]
+		},
+		{
+			"name": "Insurance",
+			"description": "Being **covered** - the protection primitive (ROADMAP 0.3). Everything else in the product answers \"what do I have\" or \"what do I owe\"; a policy answers a third question: *what would I not have to find if this happened?*\n\n**`coverAmount` is never an asset.** It is not in net worth, not money held, not spendable. Five lakhs of health cover is money you would not have to find, not money you have.\n\nThe **premium is an ordinary commitment** (`sourceType: INSURANCE`), so it follows the policy the way an EMI follows its loan - one bill, generated into every month it applies to, settled like any other.\n\nA premium financed on a card stays a real **loan**: `loanId` links the two without pretending the debt isn’t there.",
+			"item": [
+				{
+					"name": "Add a policy",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test(\"201 Created\", () => pm.response.to.have.status(201));",
+									"const b = pm.response.json();",
+									"pm.collectionVariables.set(\"insurancePolicyId\", b.id);",
+									"pm.test(\"money as strings\", () => { if (b.coverAmount !== null) pm.expect(b.coverAmount).to.be.a(\"string\"); if (b.premium !== null) pm.expect(b.premium).to.be.a(\"string\"); });",
+									"pm.test(\"monthly cost is the premium spread over the year it covers\", () => pm.expect(b.monthlyCost).to.eql(\"3998.00\"));",
+									"pm.test(\"status is derived from the renewal date\", () => pm.expect(b.status).to.be.oneOf([\"LAPSED\", \"RENEWS_SOON\", \"ACTIVE\", \"UNKNOWN\"]));",
+									"pm.test(\"not in the plan until a bill follows it\", () => pm.expect(b.premiumCommitmentId).to.eql(null));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/insurance-policies",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"insurance-policies"
+							]
+						},
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"type\": \"HEALTH\",\n  \"name\": \"Mom's health cover\",\n  \"insurer\": \"HDFC Ergo\",\n  \"policyLastFour\": \"4417\",\n  \"coverAmount\": \"500000.00\",\n  \"premium\": \"47976.00\",\n  \"premiumFrequency\": \"ANNUAL\",\n  \"renewsOn\": \"2027-09-07\",\n  \"startedOn\": \"2026-09-07\",\n  \"covers\": \"Mom\",\n  \"note\": \"Premium financed on the Money back card\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"description": "Only `type` and `name` are required. Everything else is optional on purpose: \"I’m covered but I can’t remember for how much\" is a true state, and refusing the record until every box is filled loses the fact that cover exists at all (ADR-0006).\n\n`policyLastFour` only - never the whole policy number (ADR-0010)."
+					},
+					"response": []
+				},
+				{
+					"name": "Every policy",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+									"const b = pm.response.json();",
+									"pm.test(\"soonest renewal first\", () => { const d = b.content.map(p => p.renewsOn).filter(Boolean); for (let i = 1; i < d.length; i++) pm.expect(d[i - 1] <= d[i]).to.be.true; });",
+									"pm.test(\"a policy with no renewal date reads UNKNOWN, never ACTIVE\", () => b.content.forEach(p => { if (p.renewsOn === null) pm.expect(p.status).to.eql(\"UNKNOWN\"); }));",
+									"pm.test(\"daysToRenewal is null exactly when renewsOn is\", () => b.content.forEach(p => pm.expect(p.daysToRenewal === null).to.eql(p.renewsOn === null)));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/insurance-policies",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"insurance-policies"
+							]
+						},
+						"description": "Soonest renewal first - the date that actually matters. `?includeArchived=true` adds policies you have stopped."
+					},
+					"response": []
+				},
+				{
+					"name": "The protection picture",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+									"const b = pm.response.json();",
+									"pm.test(\"totalCover is a money string\", () => pm.expect(b.totalCover).to.be.a(\"string\"));",
+									"pm.test(\"monthlyPremium is null when any premium is unknown, never a partial total\", () => pm.expect(b.monthlyPremium === null || typeof b.monthlyPremium === \"string\").to.be.true);"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/insurance-policies/summary",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"insurance-policies",
+								"summary"
+							]
+						},
+						"description": "`totalCover` is summed **for reassurance only**. It is never net worth, and it is not a single pot - ₹5L of health plus ₹1cr of life is not money you could ever spend.\n\n`monthlyPremium` is **null** when any policy’s premium is unknown, rather than a total quietly missing one."
+					},
+					"response": []
+				},
+				{
+					"name": "Plan the premium as a bill",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test(\"201 Created\", () => pm.response.to.have.status(201));",
+									"const b = pm.response.json();",
+									"pm.test(\"follows the policy\", () => { pm.expect(b.sourceType).to.eql(\"INSURANCE\"); pm.expect(b.amountType).to.eql(\"FIXED\"); });",
+									"pm.test(\"an annual premium is an annual bill\", () => pm.expect(b.frequency).to.eql(\"ANNUAL\"));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/commitments",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"commitments"
+							]
+						},
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Mom's health premium\",\n  \"amountType\": \"FIXED\",\n  \"fixedAmount\": \"47976.00\",\n  \"frequency\": \"ANNUAL\",\n  \"dueDay\": 7,\n  \"accountId\": 2,\n  \"mandatory\": true,\n  \"activeFrom\": \"2026-09-28\",\n  \"sourceType\": \"INSURANCE\",\n  \"sourceId\": \"{{insurancePolicyId}}\",\n  \"reason\": \"Recording the cover we already pay for\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"description": "The premium is an ordinary commitment. `sourceType: INSURANCE` makes it **follow the policy** - amount and frequency come from there, exactly as a loan EMI follows its loan, so the two can never drift.\n\nThe paying account stays the bill’s own, unlike a loan EMI: a policy records being covered, not which account happens to pay for it.\n\n**Half-yearly has no commitment equivalent** and is planned quarterly - asking for the money more often than it is really due. Wrong in the safe direction."
+					},
+					"response": []
 				}
 			]
 		},
@@ -9084,6 +9258,138 @@
 			]
 		},
 		{
+			"name": "Plan history",
+			"description": "Every change to the plan - a commitment or goal added, amended, paused or ended - with what changed, when it takes effect, why, and what it costs per month. Read-only by design: a revision is written as a side effect of the change it describes, never posted on its own. See ADR-0015.\n\n`monthlyEffect` is the point: positive means more money is needed each month. It is **null when unknown** (a commitment whose amount varies), never zero. An INCOME commitment is negated - expecting more salary lowers the requirement.",
+			"item": [
+				{
+					"name": "All plan changes, newest first",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+									"const b = pm.response.json();",
+									"pm.test(\"money as strings\", () => b.content.forEach((r) => { if (r.monthlyEffect !== null) pm.expect(r.monthlyEffect).to.be.a(\"string\"); }));",
+									"pm.test(\"effect is null or a string, never 0 standing in for unknown\", () => b.content.forEach((r) => pm.expect(r.monthlyEffect === null || typeof r.monthlyEffect === \"string\").to.be.true));",
+									"pm.test(\"effectiveFrom is an ISO date\", () => b.content.forEach((r) => pm.expect(r.effectiveFrom).to.match(/^d{4}-d{2}-d{2}$/)));",
+									"pm.test(\"newest first\", () => { for (let i = 1; i < b.content.length; i++) pm.expect(new Date(b.content[i - 1].decidedAt) >= new Date(b.content[i].decidedAt)).to.be.true; });",
+									"pm.test(\"SYNCED is not a user decision; everything else is\", () => b.content.forEach((r) => pm.expect(r.userDecision).to.eql(r.revisionType !== \"SYNCED\")));",
+									"pm.test(\"a supersession names the rule it replaced\", () => b.content.forEach((r) => { if (r.revisionType === \"SUPERSEDED\") pm.expect(r.supersededSubjectId).to.not.eql(null); }));",
+									"pm.test(\"every change line carries a plain-language label\", () => b.content.forEach((r) => r.changes.forEach((c) => { pm.expect(c.label).to.be.a(\"string\"); pm.expect(c.label.length).to.be.above(0); pm.expect(c.valueKind).to.be.oneOf([\"MONEY\", \"DATE\", \"NUMBER\", \"TEXT\", \"FLAG\"]); })));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/plan-revisions?page=0&size=50",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"plan-revisions"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "0"
+								},
+								{
+									"key": "size",
+									"value": "50"
+								}
+							]
+						},
+						"description": "The whole log. `revisionType` is one of CREATED, AMENDED, SUPERSEDED, PAUSED, RESUMED, ENDED, SYNCED.\n\nAMENDED vs SUPERSEDED is the distinction that matters: an amendment changes the plan line everywhere, including months already past; a supersession ends the old rule and starts a new one from a date, so history keeps the figures that were true at the time (what `applyFrom` on `PATCH /commitments/{id}` does). `supersededSubjectId` points back at the rule that ended.\n\nSYNCED means the bill followed its loan or holding - a real change to the plan, but decided at the source, not here."
+					},
+					"response": []
+				},
+				{
+					"name": "One plan line’s history (every version)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+									"const b = pm.response.json();",
+									"pm.test(\"all rows are about the subject asked for\", () => b.content.forEach((r) => pm.expect(r.subjectType).to.eql(\"COMMITMENT\")));",
+									"pm.test(\"a deleted line keeps its history - subjectName survives\", () => b.content.forEach((r) => pm.expect(r.subjectName).to.be.a(\"string\")));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/plan-revisions?subjectType=COMMITMENT&subjectId=1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"plan-revisions"
+							],
+							"query": [
+								{
+									"key": "subjectType",
+									"value": "COMMITMENT"
+								},
+								{
+									"key": "subjectId",
+									"value": "1"
+								}
+							]
+						},
+						"description": "Every version of one plan line. Matches the subject on either side, so a rule that was superseded still turns up when its replacement is asked about - which is what makes \"every version of this bill\" a single query rather than a chain walk by the caller.\n\n`subjectType` is COMMITMENT or GOAL."
+					},
+					"response": []
+				},
+				{
+					"name": "What changed this month",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+									"const b = pm.response.json();",
+									"pm.test(\"decisions + followedSources accounts for every revision\", () => pm.expect(b.decisions + b.followedSources).to.eql(b.revisions.length));",
+									"pm.test(\"an incomplete total is null, not a partial sum\", () => { if (!b.effectComplete) pm.expect(b.netMonthlyEffect).to.eql(null); });",
+									"pm.test(\"a complete total is a money string\", () => { if (b.effectComplete) pm.expect(b.netMonthlyEffect).to.be.a(\"string\"); });",
+									"pm.test(\"oldest first - it reads as a story\", () => { for (let i = 1; i < b.revisions.length; i++) pm.expect(new Date(b.revisions[i - 1].decidedAt) <= new Date(b.revisions[i].decidedAt)).to.be.true; });"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/plan-revisions/cycles/1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"plan-revisions",
+								"cycles",
+								"1"
+							],
+							"query": []
+						},
+						"description": "The answer to \"why does this month look different?\", scoped to one salary cycle and ordered oldest first so it reads as a story.\n\n`netMonthlyEffect` is what the cycle’s changes did to the monthly cash requirement. It is **null whenever any one effect is unknown** - a total with the unknowns quietly dropped would read as a fact. `effectComplete` says which case you are in.\n\n`decisions` vs `followedSources` separates responsibility, not arithmetic: both count toward the cash effect, because the money moves either way."
+					},
+					"response": []
+				}
+			]
+		},
+		{
 			"name": "Insights",
 			"description": "STRATEGY_DEEP_DIVE Phase 1 (1): one ranked list of what needs the user, replacing each screen's own warnings. Examples are illustrative (the dev data had nothing due when this was written; no test data may be created).",
 			"item": [
@@ -9230,6 +9536,43 @@
 							"body": "{\n    \"items\": [],\n    \"total\": 0\n}"
 						}
 					]
+				},
+				{
+					"name": "What needs you - everything (no cap)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+									"const b = pm.response.json();",
+									"pm.test(\"nothing is hidden: total equals what is returned\", () => pm.expect(b.total).to.eql(b.items.length));",
+									"pm.test(\"every item explains itself\", () => b.items.forEach((i) => { pm.expect(i.title).to.be.a(\"string\").and.not.empty; pm.expect(i.explanation).to.be.a(\"string\").and.not.empty; pm.expect([\"CRITICAL\", \"ATTENTION\", \"OPPORTUNITY\", \"INFO\"]).to.include(i.severity); }));",
+									"pm.test(\"one row per thing needing you - keys are unique\", () => { const keys = b.items.map((i) => i.key); pm.expect(new Set(keys).size).to.eql(keys.length); });",
+									"pm.test(\"ranked: severity never rises down the list\", () => { const order = [\"CRITICAL\", \"ATTENTION\", \"OPPORTUNITY\", \"INFO\"]; for (let k = 1; k < b.items.length; k++) pm.expect(order.indexOf(b.items[k].severity)).to.be.at.least(order.indexOf(b.items[k - 1].severity)); });",
+									"pm.test(\"money as strings\", () => b.items.forEach((i) => { if (i.impact != null) pm.expect(i.impact).to.be.a(\"string\"); }));",
+									"pm.test(\"at least as many as the capped Today list\", () => pm.expect(b.items.length).to.be.at.least(0));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/insights/all",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"insights",
+								"all"
+							]
+						},
+						"description": "Everything that needs the user - no surface filter and no cap. Backs the dedicated **Needs you** page (`/needs-you`), which is a drill-down of Today's own block rather than a sixth navigation tab: Today's whole job is already \"where do I stand right now\", and a sibling tab would split one job across two screens.\n\n`GET /insights?surface=…` deliberately caps its list (Today 3, Month 5) and reports `total` so a screen can say \"3 of 7 shown\". Before this endpoint, that sentence had nowhere to go.\n\nSeparate from a `surface=ALL` value because a surface is a **place** a warning is shown, and \"all\" is not a place."
+					},
+					"response": []
 				}
 			]
 		},

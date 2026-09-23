@@ -15,6 +15,8 @@ import com.finance.common.exception.ErrorCode;
 import com.finance.common.exception.ResourceNotFoundException;
 import com.finance.common.user.CurrentUserProvider;
 import com.finance.cycle.CycleService;
+import com.finance.commitment.domain.CommitmentSource;
+import com.finance.loan.LoanPaymentRecorder;
 import com.finance.cycle.domain.Cycle;
 import com.finance.transaction.TransactionService;
 import com.finance.transaction.TransactionView;
@@ -52,6 +54,8 @@ public class CommitmentInstanceServiceImpl implements CommitmentInstanceService 
     private final Clock clock;
     private final CommitmentAutoMatcher autoMatcher;
     private final CommitmentBucketClassifier bucketClassifier;
+    /** Files a settled loan EMI against the period it paid - ROADMAP 0.2. */
+    private final LoanPaymentRecorder loanPayments;
 
     public CommitmentInstanceServiceImpl(CommitmentInstanceRepository repository,
                                          CommitmentRepository commitmentRepository,
@@ -64,7 +68,8 @@ public class CommitmentInstanceServiceImpl implements CommitmentInstanceService 
                                          CurrentUserProvider currentUser,
                                          Clock clock,
                                          CommitmentAutoMatcher autoMatcher,
-                                         CommitmentBucketClassifier bucketClassifier) {
+                                         CommitmentBucketClassifier bucketClassifier,
+                                         LoanPaymentRecorder loanPayments) {
         this.repository = repository;
         this.commitmentRepository = commitmentRepository;
         this.generator = generator;
@@ -77,6 +82,7 @@ public class CommitmentInstanceServiceImpl implements CommitmentInstanceService 
         this.clock = clock;
         this.autoMatcher = autoMatcher;
         this.bucketClassifier = bucketClassifier;
+        this.loanPayments = loanPayments;
     }
 
     @Override
@@ -507,6 +513,14 @@ public class CommitmentInstanceServiceImpl implements CommitmentInstanceService 
 
         CommitmentInstance saved = repository.save(instance);
         log.info("Commitment instance settled id={} status={}", saved.getId(), saved.getStatus());
+
+        // A settled loan EMI is the evidence the loan's balance moves on (ROADMAP 0.2).
+        // Only once it's actually paid: a part-payment hasn't cleared the period.
+        if (commitment.getSourceType() == CommitmentSource.LOAN
+                && commitment.getSourceId() != null
+                && saved.getStatus() == CommitmentInstanceStatus.PAID) {
+            loanPayments.record(commitment.getSourceId(), saved.getUserId(), saved.getDueDate(), request.transactionId());
+        }
         Map<Long, LocalDate> dates = saved.getLinkedTransactionId() == null
                 ? Map.of() : transactionService.datesByIds(List.of(saved.getLinkedTransactionId()));
         return new CommitmentInstanceView(saved, commitment,

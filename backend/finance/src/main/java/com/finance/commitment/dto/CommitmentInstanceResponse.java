@@ -5,6 +5,7 @@ import com.finance.transaction.domain.TransactionType;
 import com.finance.account.dto.AccountSummary;
 import com.finance.category.dto.CategorySummary;
 import com.finance.commitment.domain.AttentionTier;
+import com.finance.effect.dto.WriteEffectResponse;
 import com.finance.commitment.domain.CommitmentInstanceStatus;
 import tools.jackson.databind.annotation.JsonSerialize;
 import com.finance.common.money.MoneySerializer;
@@ -62,6 +63,17 @@ public record CommitmentInstanceResponse(
         /** Positive = cost more than planned, negative = less. Null unless settled with
          *  both figures known - see CommitmentInstance.variance(). */
         @JsonSerialize(using = MoneySerializer.class)
-        BigDecimal variance
+        BigDecimal variance,
+
+        /** What this write just did (ADR-0017). Absent on reads, and on writes that moved
+         *  nothing - settling a bill is the moment "what did that cost me?" is asked. */
+        WriteEffectResponse effect
 ) {
+
+    public CommitmentInstanceResponse withEffect(WriteEffectResponse effect) {
+        return new CommitmentInstanceResponse(id, commitmentId, commitmentName, cycleId, dueDate, expectedAmount,
+                status, confirmedAmount, outstanding, confirmedAt, settledOn, linkedTransactionId, mandatory,
+                ifSkipped, account, category, sourceType, sourceId, settleAs, toAccountId, attentionTier,
+                variance, effect);
+    }
 }

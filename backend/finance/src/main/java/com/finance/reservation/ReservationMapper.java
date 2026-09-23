@@ -34,7 +34,9 @@ public class ReservationMapper {
                 reservation.getPurpose(),
                 reservation.getGoalId(),
                 reservation.getCreatedAt(),
-                reservation.getUpdatedAt()
+                reservation.getUpdatedAt(),
+                // Reads report no effect; a write attaches its own (ADR-0017).
+                null
         );
     }
 }

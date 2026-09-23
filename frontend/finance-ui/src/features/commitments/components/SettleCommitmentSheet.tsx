@@ -11,7 +11,7 @@ import { AmountInput } from '@/features/transactions/components/AmountInput';
 import { CategorySelect } from '@/features/transactions/components/CategorySelect';
 import { todayIso } from '@/features/transactions/components/transactionForm';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { closeSettleSheet } from '@/store/slices/uiSlice';
+import { closeSettleSheet, showEffect } from '@/store/slices/uiSlice';
 import { useGetCommitmentInstanceDetailQuery, useSettleCommitmentInstanceMutation } from '@/services/commitmentInstanceService';
 import { useCreateTransactionMutation, useGetTransactionsQuery } from '@/services/transactionService';
 import { useGetAccountsQuery } from '@/services/accountService';
@@ -170,7 +170,10 @@ export function SettleCommitmentSheet() {
         note: values.note?.trim() || null,
       }).unwrap();
 
-      await settleInstance({ id: instance.id, transactionId: created.id, amount: values.amount }).unwrap();
+      const settled = await settleInstance({
+        id: instance.id, transactionId: created.id, amount: values.amount,
+      }).unwrap();
+      if (settled.effect) dispatch(showEffect(settled.effect));
       close();
     } catch (err) {
       // The expense may have posted even if the link failed - never silently drop
@@ -190,7 +193,10 @@ export function SettleCommitmentSheet() {
     setIsSaving(true);
     setLinkError(null);
     try {
-      await settleInstance({ id: instance.id, transactionId: chosen.id, amount: chosen.amount }).unwrap();
+      const settled = await settleInstance({
+        id: instance.id, transactionId: chosen.id, amount: chosen.amount,
+      }).unwrap();
+      if (settled.effect) dispatch(showEffect(settled.effect));
       close();
     } catch (err) {
       setLinkError((err as { message?: string }).message ?? "Couldn't link that entry. Try again.");

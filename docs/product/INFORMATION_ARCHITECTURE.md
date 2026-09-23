@@ -1,4 +1,16 @@
 # Information Architecture
+> **SUPERSEDED 2026-09-23 — and self-contradictory, so do not cite any part of it as
+> current truth.** It records the five-tab IA as applied and then tables the older
+> "Month / Add / Plan" arrangement as though it were live; a reader has no way to tell which
+> paragraph is meant. The navigation that actually exists is **Today · Months · Ahead ·
+> Money · Ledger**, plus `/needs-you` as a drill-down of Today (ADR-0017), and `Add`.
+>
+> The one part still worth reading is §1's test — *can the user answer "what should I do?"
+> within five seconds of arriving?* — which `design/UI_UX_PRINCIPLES.md` now owns.
+>
+> **Rewrite due in Phase 1**, when the Pulse replaces Today's hero and the IA has a settled
+> shape to describe. Until then: `FINANCIAL_OS.md` for what the product is,
+> `design/*_UX_SPEC.md` for individual screens. See `docs/DOC_INDEX.md`.
 
 ---
 

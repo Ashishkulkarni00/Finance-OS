@@ -1,3 +1,4 @@
+import type { WriteEffect } from '@/types/effect';
 import type { Money } from '@/lib/money';
 import type { AccountSummary } from '@/types/api';
 
@@ -9,6 +10,8 @@ export interface ReservationResponse {
   goalId: number | null;
   createdAt: string;
   updatedAt: string;
+  /** What this write just did - absent on reads and when nothing moved (ADR-0017). */
+  effect?: WriteEffect;
 }
 
 export interface CreateReservationRequest {

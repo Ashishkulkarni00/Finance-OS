@@ -64,8 +64,22 @@ public record CreateCommitmentRequest(
 
         /** What the bill follows - MANUAL (default), LOAN, INVESTMENT or GOAL - and which one. */
         CommitmentSource sourceType,
-        Long sourceId
+        Long sourceId,
+
+        /** Why this is being added, in the user's own words. Optional - see ADR-0015. */
+        @Size(max = 255, message = "Keep this to one sentence")
+        String reason
 ) {
+
+    /** Without a stated reason. */
+    public CreateCommitmentRequest(String name, CommitmentAmountType amountType, BigDecimal fixedAmount,
+                                   CommitmentFrequency frequency, Integer dueDay, Long accountId, Long categoryId,
+                                   Boolean mandatory, Boolean requiresVerification, LocalDate activeFrom,
+                                   LocalDate activeTo, String why, String ifSkipped, TransactionType settleAs,
+                                   Long toAccountId, CommitmentSource sourceType, Long sourceId) {
+        this(name, amountType, fixedAmount, frequency, dueDay, accountId, categoryId, mandatory, requiresVerification,
+                activeFrom, activeTo, why, ifSkipped, settleAs, toAccountId, sourceType, sourceId, null);
+    }
 
     /** A plain bill: paid as an expense, following nothing. */
     public CreateCommitmentRequest(String name, CommitmentAmountType amountType, BigDecimal fixedAmount,
@@ -73,6 +87,6 @@ public record CreateCommitmentRequest(
                                    Boolean mandatory, Boolean requiresVerification, LocalDate activeFrom,
                                    LocalDate activeTo, String why, String ifSkipped) {
         this(name, amountType, fixedAmount, frequency, dueDay, accountId, categoryId, mandatory, requiresVerification,
-                activeFrom, activeTo, why, ifSkipped, null, null, null, null);
+                activeFrom, activeTo, why, ifSkipped, null, null, null, null, null);
     }
 }

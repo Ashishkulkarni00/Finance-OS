@@ -76,6 +76,9 @@ export function InvestmentRow({ investment }: { investment: InvestmentResponse }
       // account opens its contributions in the Ledger; one kept outside the ledger (an
       // employer-deducted NPS) has no entries to show, so its click opens the one thing
       // it can do: record what it's worth.
+      // Two buttons need more than the default 5.5rem action column, or they overflow left
+      // and sit on top of the amount. Same width as WorklistRow's Skip + Settle pair.
+      actionWidth="7.5rem"
       to={investment.account ? `/ledger?account=${investment.account.id}&cycle=all` : undefined}
       onClick={investment.account ? undefined : () => setEditing(true)}
       leading={<DomainRule domain="invest" />}

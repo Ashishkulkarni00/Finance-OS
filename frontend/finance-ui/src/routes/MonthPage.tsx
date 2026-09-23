@@ -9,6 +9,7 @@ import type { CycleMode } from '@/features/month/components/MonthOverview';
 import { InsightList } from '@/components/InsightList';
 import { formatShortDate } from '@/lib/dates';
 import { PlanZone } from '@/features/month/components/PlanZone';
+import { MonthBriefing } from '@/features/month/components/MonthBriefing';
 import { FlexibleSpendingSection } from '@/features/month/components/FlexibleSpendingSection';
 import { MonthPrimer } from '@/features/month/components/MonthPrimer';
 import { MonthGuideSheet } from '@/features/month/components/MonthGuideSheet';
@@ -21,6 +22,12 @@ import { ErrorState } from '@/components/ErrorState';
 /** A full-width hairline above each section after the overview. */
 function Divided({ children }: { children: ReactNode }) {
   return <div className="border-t border-line pt-space-8">{children}</div>;
+}
+
+/** {@link Divided}, but only when asked - for a section whose rule depends on whether
+ *  anything was rendered above it. */
+function Maybe({ divided, children }: { divided: boolean; children: ReactNode }) {
+  return divided ? <Divided>{children}</Divided> : <>{children}</>;
 }
 
 /**
@@ -109,16 +116,18 @@ export default function MonthPage() {
             instances={instances}
           />
 
+          {/* No rule directly under the overview: it closes with its own edge, and a
+              hairline straight after it reads as a double line. Whichever section comes
+              first here goes undivided - Needs you on the current month, the plan on any
+              other - and the ones after it are ruled as usual. */}
           {mode === 'current' && (
-            <Divided>
-              <InsightList
-                surface="MONTH"
-                calmNote={nextUp ? `Next: ${nextUp.commitmentName}, ${formatShortDate(nextUp.dueDate)}.` : undefined}
-              />
-            </Divided>
+            <InsightList
+              surface="MONTH"
+              calmNote={nextUp ? `Next: ${nextUp.commitmentName}, ${formatShortDate(nextUp.dueDate)}.` : undefined}
+            />
           )}
 
-          <Divided>
+          <Maybe divided={mode === 'current'}>
             <PlanZone
               cycle={cycle}
               instances={instances}
@@ -126,13 +135,21 @@ export default function MonthPage() {
               isLoading={instancesPending}
               isError={instancesError}
             />
-          </Divided>
+          </Maybe>
 
           {mode !== 'future' && (
             <Divided>
               <FlexibleSpendingSection cycle={cycle} />
             </Divided>
           )}
+
+          {/* The shape of the month - why it differs from the last, what you decided in it,
+              whether you kept to it - after the plan itself. Context for the month rather
+              than work to do in it, so it sits below the things you act on.
+
+              Deliberately NOT wrapped in `Divided`: the tab strip carries its own hairline,
+              and a second rule above it reads as a mistake. */}
+          <MonthBriefing cycle={cycle} mode={mode} progress={planProgress} />
 
           {canClose && cycle && !cycle.closed && (
             <Card className="flex items-center justify-between">

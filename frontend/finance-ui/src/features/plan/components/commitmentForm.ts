@@ -26,7 +26,6 @@ export const commitmentSchema = z
     categoryId: z.number().nullable(),
     mandatory: z.boolean(),
     why: z.string().max(255).optional(),
-    ifSkipped: z.string().max(255).optional(),
   })
   // A fixed commitment without its amount is just a variable one pretending.
   .refine((v) => v.amountType !== 'FIXED' || !!v.fixedAmount, {

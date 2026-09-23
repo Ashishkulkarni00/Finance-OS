@@ -29,6 +29,16 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             """)
     BigDecimal sumReservedForAccount(@Param("accountId") Long accountId, @Param("userId") Long userId);
 
+    /**
+     * Money set aside against one goal, wherever it happens to sit.
+     *
+     * <p>This is how a goal counts money that has not moved: earmarked in the salary
+     * account, still physically there, but no longer spendable. {@code goal_id} has been on
+     * this table since V3 and nothing read it until now (ROADMAP: goals count what's set
+     * aside for them).
+     */
+    List<Reservation> findByGoalIdAndUserIdAndDeletedAtIsNull(Long goalId, Long userId);
+
     /** Total reserved across every account - Real Balance's system-wide "reserved" term. */
     @Query("""
             select coalesce(sum(r.amount), 0.00) from Reservation r

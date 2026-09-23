@@ -12,6 +12,7 @@ import { ErrorState } from '@/components/ErrorState';
 import { EditLoanSheet } from '@/features/debts/components/EditLoanSheet';
 import { AddCommitmentSheet } from '@/features/plan/components/AddCommitmentSheet';
 import { LoanPlanLink, loanNeedsPlanBill } from '@/features/debts/components/LoanPlanLink';
+import { LoanCoverLink } from '@/features/cover/components/LoanCoverLink';
 import { termsMismatch } from '@/features/debts/loanTerms';
 import { LOAN_FIGURE_HINT } from '@/features/debts/loanHelp';
 import { formatShortDate } from '@/lib/dates';
@@ -171,6 +172,10 @@ export default function LoanDetailPage() {
           }
         />
       </Statement>
+
+      {/* Why this loan exists, when it's repaying an insurance premium financed on a card
+          (ADR-0016). Renders nothing for a loan that is just a loan. */}
+      <LoanCoverLink loanId={loan.id} />
 
       <section>
         <SectionHeader>Details</SectionHeader>

@@ -4,6 +4,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { useGetAccountsQuery } from '@/services/accountService';
 
 const TodayPage = lazy(() => import('./routes/TodayPage'));
+const NeedsYouPage = lazy(() => import('./routes/NeedsYouPage'));
 const MonthPage = lazy(() => import('./routes/MonthPage'));
 const MonthClosePage = lazy(() => import('./routes/MonthClosePage'));
 const MoneyPage = lazy(() => import('./routes/MoneyPage'));
@@ -17,6 +18,7 @@ const OnboardingPage = lazy(() => import('./routes/OnboardingPage'));
 const LedgerPage = lazy(() => import('./routes/LedgerPage'));
 const DebtsPage = lazy(() => import('./routes/DebtsPage'));
 const InvestmentsPage = lazy(() => import('./routes/InvestmentsPage'));
+const CoverPage = lazy(() => import('./routes/CoverPage'));
 const CardsPage = lazy(() => import('./routes/CardsPage'));
 const CreditCardDetailPage = lazy(() => import('./routes/CreditCardDetailPage'));
 const MoneyLayout = lazy(() => import('./routes/MoneyLayout'));
@@ -41,6 +43,8 @@ export function App() {
           <Route element={<AppShell />}>
             <Route index element={<RootRedirect />} />
             <Route path="/today" element={<TodayPage />} />
+            {/* A drill-down of Today's "Needs you", not a sibling of it - see NeedsYouPage. */}
+            <Route path="/needs-you" element={<NeedsYouPage />} />
             <Route path="/month" element={<MonthPage />} />
             <Route path="/month/close" element={<MonthClosePage />} />
             {/* Money: the four registers as tabs (STRATEGY_DEEP_DIVE §D). Old addresses redirect. */}
@@ -50,6 +54,7 @@ export function App() {
               <Route path="cards" element={<CardsPage />} />
               <Route path="debts" element={<DebtsPage />} />
               <Route path="investments" element={<InvestmentsPage />} />
+              <Route path="cover" element={<CoverPage />} />
             </Route>
             <Route path="/accounts" element={<Navigate to="/money/accounts" replace />} />
             <Route path="/commitments/:instanceId" element={<CommitmentDetailPage />} />

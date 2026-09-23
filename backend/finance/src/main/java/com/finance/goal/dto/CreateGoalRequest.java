@@ -27,6 +27,16 @@ public record CreateGoalRequest(
 
         /** At most one of these two - a goal tracks either a reservation or an account, not both. */
         Long linkedReservationId,
-        Long linkedAccountId
+        Long linkedAccountId,
+
+        /** Why this goal is being set, in the user's own words. Optional - see ADR-0015. */
+        @Size(max = 255, message = "Keep this to one sentence")
+        String reason
 ) {
+
+    /** Without a stated reason. */
+    public CreateGoalRequest(String name, BigDecimal targetAmount, LocalDate targetDate, Integer priority,
+                             Long linkedReservationId, Long linkedAccountId) {
+        this(name, targetAmount, targetDate, priority, linkedReservationId, linkedAccountId, null);
+    }
 }

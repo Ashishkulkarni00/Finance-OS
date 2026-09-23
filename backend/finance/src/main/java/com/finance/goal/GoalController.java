@@ -1,6 +1,8 @@
 package com.finance.goal;
 
 import com.finance.common.web.PageResponse;
+import com.finance.effect.WriteEffects;
+import com.finance.effect.dto.WriteEffectResponse;
 import com.finance.goal.dto.CreateGoalRequest;
 import com.finance.goal.dto.GoalResponse;
 import com.finance.goal.dto.UpdateGoalRequest;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
+import java.util.function.Supplier;
 
 @RestController
 @RequestMapping("/api/v1/goals")
@@ -26,18 +29,21 @@ public class GoalController {
 
     private final GoalService service;
     private final GoalMapper mapper;
+    private final WriteEffects effects;
 
-    public GoalController(GoalService service, GoalMapper mapper) {
+    public GoalController(GoalService service, GoalMapper mapper, WriteEffects effects) {
         this.service = service;
         this.mapper = mapper;
+        this.effects = effects;
     }
 
     @PostMapping
     public ResponseEntity<GoalResponse> create(@Valid @RequestBody CreateGoalRequest request) {
-        GoalView created = service.create(request);
+        var result = effects.around(() -> service.create(request));
+        GoalView created = result.value();
         return ResponseEntity
                 .created(URI.create("/api/v1/goals/" + created.goal().getId()))
-                .body(mapper.toResponse(created));
+                .body(mapper.toResponse(created).withEffect(WriteEffectResponse.from(result.effect())));
     }
 
     @GetMapping
@@ -54,22 +60,28 @@ public class GoalController {
 
     @PatchMapping("/{id}")
     public GoalResponse update(@PathVariable Long id, @Valid @RequestBody UpdateGoalRequest request) {
-        return mapper.toResponse(service.update(id, request));
+        return reported(() -> service.update(id, request));
     }
 
     @PostMapping("/{id}/archive")
     public GoalResponse archive(@PathVariable Long id) {
-        return mapper.toResponse(service.archive(id));
+        return reported(() -> service.archive(id));
     }
 
     @PostMapping("/{id}/unarchive")
     public GoalResponse unarchive(@PathVariable Long id) {
-        return mapper.toResponse(service.unarchive(id));
+        return reported(() -> service.unarchive(id));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         service.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /** Runs the write, then reports what it did (ADR-0017). */
+    private GoalResponse reported(Supplier<GoalView> write) {
+        var result = effects.around(write);
+        return mapper.toResponse(result.value()).withEffect(WriteEffectResponse.from(result.effect()));
     }
 }

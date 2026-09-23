@@ -86,7 +86,7 @@ export function EditCommitmentSheet({ commitmentId, onClose, onDeleted, instance
 /** What each form field is called on screen - for naming the one that stopped a save. */
 const FIELD_LABELS: Partial<Record<keyof CommitmentFormValues, string>> = {
   name: 'What',
-  amountType: 'Amount',
+  amountType: 'Same every time?',
   fixedAmount: 'How much',
   frequency: 'How often',
   dueDay: 'Due on',
@@ -96,7 +96,6 @@ const FIELD_LABELS: Partial<Record<keyof CommitmentFormValues, string>> = {
   categoryId: 'Category',
   mandatory: 'Must pay?',
   why: 'Note',
-  ifSkipped: 'If skipped',
 };
 
 /** Same format `InstanceAmountForm` validates against - one amount, up to 2 decimal places. */
@@ -143,6 +142,7 @@ function EditForm({
   const { data: cycle } = useGetCurrentCycleQuery();
   /** '' = this month and every unpaid month (the default); else a later cycle's start. */
   const [applyFrom, setApplyFrom] = useState('');
+  const [reason, setReason] = useState('');
   /** The calendar month (`YYYY-MM`) of the first payment - or of a one-off's only one; '' keeps it. */
   const [firstMonth, setFirstMonth] = useState('');
   const savedFirstMonth = firstDueOnOrAfter(rule.activeFrom, rule.dueDay).slice(0, 7);
@@ -175,7 +175,6 @@ function EditForm({
       categoryId: rule.category?.id ?? null,
       mandatory: rule.mandatory,
       why: rule.why ?? '',
-      ifSkipped: rule.ifSkipped ?? '',
     },
   });
   const { handleSubmit, watch, setError, setValue } = form;
@@ -226,7 +225,13 @@ function EditForm({
       mandatory: values.mandatory,
       // "" clears on the server.
       why: values.why?.trim() ?? '',
-      ifSkipped: values.ifSkipped?.trim() ?? '',
+      // `ifSkipped` is deliberately NOT sent: the field is gone from the form, and
+      // PATCH leaves an omitted field alone. Sending "" would wipe what's already
+      // recorded on every save - removing a field from a form must not delete data.
+      // Recorded on the plan revision, not on the bill - it explains this change, not the
+      // bill's existence (that's "why"). Omitted when blank rather than sent as "",
+      // because an absent reason is a fact worth keeping as absent. ADR-0015.
+      ...(reason.trim() ? { reason: reason.trim() } : {}),
     };
     const link = follow ? { sourceType: follow.type, sourceId: follow.id } : rule.sourceType !== 'MANUAL' ? { clearSource: true } : {};
     // The first payment is picked as a calendar month; the salary month it falls in is the rule's window.
@@ -347,7 +352,7 @@ function EditForm({
               hint={
                 watch('frequency') === 'ONCE'
                   ? 'The month it happens - the exact date is shown beside it.'
-                  : 'The month of the first one - the exact date is shown beside it. Moving it later removes the unpaid ones before it; paid ones stay.'
+                  : 'Moving it later drops the unpaid months before it. Paid ones stay.'
               }
             >
               <PaymentMonthPicker
@@ -363,7 +368,7 @@ function EditForm({
           instanceId != null && !termsLocked ? (
             <FormRow
               label="This time"
-              hint={`The amount for the one due ${instanceDueDate ? formatShortDate(instanceDueDate) : 'now'}. Each month's is its own - later ones stay “amount unknown” until you give them one. Saved with “Save changes”.`}
+              hint={`This month only - the one due ${instanceDueDate ? formatShortDate(instanceDueDate) : 'now'}. Later months you fill in as you go.`}
             >
               <span className="flex items-center gap-space-1">
                 <span className="num text-ink-muted">₹</span>
@@ -385,7 +390,7 @@ function EditForm({
 
       {investment && (
         <div className="rounded-lg border border-line">
-          <FormRow label="Last instalment" error={lastPayment.error ?? undefined} hint="Stopping this SIP or RD? Pick the month of its final instalment.">
+          <FormRow label="Last instalment" error={lastPayment.error ?? undefined} hint="The month of its final instalment.">
             <span className="flex flex-wrap items-center gap-space-2">
               <Select
                 variant="row"
@@ -416,7 +421,7 @@ function EditForm({
           <div className="rounded-lg border border-line">
             <FormRow
               label="Linked to"
-              hint="Only for a loan EMI, a SIP or RD, or a goal you've already added. A loan or SIP gives it its amount and date. For a goal: a Payment linked to it is money the goal pays out, like a trip booking; a Saving linked to it puts money into the goal. Leave it as “Not linked” for anything else."
+              hint="Ties this to a loan, SIP, RD or goal, so its amount and dates come from there."
             >
               <Select
                 variant="row"
@@ -446,7 +451,7 @@ function EditForm({
         <div className="rounded-lg border border-line">
           <FormRow
             label="Changes start"
-            hint="Only if the change begins later - like rent going up from January. Payments before then keep the old figures."
+            hint="For a change that starts later, like rent rising from January. Earlier months keep the old figures."
           >
             <Select
               variant="row"
@@ -462,6 +467,24 @@ function EditForm({
           </FormRow>
         </div>
       )}
+
+      {/* Asked at the point of the decision, where the answer is known - a week later
+          nobody remembers. Optional on purpose: a required "why?" gets answered with "."  */}
+      <div className="rounded-lg border border-line">
+        <FormRow
+          label="Why the change"
+          hint="Optional. So next year you know why."
+        >
+          <input
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            maxLength={255}
+            autoComplete="off"
+            placeholder="Optional"
+            className={FORM_ROW_CONTROL}
+          />
+        </FormRow>
+      </div>
 
       <p className="text-caption text-ink-muted">
         {applyFrom
