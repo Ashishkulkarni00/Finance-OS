@@ -24,6 +24,20 @@ export interface CycleSnapshotResponse extends CycleSummaryResponse {
   realBalance: Money | null;
   netWorth: Money;
   totalDebt: Money;
+
+  /**
+   * Plan versus actual, captured at close (ADR-0015). Everything above is an actual.
+   *
+   * All five are **null on a cycle that closed before any of this was recorded** - that
+   * is "not recorded", not zero, and must never render as 0 or 0%.
+   */
+  plannedCommittedTotal: Money | null;
+  actualCommittedTotal: Money | null;
+  commitmentsPlanned: number | null;
+  /** Paid, or settled in an earlier cycle. The number that has to go up. */
+  commitmentsKept: number | null;
+  planRevisionsCount: number | null;
+
   createdAt: string;
 }
 

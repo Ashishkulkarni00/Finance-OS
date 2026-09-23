@@ -25,28 +25,28 @@ export const goalService = baseApi.injectEndpoints({
 
     createGoal: build.mutation<GoalResponse, CreateGoalRequest>({
       query: (body) => ({ url: '/goals', method: 'POST', body }),
-      invalidatesTags: [{ type: 'Goal', id: 'LIST' }],
+      invalidatesTags: [{ type: 'Goal', id: 'LIST' }, 'PlanRevision'],
     }),
 
     updateGoal: build.mutation<GoalResponse, { id: number; body: UpdateGoalRequest }>({
       query: ({ id, body }) => ({ url: `/goals/${id}`, method: 'PATCH', body }),
       // Its bills follow it (a funding transfer's destination, an archived goal's bills end).
-      invalidatesTags: (_r, _e, { id }) => [{ type: 'Goal', id }, { type: 'Goal', id: 'LIST' }, 'Commitment', 'CommitmentInstance', 'Position'],
+      invalidatesTags: (_r, _e, { id }) => [{ type: 'Goal', id }, { type: 'Goal', id: 'LIST' }, 'Commitment', 'CommitmentInstance', 'Position', 'PlanRevision'],
     }),
 
     archiveGoal: build.mutation<GoalResponse, number>({
       query: (id) => ({ url: `/goals/${id}/archive`, method: 'POST' }),
-      invalidatesTags: (_r, _e, id) => [{ type: 'Goal', id }, { type: 'Goal', id: 'LIST' }, 'Commitment', 'CommitmentInstance', 'Position'],
+      invalidatesTags: (_r, _e, id) => [{ type: 'Goal', id }, { type: 'Goal', id: 'LIST' }, 'Commitment', 'CommitmentInstance', 'Position', 'PlanRevision'],
     }),
 
     unarchiveGoal: build.mutation<GoalResponse, number>({
       query: (id) => ({ url: `/goals/${id}/unarchive`, method: 'POST' }),
-      invalidatesTags: (_r, _e, id) => [{ type: 'Goal', id }, { type: 'Goal', id: 'LIST' }],
+      invalidatesTags: (_r, _e, id) => [{ type: 'Goal', id }, { type: 'Goal', id: 'LIST' }, 'PlanRevision'],
     }),
 
     deleteGoal: build.mutation<void, number>({
       query: (id) => ({ url: `/goals/${id}`, method: 'DELETE' }),
-      invalidatesTags: (_r, _e, id) => [{ type: 'Goal', id }, { type: 'Goal', id: 'LIST' }, 'Commitment', 'CommitmentInstance', 'Position'],
+      invalidatesTags: (_r, _e, id) => [{ type: 'Goal', id }, { type: 'Goal', id: 'LIST' }, 'Commitment', 'CommitmentInstance', 'Position', 'PlanRevision'],
     }),
   }),
 });

@@ -11,9 +11,17 @@ import type { PageResponse } from '@/types/api';
  */
 export const commitmentRuleService = baseApi.injectEndpoints({
   endpoints: (build) => ({
-    getCommitmentRules: build.query<PageResponse<CommitmentResponse>, void>({
-      query: () => ({ url: '/commitments', params: { size: 50 } }),
-      providesTags: [{ type: 'Commitment', id: 'LIST' }],
+    getCommitmentRules: build.query<PageResponse<CommitmentResponse>, { includeArchived?: boolean } | void>({
+      query: (args) => ({
+        url: '/commitments',
+        params: { size: 50, includeArchived: args?.includeArchived ?? false },
+      }),
+      // Separate cache entries per argument, so asking for the stopped ones can't
+      // quietly put archived rules into every list that assumes they're excluded.
+      providesTags: (_result, _error, args) => [
+        { type: 'Commitment' as const, id: args?.includeArchived ? 'LIST-ARCHIVED' : 'LIST' },
+        { type: 'Commitment' as const, id: 'LIST' },
+      ],
     }),
 
     getCommitmentRule: build.query<CommitmentResponse, number>({
@@ -32,19 +40,19 @@ export const commitmentRuleService = baseApi.injectEndpoints({
       // occurrences has to refetch - not just the rules list. Invalidating only
       // Commitment/Position was why a bill added from Months didn't appear in the
       // plan (or its progress line, or Today's Coming up) until the page was reloaded.
-      invalidatesTags: [{ type: 'Commitment', id: 'LIST' }, { type: 'CommitmentInstance', id: 'LIST' }, 'Position', 'Timeline'],
+      invalidatesTags: [{ type: 'Commitment', id: 'LIST' }, { type: 'CommitmentInstance', id: 'LIST' }, 'Position', 'Timeline', 'PlanRevision'],
     }),
 
     /** A bill for a loan's EMI that follows the loan. Returns the existing one if there is one. */
     createBillFromLoan: build.mutation<CommitmentResponse, number>({
       query: (loanId) => ({ url: `/commitments/from-loan/${loanId}`, method: 'POST' }),
-      invalidatesTags: [{ type: 'Commitment', id: 'LIST' }, { type: 'CommitmentInstance', id: 'LIST' }, 'Loan', 'Position', 'Timeline'],
+      invalidatesTags: [{ type: 'Commitment', id: 'LIST' }, { type: 'CommitmentInstance', id: 'LIST' }, 'Loan', 'Position', 'Timeline', 'PlanRevision'],
     }),
 
     /** A bill for a SIP / RD instalment that follows the holding. Returns the existing one if there is one. */
     createBillFromInvestment: build.mutation<CommitmentResponse, number>({
       query: (investmentId) => ({ url: `/commitments/from-investment/${investmentId}`, method: 'POST' }),
-      invalidatesTags: [{ type: 'Commitment', id: 'LIST' }, { type: 'CommitmentInstance', id: 'LIST' }, 'Investment', 'Position', 'Timeline'],
+      invalidatesTags: [{ type: 'Commitment', id: 'LIST' }, { type: 'CommitmentInstance', id: 'LIST' }, 'Investment', 'Position', 'Timeline', 'PlanRevision'],
     }),
 
     // An edit or delete changes the unpaid occurrences server-side (amount, due date, or
@@ -62,6 +70,7 @@ export const commitmentRuleService = baseApi.injectEndpoints({
         'Goal',
         'Position',
         'Timeline',
+        'PlanRevision',
       ],
     }),
 
@@ -74,6 +83,7 @@ export const commitmentRuleService = baseApi.injectEndpoints({
         'CommitmentInstance',
         'Position',
         'Timeline',
+        'PlanRevision',
       ],
     }),
 
@@ -85,6 +95,7 @@ export const commitmentRuleService = baseApi.injectEndpoints({
         'CommitmentInstance',
         'Position',
         'Timeline',
+        'PlanRevision',
       ],
     }),
 
@@ -99,6 +110,7 @@ export const commitmentRuleService = baseApi.injectEndpoints({
         'Goal',
         'Position',
         'Timeline',
+        'PlanRevision',
       ],
     }),
   }),

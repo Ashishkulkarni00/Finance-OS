@@ -41,9 +41,15 @@ public record InsightListResponse(List<Item> items, int total) {
     }
 
     public static InsightListResponse of(List<Insight> shown, int total) {
-        return new InsightListResponse(shown.stream().map(i -> new Item(i.key(), i.type(), i.severity(), i.title(),
-                i.explanation(), i.impact(), i.when(), i.action() == null ? null : new Action(i.action().kind(),
-                i.action().label(), i.action().instanceId(), i.action().fromAccountId(), i.action().toAccountId(),
-                i.action().amount(), i.action().route()))).toList(), total);
+        return new InsightListResponse(shown.stream().map(InsightListResponse::item).toList(), total);
+    }
+
+    /** One insight on the wire. Shared so a warning reads identically wherever it appears -
+     *  the list, and the effect a write reports (ADR-0017). */
+    public static Item item(Insight i) {
+        return new Item(i.key(), i.type(), i.severity(), i.title(), i.explanation(), i.impact(), i.when(),
+                i.action() == null ? null : new Action(i.action().kind(), i.action().label(),
+                        i.action().instanceId(), i.action().fromAccountId(), i.action().toAccountId(),
+                        i.action().amount(), i.action().route()));
     }
 }

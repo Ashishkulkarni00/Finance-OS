@@ -7,6 +7,8 @@ import com.finance.commitment.dto.CommitmentPlanProgressResponse;
 import com.finance.commitment.dto.CycleStandingResponse;
 import com.finance.commitment.dto.SetExpectedAmountRequest;
 import com.finance.commitment.dto.SettleCommitmentInstanceRequest;
+import com.finance.effect.WriteEffects;
+import com.finance.effect.dto.WriteEffectResponse;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * HTTP for commitment instances - this cycle's occurrences. Nested under
@@ -27,10 +30,13 @@ public class CommitmentInstanceController {
 
     private final CommitmentInstanceService service;
     private final CommitmentMapper mapper;
+    private final WriteEffects effects;
 
-    public CommitmentInstanceController(CommitmentInstanceService service, CommitmentMapper mapper) {
+    public CommitmentInstanceController(CommitmentInstanceService service, CommitmentMapper mapper,
+                                        WriteEffects effects) {
         this.service = service;
         this.mapper = mapper;
+        this.effects = effects;
     }
 
     @GetMapping("/api/v1/cycles/{cycleId}/commitment-instances")
@@ -71,33 +77,40 @@ public class CommitmentInstanceController {
         return mapper.toHistoryEntries(service.recentForCommitment(commitmentId));
     }
 
+    /** Settling is where "what did that cost me?" is actually asked, so it is the write
+     *  the reactive layer matters most on (ADR-0017). */
     @PostMapping("/api/v1/commitment-instances/{id}/settle")
     public CommitmentInstanceResponse settle(@PathVariable Long id,
                                              @Valid @RequestBody SettleCommitmentInstanceRequest request) {
-        CommitmentInstanceView view = service.settle(id, request);
-        return mapper.toResponse(view);
+        return reported(() -> service.settle(id, request));
     }
 
     /** Sets an unpaid occurrence's expected amount - how a variable bill stops blocking Room. */
     @PatchMapping("/api/v1/commitment-instances/{id}")
     public CommitmentInstanceResponse setExpectedAmount(@PathVariable Long id,
                                                         @Valid @RequestBody SetExpectedAmountRequest request) {
-        return mapper.toResponse(service.setExpectedAmount(id, request.expectedAmount()));
+        return reported(() -> service.setExpectedAmount(id, request.expectedAmount()));
     }
 
     @PostMapping("/api/v1/commitment-instances/{id}/skip")
     public CommitmentInstanceResponse skip(@PathVariable Long id) {
-        return mapper.toResponse(service.skip(id));
+        return reported(() -> service.skip(id));
     }
 
     @PostMapping("/api/v1/commitment-instances/{id}/unskip")
     public CommitmentInstanceResponse unskip(@PathVariable Long id) {
-        return mapper.toResponse(service.unskip(id));
+        return reported(() -> service.unskip(id));
     }
 
     @PostMapping("/api/v1/commitment-instances/{id}/confirm")
     public CommitmentInstanceResponse confirm(@PathVariable Long id) {
-        CommitmentInstanceView view = service.confirm(id);
-        return mapper.toResponse(view);
+        return reported(() -> service.confirm(id));
+    }
+
+    /** Runs the write, then reports what it did. The effect is composed only after the
+     *  write's own transaction has committed, so it can never roll one back (ADR-0017). */
+    private CommitmentInstanceResponse reported(Supplier<CommitmentInstanceView> write) {
+        var result = effects.around(write);
+        return mapper.toResponse(result.value()).withEffect(WriteEffectResponse.from(result.effect()));
     }
 }

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { NavRail } from './NavRail';
 import { PageAddHost } from './PageAddHost';
+import { EffectToastHost } from '@/components/EffectToastHost';
 import { AddSheet } from '@/features/transactions/components/AddSheet';
 import { SettleCommitmentSheet } from '@/features/commitments/components/SettleCommitmentSheet';
 import { useAppDispatch } from '@/store/hooks';
@@ -47,6 +48,7 @@ export function AppShell() {
       <AddSheet />
       <SettleCommitmentSheet />
       <PageAddHost />
+      <EffectToastHost />
     </div>
   );
 }

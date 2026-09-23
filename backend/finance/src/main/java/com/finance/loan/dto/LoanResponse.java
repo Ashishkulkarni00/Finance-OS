@@ -74,6 +74,17 @@ public record LoanResponse(
 
         int emisLeft,
 
+        /**
+         * EMIs whose due date has passed with no payment recorded against them
+         * (ROADMAP 0.2). The balance does not move for these - an unpaid EMI is not
+         * assumed paid - and the user is told rather than left to wonder why the loan
+         * isn't shrinking. Zero when everything due has been settled.
+         */
+        int unrecordedEmis,
+
+        /** The due date of the earliest unrecorded EMI, for naming it. Null when none. */
+        LocalDate oldestUnrecordedDue,
+
         @JsonSerialize(using = MoneySerializer.class)
         BigDecimal remainingPayments,
 

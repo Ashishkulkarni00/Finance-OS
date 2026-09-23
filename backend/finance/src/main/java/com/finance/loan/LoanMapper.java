@@ -34,7 +34,7 @@ public class LoanMapper {
                 loan.getTenureMonths(), loan.getStartDate(), loan.getOriginalFirstEmiDate(), loan.getEmiDay(),
                 loan.getEmi(), loan.getPaidVia(), loan.getConfidence(), loan.getStatus(), loan.getNote(),
                 view.outstandingPrincipal(), amountRepaid, view.payoffDate(),
-                view.emisLeft(), view.remainingPayments(),
+                view.emisLeft(), view.unrecordedEmis(), view.oldestUnrecordedDue(), view.remainingPayments(),
                 view.impliedEmisRemaining(), view.termsConsistent(), view.planCommitmentId());
     }
 

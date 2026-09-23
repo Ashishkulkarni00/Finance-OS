@@ -34,4 +34,10 @@ export interface ForecastMonth {
  *  happened - see the field-level notes on why a variable bill is always "unknown" here. */
 export interface ForecastResponse {
   months: ForecastMonth[];
+  /**
+   * What stops leaving every month once everything that ends in the horizon has ended.
+   * Computed on the server — the browser never adds money up (FRONTEND_CONVENTIONS §4
+   * rule 2), which this component used to do with a `reduce`.
+   */
+  unlockedMonthlyTotal: Money;
 }

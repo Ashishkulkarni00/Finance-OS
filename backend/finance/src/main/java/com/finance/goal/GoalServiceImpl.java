@@ -18,6 +18,9 @@ import com.finance.transaction.domain.TransactionType;
 import com.finance.goal.domain.Goal;
 import com.finance.goal.dto.CreateGoalRequest;
 import com.finance.goal.dto.UpdateGoalRequest;
+import com.finance.plan.PlanChangeDraft;
+import com.finance.plan.PlanRevisionRecorder;
+import com.finance.plan.domain.PlanRevisionType;
 import com.finance.reservation.ReservationRepository;
 import com.finance.reservation.domain.Reservation;
 import org.slf4j.Logger;
@@ -39,9 +42,9 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * Business rules for goals. Progress is never stored - it is read from whichever of
- * {@code linkedReservationId}/{@code linkedAccountId} is set, at query time. See
- * {@code Goal}'s class comment.
+ * Business rules for goals. Progress is never stored - it is read at query time from the
+ * place the goal watches ({@code linkedReservationId} or {@code linkedAccountId}) plus
+ * anything set aside against it, wherever that sits. See {@link #currentAmount}.
  */
 @Service
 public class GoalServiceImpl implements GoalService {
@@ -62,6 +65,14 @@ public class GoalServiceImpl implements GoalService {
     private CommitmentService commitmentService;
     private CommitmentRepository commitmentRepository;
     private CommitmentInstanceRepository instanceRepository;
+    private PlanRevisionRecorder planRevisions;
+
+    /** Records what changed about the plan (ADR-0015). Optional for the same reason as the
+     *  rest: a service built without it reads exactly as it did before history existed. */
+    @Autowired(required = false)
+    void setPlanRevisions(PlanRevisionRecorder planRevisions) {
+        this.planRevisions = planRevisions;
+    }
 
     /** Set after construction: goals and bills refer to each other. Optional so a read-only
      *  service (as the pace test builds) works without it. */
@@ -111,7 +122,9 @@ public class GoalServiceImpl implements GoalService {
 
         Goal saved = repository.save(goal);
         log.info("Goal created id={}", saved.getId());
-        return toView(saved);
+        GoalView view = toView(saved);
+        recordStartOrStop(view, PlanRevisionType.CREATED, true, request.reason());
+        return view;
     }
 
     @Override
@@ -130,6 +143,9 @@ public class GoalServiceImpl implements GoalService {
     @Transactional
     public GoalView update(Long id, UpdateGoalRequest request) {
         Goal goal = requireOwned(id);
+        // The goal as it stands, including what it currently demands each month - the
+        // "before" side of the revision this write records (ADR-0015).
+        GoalPlanFields before = capture(toView(goal));
 
         if (request.name() != null) {
             String name = request.name().trim();
@@ -161,6 +177,9 @@ public class GoalServiceImpl implements GoalService {
 
         Goal saved = repository.save(goal);
         log.info("Goal updated id={}", saved.getId());
+        // Recorded before the bills are synced, so the log reads in the order it happened:
+        // the goal changed, then the bills that follow it changed with it.
+        recordChange(toView(saved), before, PlanRevisionType.AMENDED, request.reason());
         syncBills(saved.getId());
         return toView(saved);
     }
@@ -170,9 +189,12 @@ public class GoalServiceImpl implements GoalService {
     public GoalView archive(Long id) {
         Goal goal = requireOwned(id);
         if (!goal.isArchived()) {
+            GoalView before = toView(goal);
             goal.archive();
             repository.save(goal);
             log.info("Goal archived id={}", id);
+            // The effect is measured on what it demanded before it stopped.
+            recordStartOrStop(before, PlanRevisionType.PAUSED, false, null);
             // Its monthly contribution stops with it.
             syncBills(id);
         }
@@ -187,6 +209,7 @@ public class GoalServiceImpl implements GoalService {
             goal.unarchive();
             repository.save(goal);
             log.info("Goal unarchived id={}", id);
+            recordStartOrStop(toView(goal), PlanRevisionType.RESUMED, true, null);
         }
         return toView(goal);
     }
@@ -195,10 +218,72 @@ public class GoalServiceImpl implements GoalService {
     @Transactional
     public void delete(Long id) {
         Goal goal = requireOwned(id);
+        GoalView before = toView(goal);
         goal.markDeleted();
         repository.save(goal);
         log.info("Goal soft-deleted id={}", id);
+        // The revision outlives the goal - "I gave up on this in October" is worth keeping.
+        recordStartOrStop(before, PlanRevisionType.ENDED, false, null);
         syncBills(id);
+    }
+
+    // ---------------------------------------------------------------------------------
+    // Plan history (ADR-0015). A goal's target and date are plan, not metadata: moving a
+    // target date changes what has to be found every month, and until now did so silently.
+    // ---------------------------------------------------------------------------------
+
+    /** Where the goal's money sits, by name - frozen at capture time so the log still reads
+     *  correctly after a rename. Null when it tracks neither a reservation nor an account. */
+    private String trackedIn(Goal goal) {
+        try {
+            if (goal.getLinkedReservationId() != null) {
+                return reservationRepository.findById(goal.getLinkedReservationId())
+                        .filter(r -> r.getDeletedAt() == null)
+                        .map(Reservation::getPurpose)
+                        .orElse(null);
+            }
+            if (goal.getLinkedAccountId() != null) {
+                return accountService.getByIdIncludingDeleted(goal.getLinkedAccountId()).getName();
+            }
+        } catch (RuntimeException e) {
+            // A courtesy for the log, never the reason a goal edit fails.
+            return null;
+        }
+        return null;
+    }
+
+    private GoalPlanFields capture(GoalView view) {
+        return GoalPlanFields.of(view, trackedIn(view.goal()));
+    }
+
+    /**
+     * Records a goal change. The monthly effect is the change in what the goal demands each
+     * month - null when either side is unknown, never zero (ADR-0006).
+     */
+    private void recordChange(GoalView after, GoalPlanFields before, PlanRevisionType type, String reason) {
+        if (planRevisions == null) {
+            return;
+        }
+        GoalPlanFields fields = capture(after);
+        PlanChangeDraft draft = PlanChangeDraft
+                .forGoal(after.goal().getId(), after.goal().getName(), type)
+                .reason(reason)
+                .monthlyEffect(before.requiredPerMonth(), fields.requiredPerMonth());
+        before.diffInto(draft, fields);
+        planRevisions.record(draft);
+    }
+
+    /** A goal that starts or stops: what it demands each month appears or disappears. */
+    private void recordStartOrStop(GoalView view, PlanRevisionType type, boolean starting, String reason) {
+        if (planRevisions == null) {
+            return;
+        }
+        BigDecimal required = view.requiredPerMonth();
+        planRevisions.record(PlanChangeDraft
+                .forGoal(view.goal().getId(), view.goal().getName(), type)
+                .reason(reason)
+                .monthlyEffect(starting ? MoneyScale.ZERO : required,
+                        starting ? required : MoneyScale.ZERO));
     }
 
     private void syncBills(Long goalId) {
@@ -388,17 +473,43 @@ public class GoalServiceImpl implements GoalService {
                 ? GoalPace.BEHIND : GoalPace.ON_TRACK;
     }
 
+    /**
+     * What this goal has, from wherever it actually is.
+     *
+     * <p>Two things, added together:
+     * <ul>
+     *   <li>the one place the goal <em>watches</em> - an account's balance, or a single
+     *       reservation it was linked to when it was created;</li>
+     *   <li><strong>anything set aside against it</strong>, wherever that sits. This is how
+     *       money counts without having moved: last month's surplus, still physically in the
+     *       salary account, earmarked for a trip and no longer spendable.</li>
+     * </ul>
+     *
+     * <p>Before this, a goal could only count one place, so money reserved for it in a
+     * different account was invisible to it - even though {@code reservations.goal_id} has
+     * existed since V3 and the Set aside screen already said "counts as progress on a goal".
+     *
+     * <p>A reservation the goal is directly linked to is skipped in the second term, or it
+     * would be counted twice.
+     */
     private BigDecimal currentAmount(Goal goal) {
+        BigDecimal watched = BigDecimal.ZERO;
         if (goal.getLinkedReservationId() != null) {
-            return reservationRepository.findById(goal.getLinkedReservationId())
+            watched = reservationRepository.findById(goal.getLinkedReservationId())
                     .filter(r -> r.getDeletedAt() == null)
                     .map(Reservation::getAmount)
                     .orElse(BigDecimal.ZERO);
+        } else if (goal.getLinkedAccountId() != null) {
+            watched = balanceCalculator.currentBalance(accountService.getByIdIncludingDeleted(goal.getLinkedAccountId()));
         }
-        if (goal.getLinkedAccountId() != null) {
-            return balanceCalculator.currentBalance(accountService.getByIdIncludingDeleted(goal.getLinkedAccountId()));
-        }
-        return BigDecimal.ZERO;
+
+        BigDecimal earmarked = reservationRepository
+                .findByGoalIdAndUserIdAndDeletedAtIsNull(goal.getId(), goal.getUserId()).stream()
+                .filter(r -> !r.getId().equals(goal.getLinkedReservationId()))
+                .map(Reservation::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return watched.add(earmarked);
     }
 
     private void requireAtMostOneLink(Long linkedReservationId, Long linkedAccountId) {

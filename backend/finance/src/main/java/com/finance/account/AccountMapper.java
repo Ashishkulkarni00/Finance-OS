@@ -84,7 +84,9 @@ public class AccountMapper {
                 account.isArchived(),
                 account.getArchivedAt(),
                 account.getCreatedAt(),
-                account.getUpdatedAt()
+                account.getUpdatedAt(),
+                // Reads report no effect; a write attaches its own (ADR-0017).
+                null
         );
     }
 

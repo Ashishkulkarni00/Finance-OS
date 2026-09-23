@@ -3,6 +3,11 @@ package com.finance.forecast;
 import com.finance.commitment.CommitmentBucket;
 import com.finance.commitment.CommitmentBucketClassifier;
 import com.finance.commitment.CommitmentInstanceGenerator;
+import com.finance.commitment.CommitmentInstanceRepository;
+import com.finance.commitment.domain.CommitmentInstance;
+import com.finance.commitment.domain.CommitmentInstanceStatus;
+import com.finance.cycle.CycleRepository;
+import com.finance.common.money.MoneyScale;
 import com.finance.commitment.CommitmentRepository;
 import com.finance.commitment.domain.Commitment;
 import com.finance.commitment.domain.CommitmentAmountType;
@@ -41,6 +46,9 @@ public class ForecastServiceImpl implements ForecastService {
 
     private final CommitmentRepository commitmentRepository;
     private final CommitmentInstanceGenerator generator;
+    /** The real occurrences, where a cycle already has them - what makes Ahead agree with Months. */
+    private final CommitmentInstanceRepository instanceRepository;
+    private final CycleRepository cycleRepository;
     private final CommitmentBucketClassifier bucketClassifier;
     private final CycleService cycleService;
     private final CurrentUserProvider currentUser;
@@ -49,12 +57,16 @@ public class ForecastServiceImpl implements ForecastService {
                                CommitmentInstanceGenerator generator,
                                CommitmentBucketClassifier bucketClassifier,
                                CycleService cycleService,
-                               CurrentUserProvider currentUser) {
+                               CurrentUserProvider currentUser,
+                               CommitmentInstanceRepository instanceRepository,
+                               CycleRepository cycleRepository) {
         this.commitmentRepository = commitmentRepository;
         this.generator = generator;
         this.bucketClassifier = bucketClassifier;
         this.cycleService = cycleService;
         this.currentUser = currentUser;
+        this.instanceRepository = instanceRepository;
+        this.cycleRepository = cycleRepository;
     }
 
     @Override
@@ -79,6 +91,21 @@ public class ForecastServiceImpl implements ForecastService {
             LocalDate end = start.plusMonths(1).minusDays(1);
             Cycle cycle = Cycle.builder().userId(userId).startDate(start).endDate(end).build();
 
+            // If this month already has occurrences, read those rather than the rules.
+            //
+            // Months reads the same rows, so this is what makes the two screens agree. A
+            // pure projection cannot see an amount the user has given a variable bill for a
+            // specific month, so Ahead used to report a month as far freer than Months did -
+            // two answers to "what's free in October", 14,763 apart on the user's own data.
+            // Beyond the months that have been planned, there is nothing to read and the
+            // rules are projected forward as before.
+            Map<Long, CommitmentInstance> occurrences = new LinkedHashMap<>();
+            cycleRepository.findByUserIdAndStartDate(userId, start).ifPresent(existing -> {
+                for (CommitmentInstance occurrence : instanceRepository.findByCycleIdAndUserId(existing.getId(), userId)) {
+                    occurrences.putIfAbsent(occurrence.getCommitmentId(), occurrence);
+                }
+            });
+
             BigDecimal income = BigDecimal.ZERO;
             BigDecimal committed = BigDecimal.ZERO;
             BigDecimal setAside = BigDecimal.ZERO;
@@ -86,16 +113,45 @@ public class ForecastServiceImpl implements ForecastService {
             Map<Long, Commitment> spokenFor = new LinkedHashMap<>();
             List<ForecastAnnualItem> annualItems = new ArrayList<>();
 
-            for (Commitment commitment : commitmentRepository.findActiveForCycle(userId, start, end)) {
-                if (!generator.occursIn(commitment, cycle)) {
-                    continue;
+            // What is owed this month is the union of two things, not one or the other:
+            //
+            //   * every active rule that falls due in it - which is all a projection has,
+            //     and all a month that has never been opened will ever have;
+            //   * anything with a real occurrence, even if its rule is no longer active.
+            //     Archiving a bill ends its future months; it does not cancel one already
+            //     due, and Months goes on counting that occurrence because it is still owed.
+            //
+            // Reading only the occurrences was wrong: a cycle row can exist with a partial
+            // set of them - generated before a bill was added - so a month would silently
+            // lose bills it really does have, and with them the unlock that follows.
+            Map<Long, Commitment> inMonth = new LinkedHashMap<>();
+            for (Commitment rule : commitmentRepository.findActiveForCycle(userId, start, end)) {
+                if (generator.occursIn(rule, cycle)) {
+                    inMonth.put(rule.getId(), rule);
                 }
+            }
+            for (CommitmentInstance occurrence : occurrences.values()) {
+                if (!inMonth.containsKey(occurrence.getCommitmentId())) {
+                    commitmentRepository.findById(occurrence.getCommitmentId())
+                            .ifPresent(rule -> inMonth.put(rule.getId(), rule));
+                }
+            }
+
+            for (Commitment commitment : inMonth.values()) {
                 CommitmentBucket bucket = bucketClassifier.classify(commitment);
                 if (bucket == CommitmentBucket.NEITHER) {
                     continue;
                 }
-                BigDecimal amount = commitment.getAmountType() == CommitmentAmountType.FIXED
-                        ? commitment.getFixedAmount() : null;
+                CommitmentInstance occurrence = occurrences.get(commitment.getId());
+                if (occurrence != null && occurrence.getStatus() == CommitmentInstanceStatus.SKIPPED) {
+                    // Decided against for this month - its money is free, exactly as Months says.
+                    continue;
+                }
+                // The occurrence's own amount wins: it is where an estimate for a bill that
+                // varies is recorded, and a projection has no way of knowing it.
+                BigDecimal amount = occurrence != null
+                        ? occurrence.getExpectedAmount()
+                        : commitment.getAmountType() == CommitmentAmountType.FIXED ? commitment.getFixedAmount() : null;
                 if (amount == null) {
                     unknown++;
                 } else {
@@ -126,7 +182,14 @@ public class ForecastServiceImpl implements ForecastService {
             previousStart = start;
         }
 
-        return new ForecastResult(result);
+        // What stops leaving every month once everything that ends has ended. Summed here
+        // rather than in the browser, which never adds money up.
+        BigDecimal unlocked = result.stream()
+                .flatMap(m -> m.unlocks().stream())
+                .map(ForecastUnlock::amount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return new ForecastResult(result, MoneyScale.normalise(unlocked));
     }
 
     /**

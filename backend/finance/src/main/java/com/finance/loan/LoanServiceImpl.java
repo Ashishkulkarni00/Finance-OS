@@ -31,6 +31,8 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Business rules for loans. The amortisation schedule ({@code AmortisationCalculator})
@@ -46,6 +48,7 @@ public class LoanServiceImpl implements LoanService {
 
     private final LoanRepository repository;
     private final AmortisationCalculator calculator;
+    private final LoanPaymentRepository paymentRepository;
     private final AccountService accountService;
     private final CurrentUserProvider currentUser;
     private final Clock clock;
@@ -58,7 +61,8 @@ public class LoanServiceImpl implements LoanService {
                            CurrentUserProvider currentUser,
                            Clock clock,
                            @Lazy CommitmentService commitmentService,
-                           CommitmentRepository commitmentRepository) {
+                           CommitmentRepository commitmentRepository,
+                           LoanPaymentRepository paymentRepository) {
         this.repository = repository;
         this.calculator = calculator;
         this.accountService = accountService;
@@ -66,6 +70,7 @@ public class LoanServiceImpl implements LoanService {
         this.clock = clock;
         this.commitmentService = commitmentService;
         this.commitmentRepository = commitmentRepository;
+        this.paymentRepository = paymentRepository;
     }
 
     @Override
@@ -140,8 +145,9 @@ public class LoanServiceImpl implements LoanService {
             loan.setLender(request.lender().trim());
         }
 
-        // Where the loan stands - what every figure is derived from. Re-stating it is how a
-        // missed or early EMI gets corrected, since nothing records loan payments.
+        // Where the loan stands - the checkpoint every figure is derived forward from.
+        // Recorded payments move it from here (ROADMAP 0.2); re-stating it is how a
+        // balance that has drifted from the lender's own figure is corrected.
         boolean outstandingChanged = request.outstandingBalance() != null
                 && request.outstandingBalance().compareTo(loan.getOutstandingBalance()) != 0;
         boolean asOfChanged = request.balanceAsOf() != null && !request.balanceAsOf().equals(loan.getBalanceAsOf());
@@ -252,7 +258,12 @@ public class LoanServiceImpl implements LoanService {
     @Override
     @Transactional(readOnly = true)
     public LoanSummary summary() {
-        List<Loan> loans = repository.findByUserIdAndDeletedAtIsNull(currentUser.currentUserId());
+        Long userId = currentUser.currentUserId();
+        List<Loan> loans = repository.findByUserIdAndDeletedAtIsNull(userId);
+
+        // One query for every loan's recorded payments, not one per loan.
+        Map<Long, Long> paidByLoan = paymentRepository.findPaidAmountsForUser(userId).stream()
+                .collect(Collectors.groupingBy(LoanPaymentAmountByLoan::getLoanId, Collectors.counting()));
 
         BigDecimal bankEmi = BigDecimal.ZERO;
         BigDecimal cardEmi = BigDecimal.ZERO;
@@ -271,7 +282,9 @@ public class LoanServiceImpl implements LoanService {
                 cardEmi = cardEmi.add(loan.getEmi());
             }
 
-            int emisLeft = Math.max(0, loan.getEmisRemaining() - calculator.emisElapsed(loan, LocalDate.now(clock)));
+            // Recorded payments, not elapsed dates - the same rule as the loan's own page.
+            int paid = paidByLoan.getOrDefault(loan.getId(), 0L).intValue();
+            int emisLeft = Math.max(0, loan.getEmisRemaining() - paid);
             remaining = remaining.add(loan.getEmi().multiply(BigDecimal.valueOf(emisLeft)));
 
             if (loan.getStatus() == LoanStatus.UNCONFIRMED) {
@@ -297,19 +310,31 @@ public class LoanServiceImpl implements LoanService {
     private LoanView toView(Loan loan, Account account) {
         LocalDate today = LocalDate.now(clock);
         int remainingAtBalanceDate = loan.getEmisRemaining();
-        int elapsed = calculator.emisElapsed(loan, today);
-        int emisLeft = Math.max(0, remainingAtBalanceDate - elapsed);
+
+        // What was actually paid, in period order - the evidence the balance moves on
+        // (ROADMAP 0.2). Before this, progress was counted by the calendar, so a loan
+        // shrank on its due date whether or not the money had left.
+        List<BigDecimal> paidAmounts = paymentRepository.findPaidAmounts(loan.getId(), loan.getUserId())
+                .stream().map(LoanPaymentAmount::getAmount).toList();
+        int paidPeriods = paidAmounts.size();
+
+        // How many *should* have been paid by now. The gap is reported, never assumed -
+        // neither "it must have been paid" nor "they've defaulted" is ours to decide.
+        int due = calculator.emisElapsed(loan, today);
+        int unrecorded = Math.max(0, due - paidPeriods);
+        LocalDate oldestUnrecordedDue = unrecorded > 0 ? calculator.dueDate(loan, paidPeriods + 1) : null;
+
+        int emisLeft = Math.max(0, remainingAtBalanceDate - paidPeriods);
         BigDecimal remainingPayments = MoneyScale.normalise(loan.getEmi().multiply(BigDecimal.valueOf(emisLeft)));
         LocalDate payoffDate = remainingAtBalanceDate > 0 ? calculator.dueDate(loan, remainingAtBalanceDate) : null;
 
         BigDecimal outstanding = null;
-        if (elapsed == 0) {
+        if (paidPeriods == 0) {
             outstanding = loan.getOutstandingBalance();
-        } else if (loan.getConfidence().supportsDerivedFigures()) {
-            List<AmortisationEntry> schedule = calculator.schedule(loan);
-            if (!schedule.isEmpty()) {
-                outstanding = schedule.get(Math.min(elapsed, schedule.size()) - 1).closingBalance();
-            }
+        } else if (loan.getConfidence().supportsDerivedFigures() && loan.getAnnualRate() != null) {
+            // Amortised by what was actually paid, so paying more than the EMI takes the
+            // surplus off the principal and the loan clears sooner.
+            outstanding = calculator.balanceAfterPayments(loan.getOutstandingBalance(), loan.getAnnualRate(), paidAmounts);
         }
 
         // Do the figures the user entered agree? Within one EMI, to allow for how banks round.
@@ -323,7 +348,8 @@ public class LoanServiceImpl implements LoanService {
                         CommitmentSource.LOAN, loan.getId(), loan.getUserId()).stream()
                 .map(Commitment::getId).findFirst().orElse(null);
 
-        return new LoanView(loan, account, payFrom, outstanding, payoffDate, elapsed, emisLeft, remainingPayments,
+        return new LoanView(loan, account, payFrom, outstanding, payoffDate, paidPeriods, unrecorded,
+                oldestUnrecordedDue, emisLeft, remainingPayments,
                 calculator.firstDueDate(loan), implied, consistent, planCommitmentId);
     }
 

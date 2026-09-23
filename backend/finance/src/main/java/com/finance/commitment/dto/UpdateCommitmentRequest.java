@@ -73,8 +73,29 @@ public record UpdateCommitmentRequest(
          * changes starts here. Omit (or on/before the bill's start) to change it throughout.
          * Not for bills that follow a loan or holding: their figures come from the source.
          */
-        LocalDate applyFrom
+        LocalDate applyFrom,
+
+        /**
+         * Why the change is being made, in the user's own words. Optional and never
+         * demanded - a forced "why?" produces "." as an answer. Recorded on the plan
+         * revision; its absence is recorded honestly as absent. See ADR-0015.
+         */
+        @Size(max = 255, message = "Keep this to one sentence")
+        String reason
 ) {
+
+    /** Without a stated reason. */
+    public UpdateCommitmentRequest(String name, CommitmentAmountType amountType, BigDecimal fixedAmount,
+                                   CommitmentFrequency frequency, Integer dueDay, Long accountId, Long categoryId,
+                                   Boolean mandatory, Boolean requiresVerification, LocalDate activeFrom,
+                                   LocalDate activeTo, String why, String ifSkipped, Boolean clearActiveTo,
+                                   Boolean clearCategory, CommitmentSource sourceType, Long sourceId,
+                                   Boolean clearSource, TransactionType settleAs, Long toAccountId,
+                                   LocalDate applyFrom) {
+        this(name, amountType, fixedAmount, frequency, dueDay, accountId, categoryId, mandatory, requiresVerification,
+                activeFrom, activeTo, why, ifSkipped, clearActiveTo, clearCategory, sourceType, sourceId, clearSource,
+                settleAs, toAccountId, applyFrom, null);
+    }
 
     /** Every field but how the bill is paid. */
     public UpdateCommitmentRequest(String name, CommitmentAmountType amountType, BigDecimal fixedAmount,
@@ -85,7 +106,7 @@ public record UpdateCommitmentRequest(
                                    Boolean clearSource) {
         this(name, amountType, fixedAmount, frequency, dueDay, accountId, categoryId, mandatory, requiresVerification,
                 activeFrom, activeTo, why, ifSkipped, clearActiveTo, clearCategory, sourceType, sourceId, clearSource,
-                null, null, null);
+                null, null, null, null);
     }
 
     public UpdateCommitmentRequest(String name, CommitmentAmountType amountType, BigDecimal fixedAmount,
@@ -96,6 +117,6 @@ public record UpdateCommitmentRequest(
                                    Boolean clearSource, TransactionType settleAs, Long toAccountId) {
         this(name, amountType, fixedAmount, frequency, dueDay, accountId, categoryId, mandatory, requiresVerification,
                 activeFrom, activeTo, why, ifSkipped, clearActiveTo, clearCategory, sourceType, sourceId, clearSource,
-                settleAs, toAccountId, null);
+                settleAs, toAccountId, null, null);
     }
 }

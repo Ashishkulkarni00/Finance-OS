@@ -18,6 +18,7 @@ import com.finance.common.exception.ErrorCode;
 import com.finance.common.money.MoneyScale;
 import com.finance.common.user.CurrentUserProvider;
 import com.finance.loan.AmortisationCalculator;
+import com.finance.loan.LoanPaymentRepository;
 import com.finance.loan.LoanRepository;
 import com.finance.loan.domain.Loan;
 import com.finance.loan.domain.LoanStatus;
@@ -59,6 +60,8 @@ public class CreditCardServiceImpl implements CreditCardService {
     private final PostingRepository postingRepository;
     private final CardDueDateCalculator dueDates;
     private final LoanRepository loanRepository;
+    /** Recorded EMI payments - what a card EMI's remaining count is derived from (ROADMAP 0.2). */
+    private final LoanPaymentRepository loanPaymentRepository;
     private final AmortisationCalculator amortisationCalculator;
     private final CurrentUserProvider currentUser;
     private final Clock clock;
@@ -71,6 +74,7 @@ public class CreditCardServiceImpl implements CreditCardService {
                                  PostingRepository postingRepository,
                                  CardDueDateCalculator dueDates,
                                  LoanRepository loanRepository,
+                                 LoanPaymentRepository loanPaymentRepository,
                                  AmortisationCalculator amortisationCalculator,
                                  CurrentUserProvider currentUser,
                                  Clock clock) {
@@ -82,6 +86,7 @@ public class CreditCardServiceImpl implements CreditCardService {
         this.postingRepository = postingRepository;
         this.dueDates = dueDates;
         this.loanRepository = loanRepository;
+        this.loanPaymentRepository = loanPaymentRepository;
         this.amortisationCalculator = amortisationCalculator;
         this.currentUser = currentUser;
         this.clock = clock;
@@ -212,14 +217,35 @@ public class CreditCardServiceImpl implements CreditCardService {
         Account payFrom = terms == null || terms.getPayFromAccountId() == null
                 ? null : accountService.getByIdIncludingDeleted(terms.getPayFromAccountId());
 
+        // Principal still owed on EMIs converted onto this card. A lender blocks it against
+        // the limit until it is repaid, so it is not credit you can spend - the card read
+        // as fully available while 55,302 of it was already committed.
+        BigDecimal emiBlocked = BigDecimal.ZERO;
+        for (Loan loan : loans) {
+            if (!account.getId().equals(loan.getPayFromAccountId()) || loan.getStatus() == LoanStatus.CLOSED) {
+                continue;
+            }
+            // Derived from recorded payments, the same as the loan's own page (ROADMAP 0.2),
+            // so the two can't disagree about what is still owed.
+            List<BigDecimal> paid = loanPaymentRepository.findPaidAmounts(loan.getId(), userId).stream()
+                    .map(com.finance.loan.LoanPaymentAmount::getAmount).toList();
+            BigDecimal stillOwed = paid.isEmpty() || loan.getAnnualRate() == null
+                    ? loan.getOutstandingBalance()
+                    : amortisationCalculator.balanceAfterPayments(loan.getOutstandingBalance(), loan.getAnnualRate(), paid);
+            emiBlocked = emiBlocked.add(stillOwed.max(BigDecimal.ZERO));
+        }
+        emiBlocked = MoneyScale.normalise(emiBlocked);
+
         BigDecimal available = null;
         BigDecimal utilisation = null;
         LocalDate nextStatement = null;
         LocalDate nextStatementDue = null;
         if (terms != null) {
-            available = MoneyScale.normalise(terms.getCreditLimit().subtract(outstanding));
+            // Not floored at zero: over the limit is a real state, and saying "0 available"
+            // would hide it.
+            available = MoneyScale.normalise(terms.getCreditLimit().subtract(outstanding).subtract(emiBlocked));
             utilisation = terms.getCreditLimit().signum() > 0
-                    ? owed.divide(terms.getCreditLimit(), 4, RoundingMode.HALF_UP) : null;
+                    ? owed.add(emiBlocked).divide(terms.getCreditLimit(), 4, RoundingMode.HALF_UP) : null;
             nextStatement = dueDates.nextStatementDate(today, terms.getStatementDay());
             nextStatementDue = dueDates.statementDueDate(nextStatement, terms.getDueDay());
         }
@@ -246,20 +272,22 @@ public class CreditCardServiceImpl implements CreditCardService {
             if (!account.getId().equals(loan.getPayFromAccountId()) || loan.getStatus() == LoanStatus.CLOSED) {
                 continue;
             }
-            int elapsed = amortisationCalculator.emisElapsed(loan, today);
-            int left = loan.getEmisRemaining() - elapsed;
+            // Recorded payments, matching the loan's own page - an EMI charged to the card
+            // counts once it's actually been settled, not once its date has passed.
+            int paid = loanPaymentRepository.findPaidAmounts(loan.getId(), loan.getUserId()).size();
+            int left = loan.getEmisRemaining() - paid;
             if (left <= 0) {
                 continue;
             }
             emis.add(new CreditCardView.CardEmi(loan.getId(),
                     accountService.getByIdIncludingDeleted(loan.getAccountId()).getName(), loan.getEmi(),
-                    amortisationCalculator.dueDate(loan, elapsed + 1),
+                    amortisationCalculator.dueDate(loan, paid + 1),
                     amortisationCalculator.dueDate(loan, loan.getEmisRemaining()), left));
             emiTotal = emiTotal.add(loan.getEmi());
         }
         emis.sort(Comparator.comparing(CreditCardView.CardEmi::nextChargeDate));
 
-        return new CreditCardView(account, terms, payFrom, outstanding, available, utilisation, unbilled,
+        return new CreditCardView(account, terms, payFrom, outstanding, available, utilisation, emiBlocked, unbilled,
                 nextStatement, nextStatementDue, latestStatus, emis, MoneyScale.normalise(emiTotal));
     }
 

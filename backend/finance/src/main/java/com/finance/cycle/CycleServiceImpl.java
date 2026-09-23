@@ -8,8 +8,10 @@ import com.finance.common.exception.ErrorCode;
 import com.finance.common.exception.ResourceNotFoundException;
 import com.finance.common.money.MoneyScale;
 import com.finance.common.user.CurrentUserProvider;
+import com.finance.commitment.CommitmentInstanceRepository;
 import com.finance.cycle.domain.Cycle;
 import com.finance.cycle.domain.CycleSnapshot;
+import com.finance.plan.PlanRevisionRepository;
 import com.finance.position.NetWorthResult;
 import com.finance.position.PositionResult;
 import com.finance.position.PositionService;
@@ -42,6 +44,9 @@ public class CycleServiceImpl implements CycleService {
     private final TransactionRepository transactionRepository;
     private final PositionService positionService;
     private final CategoryService categoryService;
+    /** Read at close only, for the snapshot's planned-versus-actual figures (ADR-0015). */
+    private final CommitmentInstanceRepository instanceRepository;
+    private final PlanRevisionRepository planRevisionRepository;
     private final CurrentUserProvider currentUser;
     private final Clock clock;
 
@@ -51,8 +56,12 @@ public class CycleServiceImpl implements CycleService {
                             TransactionRepository transactionRepository,
                             PositionService positionService,
                             CategoryService categoryService,
+                            CommitmentInstanceRepository instanceRepository,
+                            PlanRevisionRepository planRevisionRepository,
                             CurrentUserProvider currentUser,
                             Clock clock) {
+        this.instanceRepository = instanceRepository;
+        this.planRevisionRepository = planRevisionRepository;
         this.repository = repository;
         this.snapshotRepository = snapshotRepository;
         this.cycleResolver = cycleResolver;
@@ -109,6 +118,13 @@ public class CycleServiceImpl implements CycleService {
         PositionResult position = positionService.currentPosition();
         NetWorthResult netWorth = positionService.currentNetWorth();
 
+        // Plan versus actual, captured while the occurrences still say what they said at
+        // close. Everything else on this row is an actual; without these the cycle could
+        // never be compared against the plan that was in force during it (ADR-0015).
+        PlanAdherence adherence = PlanAdherence.from(
+                instanceRepository.findByCycleIdAndUserId(cycle.getId(), userId));
+        int planRevisions = (int) planRevisionRepository.countByUserIdAndCycleId(userId, cycle.getId());
+
         CycleSnapshot snapshot = CycleSnapshot.builder()
                 .userId(userId)
                 .cycleId(cycle.getId())
@@ -121,6 +137,11 @@ public class CycleServiceImpl implements CycleService {
                 .realBalance(position.complete() ? MoneyScale.normalise(position.realBalance()) : null)
                 .netWorth(MoneyScale.normalise(netWorth.netWorth()))
                 .totalDebt(MoneyScale.normalise(netWorth.totalDebt()))
+                .plannedCommittedTotal(adherence.plannedTotal())
+                .actualCommittedTotal(adherence.actualTotal())
+                .commitmentsPlanned(adherence.planned())
+                .commitmentsKept(adherence.kept())
+                .planRevisionsCount(planRevisions)
                 .createdAt(Instant.now())
                 .build();
 

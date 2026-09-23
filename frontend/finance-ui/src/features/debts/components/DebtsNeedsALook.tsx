@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, ChevronRight } from 'lucide-react';
 import { Card } from '@/components/Card';
 import { SectionHeader } from '@/components/SectionHeader';
 import { formatMoney } from '@/lib/money';
+import { formatShortDate } from '@/lib/dates';
 import { termsMismatch } from '../loanTerms';
 import { LoanPlanLink, loanNeedsPlanBill } from './LoanPlanLink';
 import type { LoanResponse } from '@/types/loan';
@@ -58,13 +59,16 @@ function AttentionCard({
  * <p>Always rendered, with a heading and a calm line when empty, the same as Today, This
  * Month and Accounts; this zone used to vanish entirely when there was nothing in it.
  *
- * <p>Three checks, most consequential first:
+ * <p>Checks in order of consequence:
  * <ul>
  *   <li><strong>Payment unverified</strong> - counted as still owed until confirmed.</li>
+ *   <li><strong>An EMI fell due and wasn't recorded</strong> - while that's true, the
+ *       balance, EMIs left and payoff date are all still describing last month.</li>
+ *   <li><strong>Figures that disagree</strong> - everything shown rests on them.</li>
  *   <li><strong>Terms not supplied</strong> - no payoff date, no repaid figure.</li>
- *   <li><strong>Paying account not recorded</strong> - new. The row said "not recorded"
- *       in italics and nothing else did. Knowing which account an EMI depends on is how
- *       you'd notice that account can't cover it.</li>
+ *   <li><strong>EMI not in the plan</strong> - what's free reads that much too high.</li>
+ *   <li><strong>Paying account not recorded</strong> - knowing which account an EMI
+ *       depends on is how you'd notice that account can't cover it.</li>
  * </ul>
  * One card per loan: a loan with several gaps shows the most consequential, so the zone
  * reads as a short to-do list rather than the same loan three times.
@@ -79,6 +83,25 @@ export function DebtsNeedsALook({ loans }: { loans: LoanResponse[] }) {
           title={`${loan.account.name} — this month’s payment isn’t verified`}
           because={`${formatMoney(loan.emi)} was due, and we couldn’t confirm it left.`}
           consequence="It’s counted as still owed until you confirm it — the safe direction to be wrong in. Open it to check and mark it paid."
+        />,
+      ];
+    }
+    // An EMI that fell due and wasn't recorded comes first among the rest: until it is,
+    // this loan's balance, EMIs left and payoff date are all still describing last month
+    // (ROADMAP 0.2). Nothing else shown for the loan is trustworthy while it's true.
+    if (loan.unrecordedEmis > 0) {
+      const n = loan.unrecordedEmis;
+      return [
+        <AttentionCard
+          key={loan.id}
+          loan={loan}
+          title={`${loan.account.name} — ${n === 1 ? 'an EMI isn’t recorded' : `${n} EMIs aren’t recorded`}`}
+          because={
+            loan.oldestUnrecordedDue
+              ? `${formatMoney(loan.emi)} was due ${formatShortDate(loan.oldestUnrecordedDue)}${n > 1 ? `, and ${n - 1} more since` : ''}, and nothing has been settled against it.`
+              : `${formatMoney(loan.emi)} has fallen due with nothing settled against it.`
+          }
+          consequence="What's owed still counts it, because an EMI isn't assumed paid just because its date passed. Settle it on Months, or correct what's owed here if you paid it another way."
         />,
       ];
     }

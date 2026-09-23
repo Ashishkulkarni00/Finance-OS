@@ -10,6 +10,8 @@ import {
   useGetReservationsQuery,
   useUpdateReservationMutation,
 } from '@/services/reservationService';
+import { Select } from '@/components/Select';
+import { useGetGoalsQuery } from '@/services/goalService';
 import type { ReservationResponse } from '@/types/reservation';
 
 const VALID_AMOUNT = /^\d+(\.\d{1,2})?$/;
@@ -22,6 +24,7 @@ function message(error: unknown, fallback: string): string {
 function ReservationForm({
   amount: initialAmount,
   purpose: initialPurpose,
+  goalId: initialGoalId,
   saving,
   submitLabel,
   onSubmit,
@@ -29,14 +32,18 @@ function ReservationForm({
 }: {
   amount?: string;
   purpose?: string;
+  goalId?: number | null;
   saving: boolean;
   submitLabel: string;
-  onSubmit: (values: { amount: string; purpose: string }) => Promise<void>;
+  onSubmit: (values: { amount: string; purpose: string; goalId: number | null }) => Promise<void>;
   onCancel: () => void;
 }) {
   const [amount, setAmount] = useState(initialAmount ?? '');
   const [purpose, setPurpose] = useState(initialPurpose ?? '');
+  const [goalId, setGoalId] = useState(initialGoalId != null ? String(initialGoalId) : '');
   const [error, setError] = useState<string | null>(null);
+  const { data: goalsPage } = useGetGoalsQuery();
+  const goals = (goalsPage?.content ?? []).filter((g) => !g.archived);
 
   const submit = async () => {
     const trimmed = amount.trim();
@@ -50,7 +57,7 @@ function ReservationForm({
     }
     setError(null);
     try {
-      await onSubmit({ amount: trimmed, purpose: purpose.trim() });
+      await onSubmit({ amount: trimmed, purpose: purpose.trim(), goalId: goalId ? Number(goalId) : null });
     } catch (err) {
       setError(message(err, "Couldn't save that."));
     }
@@ -98,6 +105,24 @@ function ReservationForm({
           Cancel
         </Button>
       </div>
+
+      {/* Money set aside for a goal counts towards it without moving anywhere. The column
+          has been here since V3 and there was never a way to set it. */}
+      {goals.length > 0 && (
+        <label className="flex flex-wrap items-center gap-space-2 text-caption text-ink-muted">
+          Counts towards
+          <Select
+            variant="row"
+            ariaLabel="The goal this money is set aside for"
+            value={goalId}
+            placeholder="Nothing in particular"
+            clearable
+            options={goals.map((g) => ({ value: String(g.id), label: g.name }))}
+            onChange={(v) => setGoalId(v ?? '')}
+          />
+          {goalId && <span>— it stays in this account, and the goal counts it as saved.</span>}
+        </label>
+      )}
       {error && <span className="text-caption text-critical">{error}</span>}
     </div>
   );
@@ -115,6 +140,7 @@ function ReservationRow({ reservation }: { reservation: ReservationResponse }) {
       <ReservationForm
         amount={reservation.amount}
         purpose={reservation.purpose}
+        goalId={reservation.goalId}
         saving={saving}
         submitLabel="Save"
         onCancel={() => setEditing(false)}

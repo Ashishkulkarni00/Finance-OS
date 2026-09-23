@@ -71,9 +71,7 @@ export function CommitmentRulesSection() {
             key={rule.id}
             domainRule="commit"
             primary={rule.name}
-            secondary={
-              rule.ifSkipped ?? `${FREQUENCY_LABEL[rule.frequency]} · due the ${rule.dueDay} · ${rule.account.name}`
-            }
+            secondary={`${FREQUENCY_LABEL[rule.frequency]} · due the ${rule.dueDay} · ${rule.account.name}`}
             onClick={() => navigate(`/commitment-rules/${rule.id}`)}
             trailing={
               <div className="flex items-center gap-space-3">

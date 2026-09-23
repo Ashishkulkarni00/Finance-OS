@@ -11,7 +11,7 @@ import { ADD_LABEL, addTargetFor } from './addTarget';
  * (one card, one loan, one bill) keeps its section lit.
  */
 const NAV_ITEMS = [
-  { to: '/today', label: 'Today', icon: Compass, owns: ['/today'] },
+  { to: '/today', label: 'Today', icon: Compass, owns: ['/today', '/needs-you'] },
   { to: '/month', label: 'Months', icon: Calendar, owns: ['/month', '/commitments', '/commitment-rules'] },
   { to: '/ahead', label: 'Ahead', icon: Target, owns: ['/ahead', '/goals'] },
   { to: '/money', label: 'Money', icon: Wallet, owns: ['/money', '/accounts', '/cards', '/loans'] },

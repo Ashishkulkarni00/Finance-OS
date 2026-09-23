@@ -178,7 +178,6 @@ const EMPTY: CommitmentFormValues = {
   categoryId: null,
   mandatory: true,
   why: '',
-  ifSkipped: '',
 };
 
 /**
@@ -317,7 +316,6 @@ export function AddCommitmentSheet({ open, onClose, defaultStart, preset }: AddC
         activeFrom: startsFromNext ? today : (firstCycle?.start ?? today),
         activeTo: once ? (firstCycle?.end ?? firstDue) : lastPayment.lastDue,
         why: values.why?.trim() || null,
-        ifSkipped: values.ifSkipped?.trim() || null,
       }).unwrap();
     } catch (err) {
       const appError = err as { message?: string; field?: string };
@@ -495,7 +493,9 @@ export function AddCommitmentSheet({ open, onClose, defaultStart, preset }: AddC
                   hint={
                     once
                       ? 'The month it happens - the exact date is shown beside it.'
-                      : 'The month of the first one - the exact date is shown beside it. Pick an earlier month if it has already been running for a while.'
+                      : // Not "when did you first ever pay this" - that quietly creates an
+                        // unpaid entry in every month since.
+                        'The first month it should show in your plan - usually this one, not when you first ever paid it.'
                   }
                 >
                   <PaymentMonthPicker
@@ -511,7 +511,7 @@ export function AddCommitmentSheet({ open, onClose, defaultStart, preset }: AddC
               <FormRow
                 label="First amount"
                 error={firstAmountError ?? undefined}
-                hint="Optional. If you already know what the first one comes to, enter it. Each later one starts as “amount unknown” until you give it a number on Months."
+                hint="Optional. Later months you fill in as you go."
               >
                 <span className="flex items-center gap-space-1">
                   <span className="num text-ink-muted">₹</span>

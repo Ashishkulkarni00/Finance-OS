@@ -69,6 +69,45 @@ public class CycleSnapshot {
     @Column(name = "total_debt", nullable = false, precision = 15, scale = 2)
     private BigDecimal totalDebt;
 
+    // -----------------------------------------------------------------------------
+    // Plan versus actual (ADR-0015). Everything above is an actual. Without these, a
+    // closed cycle cannot be compared against the plan that was in force during it,
+    // even in principle - so "did I keep to my plan?" had no data behind it at all.
+    //
+    // All five are nullable, and null means "this cycle closed before any of it was
+    // recorded". Backfilling a zero would have every pre-existing month claim it planned
+    // nothing and kept nothing - permanently, in an immutable row (ADR-0006).
+    // -----------------------------------------------------------------------------
+
+    /**
+     * What the cycle's commitments were expected to cost, summed at close.
+     *
+     * <p>Null when any one of them had no known amount - a total with the unknowns
+     * silently dropped would be permanently wrong, and this row is permanent (ADR-0006).
+     */
+    @Column(name = "planned_committed_total", precision = 15, scale = 2)
+    private BigDecimal plannedCommittedTotal;
+
+    /** What they actually cost - confirmed amounts only. */
+    @Column(name = "actual_committed_total", precision = 15, scale = 2)
+    private BigDecimal actualCommittedTotal;
+
+    /** How many commitments fell due in the cycle. */
+    @Column(name = "commitments_planned")
+    private Integer commitmentsPlanned;
+
+    /**
+     * How many were kept - paid, or settled in an earlier cycle. The operational form of
+     * the North Star: commitments kept is the number that has to go up.
+     */
+    @Column(name = "commitments_kept")
+    private Integer commitmentsKept;
+
+    /** How many times the plan itself changed during the cycle - why this month may not
+     *  be comparable with the last. */
+    @Column(name = "plan_revisions_count")
+    private Integer planRevisionsCount;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 }

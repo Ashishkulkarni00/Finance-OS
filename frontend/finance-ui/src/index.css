@@ -205,3 +205,62 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* An effect toast arriving (ADR-0017). It appears without the user asking, so it slides in
+   from the edge it lives on rather than materialising - movement says "this is new" without
+   a colour change or a sound. Short and eased-out: long enough to notice, over before it
+   becomes something to wait for.
+
+   `prefers-reduced-motion` is honoured - for someone who asks for less movement, a toast
+   sliding across the screen is exactly the kind they mean. */
+@keyframes effect-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+.effect-toast {
+  animation: effect-toast-in 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* How long it will stay, shown rather than guessed at. The bar IS the timer: its
+   animationend is what dismisses the toast, so pausing it on hover pauses the
+   disappearance, and there is no second countdown that could disagree with what is drawn.
+   Reaching for something counting down and having it wait is expected; having it vanish
+   under the cursor is resented. */
+@keyframes effect-toast-timer {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+.effect-toast-timer {
+  animation-name: effect-toast-timer;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+.effect-toast:hover .effect-toast-timer,
+.effect-toast:focus-within .effect-toast-timer {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .effect-toast {
+    animation: none;
+  }
+
+  /* The countdown still has to run - it is the dismissal, not decoration - but it need not
+     be watched. Held at full width, it expires without drawing the eye across the screen. */
+  .effect-toast-timer {
+    transform: scaleX(1);
+  }
+}
