@@ -10,7 +10,7 @@ const raw = fetchBaseQuery({
     if (!(body instanceof FormData)) {
       headers.set('Content-Type', 'application/json');
     }
-    return headers; // an auth header lands here in Phase 3
+    return headers; // an auth header lands here in Phase 4
   },
 });
 

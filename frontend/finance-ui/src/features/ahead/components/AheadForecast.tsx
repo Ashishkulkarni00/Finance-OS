@@ -147,7 +147,7 @@ function MonthRow({ month, notes }: { month: ForecastMonth; notes: Note[] }) {
 }
 
 /**
- * Ahead's 12-month view (STRATEGY_DEEP_DIVE §D/§F, Phase 2 pieces 2-3): the plan projected
+ * Ahead's 12-month view (STRATEGY_DEEP_DIVE §D/§F, Phase 3 pieces 2-3): the plan projected
  * forward from `GET /forecast`, plus the money-unlock calendar built from the same data.
  *
  * <p><strong>The current month is deliberately not listed.</strong> Months knows it far

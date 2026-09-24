@@ -14,7 +14,7 @@ import java.time.LocalDate;
 
 /**
  * Files a settled EMI against the period it paid - the evidence a loan's balance is derived
- * from (Phase 0.2, ROADMAP 0.2).
+ * from (Phase 1.2, ROADMAP 1.2).
  *
  * <p>Before this, `loan_payments` had existed unused since V5 and a loan's progress was
  * counted by the calendar, so a loan shrank whether or not you had actually paid it. The

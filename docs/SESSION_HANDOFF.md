@@ -9,7 +9,7 @@ Rewritten from scratch 2026-09-17; stack, feature map and data snapshot refreshe
 4. `product/FIX_BACKLOG.md`.
 
 **Current design work:**
-- `ROADMAP.md` Phase 1 — `GET /financial-state` + the Pulse. Not started.
+- `ROADMAP.md` Phase 2 — `GET /financial-state` + the Pulse. Not started.
 - `product/DISCIPLINE_AND_TRUST.md` (parked by the user 2026-09-18).
 - `product/STRATEGY_DEEP_DIVE.md` is **superseded** (`DOC_INDEX.md` §2) — history, not a brief.
 
@@ -43,7 +43,7 @@ Rewritten from scratch 2026-09-17; stack, feature map and data snapshot refreshe
   - Spring Boot 4.1.1, Hibernate 7, Jackson 3 (`tools.jackson.*`), Flyway, MySQL 8.
   - The latest migration is **V20** (`insight_state`). V18 plan revisions · V19 insurance
     policies · V20 notification state — each asked for explicitly; the freeze is back on.
-  - Tests: `JAVA_HOME=C:/Users/DELL/.jdks/corretto-21.0.4 MAVEN_OPTS="-Xmx512m" ./mvnw.cmd -B -o test`. Last known **125/125**, but **frozen since 2026-09-17** and not run since; Phase 0.1-0.4 added none. Treat that number as history, not as a current pass. Use `test-compile` — compiling is not running.
+  - Tests: `JAVA_HOME=C:/Users/DELL/.jdks/corretto-21.0.4 MAVEN_OPTS="-Xmx512m" ./mvnw.cmd -B -o test`. Last known **125/125**, but **frozen since 2026-09-17** and not run since; Phase 1.1-1.4 added none. Treat that number as history, not as a current pass. Use `test-compile` — compiling is not running.
   - Dev server: `:8080` with devtools; it reloads on compile.
     - A test build can trigger a restart. Wait with an until-loop on `/api/v1/health`, not `sleep`.
   - MySQL client: `/c/Program Files/MySQL/MySQL Server 8.0/bin/`. Credentials: `src/main/resources/application-local.properties`.
@@ -67,7 +67,7 @@ Rewritten from scratch 2026-09-17; stack, feature map and data snapshot refreshe
 ## 3. What exists (feature map)
 - **Navigation:** Today · Months · Ahead · Money (tabs: Overview · Cards · Debts · Investments · **Cover**) · Ledger, plus Add. Cover added 2026-09-21 (ADR-0016).
 - **Needs you** (`/needs-you`, 2026-09-23): every insight, uncapped, grouped by what it costs to ignore. Reached from the "See all" on Today's and Months' own lists, which are unchanged. A **drill-down of Today, not a sixth tab** — Today's job is already "where do I stand now". Polls every 30s; a row opens what it is about.
-- **The app speaks on write** (ROADMAP 0.4, ADR-0017): recording or settling closes the sheet and reports what it did in a toast, bottom-right — what is left to spend today before → after, free until salary, and anything that just crossed a line. `QUIET` expires in 10s and is held while hovered; `HELD` waits. A warning is announced **once, when it becomes true**, and once again when it stops; `insight_state` is the memory.
+- **The app speaks on write** (ROADMAP 1.4, ADR-0017): recording or settling closes the sheet and reports what it did in a toast, bottom-right — what is left to spend today before → after, free until salary, and anything that just crossed a line. `QUIET` expires in 10s and is held while hovered; `HELD` waits. A warning is announced **once, when it becomes true**, and once again when it stops; `insight_state` is the memory.
 - **Ahead (since 2026-09-19):** a 12-month forecast (`GET /forecast`, a pure rule projection - not blended with actuals) with a money-unlock calendar, above the Goals section. Reserve-ahead, what-if and Get back on track are next.
 - **Accounts:**
   - Typed accounts (bank, cash, card, loan, investment); "spending money?" decides what counts as held.

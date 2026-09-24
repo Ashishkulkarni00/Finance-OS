@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-09-21
-**Context:** `ROADMAP.md` 0.3 · `FINANCIAL_STATE.md` missing primitives · `FINANCIAL_OS.md` D7
+**Context:** `ROADMAP.md` 1.3 · `FINANCIAL_STATE.md` missing primitives · `FINANCIAL_OS.md` D7
 
 ---
 

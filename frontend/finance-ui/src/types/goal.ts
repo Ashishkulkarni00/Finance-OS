@@ -20,6 +20,16 @@ export interface GoalResponse {
   /** (saved + spent) against the target. */
   progressPercent: number;
   requiredPerMonth: Money | null;
+  /**
+   * What the plan actually puts in each month, from the bills that fund this goal.
+   *
+   * **Null is unknown, not zero** — a funding bill whose amount varies has no rate.
+   * One-off top-ups are excluded: money once is not money a month.
+   */
+  fundedPerMonth: Money | null;
+  /** How many funding bills have no fixed amount — why `pace` may be `UNKNOWN`. */
+  fundingVaries: number;
+  /** Measured as funding against requirement, never against the calendar — GoalPace.java. */
   pace: GoalPace;
   /** 0-100, share of the time from adding the goal to its target date that has gone. */
   timeElapsedPercent: number | null;

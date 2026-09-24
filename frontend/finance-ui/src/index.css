@@ -264,3 +264,73 @@
     transform: scaleX(1);
   }
 }
+
+/* ===========================================================================
+   Motion system — DESIGN_SYSTEM §10.
+   ===========================================================================
+   Four durations and two curves, so no file invents its own timing. Deliberately
+   CSS rather than a motion library: everything here is opacity and transform,
+   which the compositor handles without React re-rendering or a 50KB dependency.
+
+   Entrances are `ease-out` (fast, then settle — it reads as arriving). State
+   changes are `ease-in-out` (symmetrical — it reads as responding). No springs:
+   this is a financial ledger, and precision is the tone, not play. */
+:root {
+  --motion-fast: 150ms;      /* feedback: hover, press, colour */
+  --motion-normal: 260ms;    /* entrance of one thing */
+  --motion-emphasis: 420ms;  /* the page shell arriving */
+  --motion-stagger: 55ms;    /* between siblings in one group */
+  --motion-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* The financial picture being revealed, not a page performing an animation.
+   8px is deliberately small: enough that the eye registers arrival, not enough
+   to read as movement. `both` holds the from-state before the delay elapses, so
+   a staggered item never flashes at full opacity first. */
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.reveal {
+  animation: reveal var(--motion-normal) var(--motion-ease-out) both;
+  animation-delay: var(--reveal-delay, 0ms);
+}
+
+/* The shell itself: longer and gentler than its contents, so the page settles
+   and the figures arrive within it rather than racing it. */
+.reveal-shell {
+  animation: reveal var(--motion-emphasis) var(--motion-ease-out) both;
+}
+
+/* A press that answers. 0.98 is under the threshold of looking like a bounce and
+   over the threshold of feeling dead. */
+.pressable {
+  transition: transform var(--motion-fast) var(--motion-ease-out);
+}
+
+.pressable:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The global reset above already flattens durations. Delays are not durations,
+     and a stagger left intact would leave content invisible behind `both` for the
+     length of its delay - motion reduced into a blank screen. Zeroed here so every
+     revealed element is simply present. */
+  .reveal,
+  .reveal-shell {
+    animation-delay: 0ms !important;
+  }
+
+  .pressable:active:not(:disabled) {
+    transform: none;
+  }
+}

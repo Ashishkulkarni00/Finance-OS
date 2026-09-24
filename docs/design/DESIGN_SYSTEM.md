@@ -276,8 +276,12 @@ becomes a word in the product's vocabulary.
 
 ## 10. Motion
 
-Restrained. 150ms feedback, 250ms transition, `ease-out`. Respect `prefers-reduced-motion`
-absolutely.
+Restrained, and **tokenised** - `--motion-fast` 150ms (feedback), `--motion-normal` 260ms
+(one thing arriving), `--motion-emphasis` 420ms (the page shell), `--motion-stagger` 55ms
+(between siblings). `--motion-ease-out` for entrances, `--motion-ease-in-out` for state
+changes. No springs: this is a ledger, and the tone is precision, not play. Respect
+`prefers-reduced-motion` absolutely - `index.css` flattens every duration globally **and**
+zeroes reveal delays, because a delay left intact is motion reduced into a blank screen.
 
 **The one motion that matters:** on save, the hero number **counts** to its new value over
 250ms. That is the feedback loop turning recording into awareness — the single most
@@ -285,9 +289,19 @@ important animation in the product, and worth the craft.
 
 Everything else: a fade, a height transition, nothing that draws attention to itself.
 
-**Banned:** parallax, bouncing, staggered card entrances, animated counters on page load
-(a number that animates every visit is decoration; a number that animates *on change* is
-information), confetti of any kind.
+**Entrance (revised 2026-09-24).** The page reveals itself once, in the order the
+information is read: context → figure → explanation → summary → what needs you. Opacity and an
+8px rise, nothing else. Siblings in one group are staggered ~55ms so the group reads as *one
+thing arriving*; the moment a stagger reads as N separate events it is too long.
+
+This revises - it does not repeal - the ban below. What was banned, and stays banned, is the
+**showy** stagger: cards flying in from different directions, each announcing itself. An 8px
+rise you notice only by its absence is the opposite thing.
+
+**Banned:** parallax, bouncing, cards entering from different directions, scroll-triggered
+reveals, animated counters on page load (a number that animates every visit is decoration; a
+number that animates *on change* is information - `useAnimatedMoney` does the second and must
+never do the first), confetti of any kind.
 
 ---
 

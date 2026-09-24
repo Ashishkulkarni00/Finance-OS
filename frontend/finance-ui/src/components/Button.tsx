@@ -15,7 +15,7 @@ export function Button({ variant = 'secondary', size = 'default', className, chi
   return (
     <button
       className={cn(
-        'inline-flex items-center justify-center gap-space-2 rounded-lg text-label font-medium transition-colors duration-150 disabled:opacity-40 disabled:pointer-events-none',
+        'pressable inline-flex items-center justify-center gap-space-2 rounded-lg text-label font-medium transition-[colors,transform] duration-150 disabled:opacity-40 disabled:pointer-events-none',
         size === 'default' ? 'h-11 px-space-5' : 'h-9 px-space-4 text-caption',
         variant === 'primary' && 'bg-accent text-white hover:bg-accent-hover',
         variant === 'secondary' && 'border border-border text-ink bg-surface hover:bg-sunken',

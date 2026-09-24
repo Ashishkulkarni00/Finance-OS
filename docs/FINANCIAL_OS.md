@@ -169,7 +169,7 @@ AI may **read** the state, **explain** it in the user's words, and **route** to 
 
 It must never: compute a financial figure itself, invent a number not present in the state,
 decide on the user's behalf, or move money. Every AI answer cites the state values it used.
-Sequencing: AI is Phase 6 — it is only as good as the state engine underneath, and shipping
+Sequencing: AI is Phase 7 — it is only as good as the state engine underneath, and shipping
 it earlier would produce a confident liar.
 
 ---
@@ -213,7 +213,7 @@ badly on this; one that helps you act correctly and then leaves you alone scores
 | D5 | **Decisions are first-class records** | Otherwise advice evaporates and accountability is impossible | New `decision` entity + follow-through tracking |
 | D6 | **The system reacts on write**, not on dashboard visit | An engine, not a report | Re-evaluate state + attention in the write path; threshold crossings surface at the point of action |
 | D7 | **Protection (insurance) is a primitive** | Health insurance is currently modelled as a *loan* | New entity; feeds runway and risk |
-| D8 | **AI is an interface over the state engine**, never a calculator | Prevents a confident liar | Phase 6, after state |
+| D8 | **AI is an interface over the state engine**, never a calculator | Prevents a confident liar | Phase 7, after state |
 | D9 | **No monetisation that conflicts with advice** | The category's failure mode | Rules out lending/distribution revenue |
 
 ---

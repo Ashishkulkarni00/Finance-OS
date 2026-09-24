@@ -17,7 +17,7 @@ import java.util.Objects;
 import java.util.function.Supplier;
 
 /**
- * Runs a write and reports what it did (ROADMAP 0.4, ADR-0017).
+ * Runs a write and reports what it did (ROADMAP 1.4, ADR-0017).
  *
  * <p>Used by wrapping the write itself:
  *

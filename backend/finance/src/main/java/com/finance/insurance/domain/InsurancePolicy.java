@@ -20,7 +20,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 /**
- * Being <strong>covered</strong> - the protection primitive (ROADMAP 0.3).
+ * Being <strong>covered</strong> - the protection primitive (ROADMAP 1.3).
  *
  * <p>Everything else in the product answers "what do I have" or "what do I owe". A policy
  * answers a third question: <em>what would I not have to find if this happened?</em> That

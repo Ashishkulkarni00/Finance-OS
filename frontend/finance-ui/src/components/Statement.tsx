@@ -1,4 +1,4 @@
-import { createContext, useContext, type ReactNode } from 'react';
+import { createContext, useContext, type CSSProperties, type ReactNode } from 'react';
 import { Amount, type AmountRole } from './Amount';
 import { cn } from '@/lib/cn';
 import type { Money } from '@/lib/money';
@@ -6,11 +6,28 @@ import type { Money } from '@/lib/money';
 /** Rows must render the same number of cells as the parent has columns, or the grid
  *  tracks shift and the whole point (alignment) is lost. */
 const NotesColumn = createContext(false);
+const Leaders = createContext(false);
 
 interface StatementProps {
   children: ReactNode;
   /** Adds a third column for the plain-language annotation beside each figure. */
   notes?: boolean;
+  /**
+   * Draws a dotted leader from each label to its figure.
+   *
+   * <p>Right-aligning figures is what makes digits stack, and on a wide measure that
+   * leaves a long empty run between a short label and its number - the eye loses the row
+   * halfway across and has to start again. Closing the gap would fix the tracking and
+   * destroy the alignment, which is the more valuable of the two.
+   *
+   * <p>A leader keeps both: the gap stays, and the eye is carried over it. Indexes, menus
+   * and printed ledgers have solved it this way for a very long time, and this statement
+   * is modelled on exactly those.
+   *
+   * <p>Off by default - it earns its keep on a full-width statement and only adds noise on
+   * a narrow one, where the run is short enough to cross unaided.
+   */
+  leaders?: boolean;
   className?: string;
 }
 
@@ -23,15 +40,17 @@ interface StatementProps {
  * ("Precise - tabular figures, aligned decimals") and §12: a derivation the user can
  * follow is what makes a number trustworthy rather than merely displayed.
  */
-export function Statement({ children, notes, className }: StatementProps) {
+export function Statement({ children, notes, leaders, className }: StatementProps) {
   return (
     <NotesColumn.Provider value={notes ?? false}>
-      <div
-        className={cn('grid w-full', className)}
-        style={{ gridTemplateColumns: notes ? '1fr auto minmax(0, 22rem)' : '1fr auto' }}
-      >
-        {children}
-      </div>
+      <Leaders.Provider value={leaders ?? false}>
+        <div
+          className={cn('grid w-full', className)}
+          style={{ gridTemplateColumns: notes ? '1fr auto minmax(0, 22rem)' : '1fr auto' }}
+        >
+          {children}
+        </div>
+      </Leaders.Provider>
     </NotesColumn.Provider>
   );
 }
@@ -53,6 +72,18 @@ interface StatementRowProps {
   accent?: boolean;
   /** A constituent of the row above it - quieter, and stepped in. */
   indent?: boolean;
+  /**
+   * Milliseconds to hold this row back on first paint, for a group that should read as one
+   * summary arriving rather than N separate events (DESIGN_SYSTEM §10).
+   *
+   * <p>Applied to the **cells**, not the row: a row is `display: contents` and has no box of
+   * its own to animate. All three cells carry the same delay, so they move together and the
+   * alignment never breaks mid-flight.
+   *
+   * <p>Opt-in and off by default. A statement the user has scrolled back to should not
+   * re-perform itself.
+   */
+  revealDelay?: number;
 }
 
 const VALUE_ROLE: Record<Variant, AmountRole> = {
@@ -95,18 +126,36 @@ export function StatementRow({
   emphasiseNegative,
   accent,
   indent,
+  revealDelay,
 }: StatementRowProps) {
   const hasNotesColumn = useContext(NotesColumn);
-  const cell = cn(EDGE[variant], indent ? 'py-space-2' : PAD[variant]);
+  // A constituent line is already stepped in and sits directly under its parent, so it has
+  // no long run to cross - a leader there would be decoration.
+  const hasLeader = useContext(Leaders) && !indent;
+  const cell = cn(EDGE[variant], indent ? 'py-space-2' : PAD[variant], revealDelay != null && 'reveal');
+  const cellStyle = revealDelay != null ? ({ '--reveal-delay': `${revealDelay}ms` } as CSSProperties) : undefined;
   const valueRole = indent ? 'caption' : VALUE_ROLE[variant];
+  const labelClass = indent ? 'text-caption text-ink-muted' : LABEL_CLASSES[variant];
 
   return (
     <div className="contents">
-      <div className={cn(cell, 'min-w-0 pr-space-5', indent && 'pl-space-4')}>
-        <span className={cn('block truncate', indent ? 'text-caption text-ink-muted' : LABEL_CLASSES[variant])}>{label}</span>
+      <div className={cn(cell, 'min-w-0 pr-space-5', indent && 'pl-space-4')} style={cellStyle}>
+        {hasLeader ? (
+          <span className="flex items-baseline gap-space-2">
+            <span className={cn('min-w-0 truncate', labelClass)}>{label}</span>
+            {/* Absolutely positioned so it rides just under the baseline rather than
+                stretching the row, and hidden from assistive tech - it carries the eye,
+                not meaning. */}
+            <span aria-hidden className="relative min-w-space-4 flex-1 self-baseline">
+              <span className="absolute inset-x-0 bottom-[0.28em] border-b border-dotted border-line" />
+            </span>
+          </span>
+        ) : (
+          <span className={cn('block truncate', labelClass)}>{label}</span>
+        )}
       </div>
 
-      <div className={cn(cell, 'text-right tabular-nums')}>
+      <div className={cn(cell, 'text-right tabular-nums')} style={cellStyle}>
         {valueNode ?? (
           <span className={cn('inline-flex items-baseline', accent && 'text-accent')}>
             {deduct && !accent && <span className="num mr-[0.15em] text-ink-muted">−</span>}
@@ -116,7 +165,7 @@ export function StatementRow({
       </div>
 
       {hasNotesColumn && (
-        <div className={cn(cell, 'pl-space-5')}>
+        <div className={cn(cell, 'pl-space-5')} style={cellStyle}>
           {note !== undefined && <span className="block text-caption text-ink-muted">{note}</span>}
         </div>
       )}

@@ -87,7 +87,7 @@ calendar periods* (D3 — should come from recorded payments).
 
 ## 4. Primitives
 
-Written 2026-09-20 as a list of what was **missing**. Three were built in Phase 0; they stay
+Written 2026-09-20 as a list of what was **missing**. Three were built in Phase 1; they stay
 here, marked, because the reason each had to exist is still the reason it behaves as it does.
 
 ### Built
@@ -102,10 +102,10 @@ here, marked, because the reason each had to exist is still the reason it behave
 
 | Primitive | Why it must exist | Notes |
 |---|---|---|
-| **Decision** | Advice with no memory is not accountability | `decision { situation, options, chosen, expectedEffect, madeAt, followedThrough }` — Phase 3 |
+| **Decision** | Advice with no memory is not accountability | `decision { situation, options, chosen, expectedEffect, madeAt, followedThrough }` — Phase 4 |
 | **Commitment (promise)** | Distinct from a *bill*: "I will put ₹5,000 into the emergency fund this month" | Feeds recovery + momentum + North Star |
-| **Allocation** | Where free cash is *intended* to go, when several goals compete | Makes goal contention resolvable — Phase 4 |
-| **Runway** | The single most legible safety metric ("X months if income stopped") | Derived: liquid assets ÷ essential monthly spend — Phase 1.1 |
+| **Allocation** | Where free cash is *intended* to go, when several goals compete | Makes goal contention resolvable — Phase 5 |
+| **Runway** | The single most legible safety metric ("X months if income stopped") | Derived: liquid assets ÷ essential monthly spend — Phase 2.1 |
 | **Baseline** | "Is this month unusual?" needs the user's own history, not a budget | Derived from trailing cycles; needed before any "you're overspending" claim |
 
 **Notification state** arrived alongside these and is deliberately **not** a primitive of
@@ -166,4 +166,4 @@ defined rule, an owner engine and a wording:
 Nothing in this document requires a rewrite. `FinancialState` is a **composition** over the
 engines that already exist plus four new ones (runway, baseline, protection, momentum). The
 expensive parts are the *new primitives* (§4), which need migrations — see `ROADMAP.md`
-Phase 0.
+Phase 1.

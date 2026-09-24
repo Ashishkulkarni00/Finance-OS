@@ -38,6 +38,14 @@ public record GoalResponse(
         @JsonSerialize(using = MoneySerializer.class)
         BigDecimal requiredPerMonth,
 
+        /** What the plan actually puts in each month. **Null is unknown, not zero**: a
+         *  funding bill whose amount varies has no monthly figure. */
+        @JsonSerialize(using = MoneySerializer.class)
+        BigDecimal fundedPerMonth,
+
+        /** How many funding bills have no fixed amount - why the pace may be UNKNOWN. */
+        int fundingVaries,
+
         /** Whether saving is keeping up with the target date - see GoalPace. */
         GoalPace pace,
 
@@ -58,7 +66,8 @@ public record GoalResponse(
 
     public GoalResponse withEffect(WriteEffectResponse effect) {
         return new GoalResponse(id, name, targetAmount, targetDate, priority, linkedReservationId, linkedAccountId,
-                currentAmount, spentAmount, progressPercent, requiredPerMonth, pace, timeElapsedPercent, schedule,
+                currentAmount, spentAmount, progressPercent, requiredPerMonth, fundedPerMonth, fundingVaries,
+                pace, timeElapsedPercent, schedule,
                 archived, archivedAt, createdAt, updatedAt, effect);
     }
 

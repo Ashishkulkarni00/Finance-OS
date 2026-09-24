@@ -146,7 +146,7 @@ public class LoanServiceImpl implements LoanService {
         }
 
         // Where the loan stands - the checkpoint every figure is derived forward from.
-        // Recorded payments move it from here (ROADMAP 0.2); re-stating it is how a
+        // Recorded payments move it from here (ROADMAP 1.2); re-stating it is how a
         // balance that has drifted from the lender's own figure is corrected.
         boolean outstandingChanged = request.outstandingBalance() != null
                 && request.outstandingBalance().compareTo(loan.getOutstandingBalance()) != 0;
@@ -312,7 +312,7 @@ public class LoanServiceImpl implements LoanService {
         int remainingAtBalanceDate = loan.getEmisRemaining();
 
         // What was actually paid, in period order - the evidence the balance moves on
-        // (ROADMAP 0.2). Before this, progress was counted by the calendar, so a loan
+        // (ROADMAP 1.2). Before this, progress was counted by the calendar, so a loan
         // shrank on its due date whether or not the money had left.
         List<BigDecimal> paidAmounts = paymentRepository.findPaidAmounts(loan.getId(), loan.getUserId())
                 .stream().map(LoanPaymentAmount::getAmount).toList();

@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-09-21
-**Context:** `FINANCIAL_OS.md` decision **D2**; `ROADMAP.md` Phase 0.1; the missing
+**Context:** `FINANCIAL_OS.md` decision **D2**; `ROADMAP.md` Phase 1.1; the missing
 primitive "Plan revision" in `FINANCIAL_STATE.md` §Missing primitives.
 
 ---
@@ -32,7 +32,7 @@ Three concrete holes, all verified in code before this ADR was written:
    planned is captured, so a closed cycle cannot be compared against the plan that
    was in force during it, even in principle.
 
-This blocks Phase 5.4 (month close as a real review), the North Star operational
+This blocks Phase 6.4 (month close as a real review), the North Star operational
 metric (**commitments kept**), and any honest statement about trajectory.
 
 ## Decision

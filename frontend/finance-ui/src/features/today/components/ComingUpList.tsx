@@ -73,12 +73,15 @@ export function ComingUpList({ items, isLoading, isError, limit = 3 }: ComingUpL
 
   return (
     <div className="flex flex-col">
-      {visible.map((item) => {
+      {visible.map((item, i) => {
         const date = new Date(item.dueDate);
         const when = whenLabel(item.dueDate);
         return (
           <LedgerRow
             key={`${item.type}-${item.sourceId}-${item.dueDate}`}
+            // Capped: past a few rows the stagger stops reading as one list arriving and
+            // starts reading as a queue the user is waiting on.
+            revealDelay={Math.min(i, 5) * 45}
             to={destinationFor(item)}
             leading={<DateBlock date={item.dueDate} tone={when.soon ? 'soon' : 'neutral'} />}
             primary={item.name}

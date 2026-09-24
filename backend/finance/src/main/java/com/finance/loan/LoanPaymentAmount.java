@@ -8,6 +8,6 @@ public interface LoanPaymentAmount {
     int getPeriodNumber();
 
     /** The transaction's amount - not the loan's EMI. Paying more than the EMI is allowed,
-     *  and the surplus comes off the principal (Phase 0.2). */
+     *  and the surplus comes off the principal (Phase 1.2). */
     BigDecimal getAmount();
 }
