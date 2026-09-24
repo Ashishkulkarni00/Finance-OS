@@ -45,7 +45,8 @@ export function NavRail() {
       <button
         type="button"
         onClick={add}
-        className="mb-space-6 flex h-11 items-center justify-center gap-space-2 rounded-lg bg-accent text-label font-medium text-white transition-colors duration-150 hover:bg-accent-hover"
+        // The one control pressed most often in the product, so it answers the press.
+        className="pressable mb-space-6 flex h-11 items-center justify-center gap-space-2 rounded-lg bg-accent text-label font-medium text-white transition-[background-color,transform] duration-150 hover:bg-accent-hover"
       >
         <Plus size={18} strokeWidth={1.5} />
         {ADD_LABEL[target.kind]}

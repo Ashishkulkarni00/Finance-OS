@@ -26,7 +26,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 /**
- * Business rules for insurance policies - the protection primitive (ROADMAP 0.3).
+ * Business rules for insurance policies - the protection primitive (ROADMAP 1.3).
  *
  * <p>Nothing here is stored that can be derived: monthly cost, cover status and days to
  * renewal are all computed on read (ADR-0011).

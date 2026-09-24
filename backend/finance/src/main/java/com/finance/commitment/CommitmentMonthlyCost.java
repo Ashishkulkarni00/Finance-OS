@@ -2,9 +2,11 @@ package com.finance.commitment;
 
 import com.finance.common.money.MoneyScale;
 import com.finance.commitment.domain.Commitment;
+import com.finance.commitment.domain.CommitmentFrequency;
 import com.finance.transaction.domain.TransactionType;
 
 import java.math.BigDecimal;
+import java.time.temporal.ChronoUnit;
 
 /**
  * What a commitment adds to the monthly cash requirement - the figure that turns a plan
@@ -48,6 +50,28 @@ public final class CommitmentMonthlyCost {
     /** The cost of a commitment that is about to stop, or has not started: zero, not unknown. */
     public static BigDecimal none() {
         return MoneyScale.ZERO;
+    }
+
+    /**
+     * A "just once" bill ({@code PLANNED_CHANGES.md}): a MONTHLY rule whose whole window is a
+     * single salary cycle.
+     *
+     * <p>It has an amount and a frequency like any other bill, and it is <strong>not a
+     * rate</strong>. A ₹30,000 one-off top-up is not ₹30,000 a month, and anything asking
+     * "how much per month?" has to exclude it or be wrong by the whole amount.
+     *
+     * <p>Lives here so the forecast (whose unlocks must not treat a one-off's end as capacity
+     * freeing up) and the goal engine (whose funding rate must not include it) share one
+     * definition. Same ~31-day threshold as {@code isOneOff} in {@code commitmentForm.ts}, so
+     * the frontend cannot disagree with either about what counts.
+     */
+    public static boolean isOneOff(Commitment commitment) {
+        if (commitment == null || commitment.getFrequency() != CommitmentFrequency.MONTHLY
+                || commitment.getActiveTo() == null) {
+            return false;
+        }
+        long days = ChronoUnit.DAYS.between(commitment.getActiveFrom(), commitment.getActiveTo());
+        return days >= 0 && days <= 31;
     }
 
     private static BigDecimal divide(BigDecimal amount, int months) {

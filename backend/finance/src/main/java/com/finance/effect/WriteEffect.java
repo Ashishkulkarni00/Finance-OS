@@ -7,7 +7,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 /**
- * What a write just did, reported by the write itself (ADR-0017, ROADMAP 0.4).
+ * What a write just did, reported by the write itself (ADR-0017, ROADMAP 1.4).
  *
  * <p>Service-layer result, not a DTO - {@code WriteEffectMapper} shapes it for the wire.
  *

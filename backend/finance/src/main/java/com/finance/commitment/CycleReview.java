@@ -5,7 +5,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * "September in 60 seconds" - a month against its plan (STRATEGY_DEEP_DIVE Phase 1 piece 4,
+ * "September in 60 seconds" - a month against its plan (STRATEGY_DEEP_DIVE Phase 2 piece 4,
  * read-only version). Derived at read time; nothing is stored.
  *
  * <p>Honest limit, stated on screen: until the plan is locked at month start (the parked

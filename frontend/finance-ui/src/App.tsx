@@ -64,7 +64,7 @@ export function App() {
             <Route path="/commitment-rules/:ruleId" element={<CommitmentRuleDetailPage />} />
             {/* Goals only now - the page lives at /goals, beside /goals/:goalId. /plan
                 still resolves so any saved link or bookmark lands in the same place. */}
-            {/* Ahead: where you're heading - goals now; the 12-month view joins it in Phase 2. */}
+            {/* Ahead: where you're heading - goals now; the 12-month view joins it in Phase 3. */}
             <Route path="/ahead" element={<PlanPage />} />
             <Route path="/goals" element={<Navigate to="/ahead" replace />} />
             <Route path="/plan" element={<Navigate to="/ahead" replace />} />

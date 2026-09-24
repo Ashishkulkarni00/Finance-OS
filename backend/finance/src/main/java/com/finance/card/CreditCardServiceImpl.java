@@ -60,7 +60,7 @@ public class CreditCardServiceImpl implements CreditCardService {
     private final PostingRepository postingRepository;
     private final CardDueDateCalculator dueDates;
     private final LoanRepository loanRepository;
-    /** Recorded EMI payments - what a card EMI's remaining count is derived from (ROADMAP 0.2). */
+    /** Recorded EMI payments - what a card EMI's remaining count is derived from (ROADMAP 1.2). */
     private final LoanPaymentRepository loanPaymentRepository;
     private final AmortisationCalculator amortisationCalculator;
     private final CurrentUserProvider currentUser;
@@ -225,7 +225,7 @@ public class CreditCardServiceImpl implements CreditCardService {
             if (!account.getId().equals(loan.getPayFromAccountId()) || loan.getStatus() == LoanStatus.CLOSED) {
                 continue;
             }
-            // Derived from recorded payments, the same as the loan's own page (ROADMAP 0.2),
+            // Derived from recorded payments, the same as the loan's own page (ROADMAP 1.2),
             // so the two can't disagree about what is still owed.
             List<BigDecimal> paid = loanPaymentRepository.findPaidAmounts(loan.getId(), userId).stream()
                     .map(com.finance.loan.LoanPaymentAmount::getAmount).toList();

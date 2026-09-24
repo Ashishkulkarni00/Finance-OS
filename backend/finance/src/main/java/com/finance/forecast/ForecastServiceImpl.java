@@ -3,6 +3,7 @@ package com.finance.forecast;
 import com.finance.commitment.CommitmentBucket;
 import com.finance.commitment.CommitmentBucketClassifier;
 import com.finance.commitment.CommitmentInstanceGenerator;
+import com.finance.commitment.CommitmentMonthlyCost;
 import com.finance.commitment.CommitmentInstanceRepository;
 import com.finance.commitment.domain.CommitmentInstance;
 import com.finance.commitment.domain.CommitmentInstanceStatus;
@@ -224,16 +225,13 @@ public class ForecastServiceImpl implements ForecastService {
     }
 
     /**
-     * A "just once" bill (PLANNED_CHANGES.md): a MONTHLY rule whose whole window is one
-     * salary cycle. Its end is never an unlock - it was a single planned event, not a
-     * recurring cost freeing up capacity. Same ~31-day threshold the frontend uses
-     * ({@code isOneOff} in commitmentForm.ts) so the two can't disagree about what counts.
+     * A "just once" bill: its end is never an unlock - it was a single planned event, not a
+     * recurring cost freeing up capacity.
+     *
+     * <p>Delegates to {@link CommitmentMonthlyCost#isOneOff}, which the goal engine also
+     * uses, so the two cannot drift apart about what "just once" means.
      */
     private boolean isOneOff(Commitment commitment) {
-        if (commitment.getFrequency() != CommitmentFrequency.MONTHLY || commitment.getActiveTo() == null) {
-            return false;
-        }
-        long days = java.time.temporal.ChronoUnit.DAYS.between(commitment.getActiveFrom(), commitment.getActiveTo());
-        return days >= 0 && days <= 31;
+        return CommitmentMonthlyCost.isOneOff(commitment);
     }
 }

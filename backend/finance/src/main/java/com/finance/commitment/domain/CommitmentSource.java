@@ -13,6 +13,6 @@ public enum CommitmentSource {
     INVESTMENT,
     GOAL,
     /** An insurance premium. The policy holds the amount and how often it falls due; the
-     *  bill follows it, the same as an EMI follows its loan (ROADMAP 0.3). */
+     *  bill follows it, the same as an EMI follows its loan (ROADMAP 1.3). */
     INSURANCE
 }

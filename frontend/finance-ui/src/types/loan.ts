@@ -56,7 +56,7 @@ export interface LoanResponse {
   payoffDate: string | null;
   /** EMIs still to come today - an EMI counts as paid once its due date passes. */
   emisLeft: number;
-  /** EMIs whose due date has passed with no payment recorded (ROADMAP 0.2). The balance
+  /** EMIs whose due date has passed with no payment recorded (ROADMAP 1.2). The balance
    *  does not move for these - an unpaid EMI is never assumed paid. */
   unrecordedEmis: number;
   /** Due date of the earliest unrecorded EMI. Null when there are none. */

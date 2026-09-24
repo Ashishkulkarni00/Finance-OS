@@ -13,24 +13,107 @@ Everything else under `docs/` is history unless `DOC_INDEX.md` lists it as livin
 
 ## NEXT ACTION
 
-**PHASE 0 IS CLOSED (2026-09-23), except 0.5 which the user froze.** 0.1, 0.2, 0.3, 0.4 and
-0.6 are all done; four of the five exit criteria are met. `ROADMAP.md` carries the status
-column and the honest caveats.
+**Start ROADMAP Phase 3 - Attention + Opportunity, unified.** Branch
+`feature/financial-os-reassessment-phase-2`, **still not pushed** (Phase 2 + the goal-pace
+fix are all uncommitted).
 
-**The branch has never been pushed.** The user said to finish Phase 0 first; that is now
-true, so this is the moment. 125+ uncommitted paths across three sessions, no upstream —
-`git push -u origin feature/financial-os-reassessment-phase-1`. Claude does not run git;
-remind, give the commands, and let the user run them.
+| # | |
+|---|---|
+| 3.1 | New rules in the insight engine: idle cash, subscription drift, rate mismatch (saving at 6% while paying 22%), goal underfunded early |
+| 3.2 | **Dismiss / snooze** - the `insight_state` columns already designed in ADR-0017. Needs **V21**, so ask before writing it |
+| 3.3 | **A voice when healthy** - "nothing needs you; here's what moved" |
+| 3.4 | Threshold crossings from 1.4 become first-class attention items |
 
-**Then: fix goal pace before starting Phase 1.** Bangalore trip reads `ON_TRACK` with ₹0
-saved and nothing funding it. 0.4 made this bug *audible* — `GoalBehindRule` is one of only
-four rules feeding crossings, so a wrong pace is now something the product says out loud at
-the moment the user acts. It is also the main thing standing between the user and trusting
-the toast. Details below.
+**Exit:** something worth saying every week, and never said twice.
 
-**ROADMAP Phase 1 has not started:** `GET /financial-state` (+ runway, baseline, debt-free
-date), the **Pulse** replacing Today's hero, and provenance on every figure. Note that
-ADR-0019 makes 1.1 and 1.3 prerequisites for anything AI-shaped, ever.
+**Phase 2 is closed and goal pace is fixed (2026-09-24).** The blocker that stood in front of
+Phase 3 is gone: the engine's existing goal rule no longer makes a false claim, so adding
+four more rules on top of it is now safe.
+
+## Goal pace - fixed 2026-09-24 (was the oldest known correctness bug)
+
+**It measured the calendar, not the money.** Pace compared the share of the target saved
+against the share of time gone since the goal was created. That called the emergency fund
+`ON_TRACK` at 16.5% saved with 2.56% of the time gone - while it needed **Rs 15,182 a month
+that exists nowhere in the plan** - purely because Rs 33,000 happened to be in the account on
+the day the goal was made. And a goal added yesterday was *always* on track, because no time
+had passed yet.
+
+**It now measures funding against requirement.** `GoalServiceImpl.funding()` sums the bills
+that actually pay into the goal; `pace()` compares that with `requiredPerMonth`. This is
+exactly the test `GoalPace`'s own javadoc used to describe as "the better test… needs a bill
+linked to its goal, which doesn't exist yet" - goal-funded bills (`CommitmentSource.GOAL`) do
+exist now, so the note was stale rather than wrong.
+
+**Three judgements inside it:**
+- **Only bills that *fund* count.** A goal-linked bill settled as an EXPENSE is a payment the
+  goal is *for* - a trip's bookings - and paying for the trip does not save for it.
+- **One-off top-ups are excluded.** Money once is not money a month. Counting the Rs 17,000
+  and Rs 30,000 EF top-ups as monthly funding made the EF look funded at Rs 47,000/month.
+  The `isOneOff` rule moved to `CommitmentMonthlyCost` so the forecast and the goal engine
+  share one definition rather than keeping a third copy (the frontend has one too).
+- **A varying contribution makes the pace UNKNOWN, never a guess.** What goes in each month
+  is then the user's decision, and no honest claim can be read off the plan (ADR-0006).
+- **No tolerance.** Rs 10,000 against Rs 15,182 needed is not "roughly on track"; it is
+  Rs 5,182 short, every month.
+
+**Live now:** Bangalore trip **BEHIND** (needs Rs 12,000/mo, funded Rs 0) - Emergency fund
+**UNKNOWN** (needs Rs 15,182/mo, one varying funding bill). Both were verified through the
+API and on screen.
+
+**User-visible:** the insight no longer says *"0% saved with 12% of the time gone"* - a fact
+about the calendar that names nothing to change. It says **"Nothing is funding it yet.
+Rs 12,000 a month reaches Rs 12,000 by 31 Oct."** The goal page gained a **"Going in a
+month"** row beside "Set aside a month", so a goal can no longer state a requirement while
+staying silent about whether anything meets it.
+
+**Follow-ups this opened, none urgent:**
+- A goal whose funding varies now produces **no insight at all** (`GoalBehindRule` fires only
+  on BEHIND/OVERDUE). The EF - the user's most important goal - is therefore silent. A rule
+  saying *"we can't tell whether X is on track; its contribution varies"* belongs in **3.1**.
+- Planned one-off top-ups do **not** reduce `requiredPerMonth`. Correct for a *rate*, arguably
+  wrong for *feasibility*: the Rs 47,000 of EF top-ups genuinely do shorten the road. Left
+  alone deliberately - it is a pre-existing question, not something this change caused.
+- ROADMAP **5.1 is now half done**; the remaining half is required/month against what is
+  actually free, which needs the goal engine to read cash flow.
+
+## Today-page motion (2026-09-24)
+
+Asked for: "10-20% more perceived life, not 200% more animation." Built as **CSS only** -
+no motion library. Framer Motion is ~50KB gzipped to do opacity and transform, which the
+compositor already does without a React re-render, and this project's stack is deliberately
+small.
+
+- **Tokens in `index.css`** (`--motion-fast|normal|emphasis|stagger`, two easings) so no file
+  invents timing. `DESIGN_SYSTEM.md` §10 now carries them.
+- **`.reveal` / `.reveal-shell`** - opacity + 8px rise, delay via `--reveal-delay`. Opt-in
+  everywhere: shared components (`StatementRow`, `LedgerRow`, `InsightRow`) take a
+  `revealDelay` prop and animate only when given one, so Months and the Ledger are untouched.
+- **`AnimatedCollapse`** - grid `0fr → 1fr`, not a measured pixel height. Nothing to re-measure
+  when a figure wraps, and no jank.
+- **Order:** shell 420ms → label → figure (+70ms) → day rate (+140ms) → summary rows 55ms
+  apart → Needs you / Coming up (+600ms).
+- **`useAnimatedMoney` was left exactly as it was.** It already animates *on change only*,
+  never on mount - which is both the old rule and the user's §4.
+
+**The design system said the opposite, and that was resolved rather than ignored.** §10 banned
+"staggered card entrances". The request asked for a 55ms stagger. Those are different things -
+one is cards announcing themselves, the other is an 8px rise you notice only by its absence -
+so §10 was **revised, not repealed**, and now says which is which. A doc left contradicting
+the code is the thing that rots.
+
+**Accessibility:** the global `prefers-reduced-motion` reset already flattened durations. It
+did **not** zero `animation-delay`, so a staggered element would have sat invisible behind
+`both` for the length of its delay - motion reduced into a blank screen. Fixed, and verified
+by emulating the setting: delays `0.66s → 0s`, nothing below full opacity.
+
+**Verified on screen:** mid-flight sampling shows the cascade (`1.00, 1.00, 0.96, 0.00, 0.53,
+0.00…` resolving to all `1.00`); the collapse transitions `0px → 263px`; the settled page is
+pixel-identical to before, which is the point.
+
+**Also touched, because §8 and §11 named them:** `Button` gained a 0.98 press, `LedgerRow`'s
+chevron moves 2px on hover, the sidebar's Add control presses. All shared - flagged for the
+user, easy to revert.
 
 **Decided with the user (do not reopen):**
 - Speak after any write that matters, **not** after every write. Silence is a valid effect.
@@ -165,7 +248,7 @@ dismissible) and **remove/dismiss** from the list. Neither is built. My advice o
 **not** in the list, or the list becomes a second transaction log; and "remove" has to mean
 *dismiss/snooze* recorded in `insight_state`, because the rules re-derive truth on every read
 and a deleted row returns within seconds. Dismiss needs **V21** (two columns) and is
-ROADMAP 2.2 pulled forward. The user has not answered those three questions.
+ROADMAP 3.2 pulled forward. The user has not answered those three questions.
 
 **NEXT: verify it.** Everything below is the honest limit of what is known.
 
@@ -186,7 +269,7 @@ started, because nothing was recorded before. Today that is exactly one insight
 - **`DELETE` endpoints report nothing.** 204 has no body, and deleting a bill genuinely
   changes the month. Changing them to 200 would break the API contract and Postman; the
   frontend refetches instead. Revisit only if it reads as a gap in use.
-- **`monthlyEffect` is not carried on plan writes.** ROADMAP 0.4 names it, but it already has
+- **`monthlyEffect` is not carried on plan writes.** ROADMAP 1.4 names it, but it already has
   a home in the plan revision log (`PlanDecisions` on Months), and plumbing it through the
   service return types to say it twice was not worth the churn.
 - **Postman has no happy-path settle request** — only the two error cases. Pre-existing gap,
@@ -198,7 +281,7 @@ started, because nothing was recorded before. Today that is exactly one insight
 ## PARKED — investment withdrawals (designed 2026-09-23, not built)
 
 The user asked for partial and full withdrawals from holdings, then parked it to finish
-Phase 0 first. **Keep this; it is a real gap, and the design is settled enough to build.**
+Phase 1 first. **Keep this; it is a real gap, and the design is settled enough to build.**
 
 - **The app has no redemption concept at all.** Investment endpoints are create · list · get ·
   patch · value check-in · delete. Nothing turns a holding back into cash.
@@ -247,22 +330,22 @@ it**. Emergency fund reads `ON_TRACK` while needing **₹15,182/month that does 
 `GoalPace` measures *time elapsed* against *percent saved*, so a goal added yesterday is
 always on track. Rule 3 — *never be confidently wrong* — broken where it matters most.
 
-**0.4 makes this worse, which is the argument for fixing it next.** `GoalBehindRule` is one
+**1.4 makes this worse, which is the argument for fixing it next.** `GoalBehindRule` is one
 of only four rules feeding crossings, so a wrong pace is now something the product *says out
 loud at the moment of a write*, not something buried on a screen.
 
-(0.5 invariant tests stay **frozen** under the user's standing no-tests rule.)
+(1.5 invariant tests stay **frozen** under the user's standing no-tests rule.)
 
 ## WAITING ON THE USER
 
-- **One recorded expense**, so 0.4's effect path runs for the first time. Nothing else can
+- **One recorded expense**, so 1.4's effect path runs for the first time. Nothing else can
   verify it.
-- **The two parked withdrawal decisions** (see PARKED above) — only when 0.4 is finished.
+- **The two parked withdrawal decisions** (see PARKED above) — only when 1.4 is finished.
 - **Migration freeze** — lifted three times, each explicitly and narrowly: `V18__plan_revisions.sql`,
-  `V19__insurance_policies.sql`, and `V20__insight_state.sql` (2026-09-23, for 0.4 only).
+  `V19__insurance_policies.sql`, and `V20__insight_state.sql` (2026-09-23, for 1.4 only).
   **Assume it is back on** and ask before writing another.
-- **Test freeze** — still in force. When it lifts, `ROADMAP.md` 0.5 should cover what 0.1 and
-  0.2 introduced: a supersession links old rule to new; a `VARIABLE` amount change records a
+- **Test freeze** — still in force. When it lifts, `ROADMAP.md` 1.5 should cover what 1.1 and
+  1.2 introduced: a supersession links old rule to new; a `VARIABLE` amount change records a
   **null** effect rather than zero; an `INCOME` commitment's effect is negated; a snapshot's
   `plannedCommittedTotal` is null when any instance amount is unknown; a recorded EMI moves a
   loan's balance and an unrecorded one does not.
@@ -278,7 +361,7 @@ loud at the moment of a write*, not something buried on a screen.
 
 ## Never verified
 
-- **0.2's recording path has never executed.** No EMI has fallen due. On **5 October**, when
+- **1.2's recording path has never executed.** No EMI has fallen due. On **5 October**, when
   the first three fall due: (a) before settling, the loan should say *"an EMI isn't recorded"*
   on Money → Debts and its balance should **not** have moved; (b) settling should drop the
   balance by the principal part and clear the warning; (c) settling for **more** than the EMI
@@ -329,7 +412,7 @@ building; the build passing is not evidence that it works.**
 - Branch **`feature/financial-os-reassessment-phase-1`**, cut from `uat-release` by the user.
 - **116 uncommitted paths — 87 modified, 29 new.** Nothing has been committed across two
   sessions. The user commits and pushes; Claude does not run git. **They have asked to finish
-  all of Phase 0 before pushing** — do not offer to commit partway.
+  all of Phase 1 before pushing** — do not offer to commit partway.
 - New and worth knowing about: `backend/.../com/finance/plan/`, `.../insurance/`,
   `V18__plan_revisions.sql`, `V19__insurance_policies.sql`, ADR-0015, ADR-0016,
   `frontend/.../features/cover/`, `MonthBriefing.tsx`, `PlanDecisions.tsx`,
@@ -367,10 +450,10 @@ pending schema change here rather than writing a migration unprompted.
 
 ## What this session built (2026-09-21 to 22)
 
-Phase 0.1, 0.2 and 0.3 of the roadmap, plus UI work the user asked for while using it.
+Phase 1.1, 1.2 and 1.3 of the roadmap, plus UI work the user asked for while using it.
 Oldest first.
 
-## Phase 0.1 — what was built (2026-09-21)
+## Phase 1.1 — what was built (2026-09-21)
 
 Branch `feature/financial-os-reassessment-phase-1`, cut from `uat-release` by the user.
 Backend + API + migration + a frontend surface. **No tests** (freeze). **Running and
@@ -459,7 +542,7 @@ last", derived from the bills' own dates, and works for months that haven't happ
 `PlanDecisions` is "what did I *decide*, when, and what did it cost". An amendment that
 moves no date is invisible to the first by construction.
 
-**Known gaps in 0.1, honestly:**
+**Known gaps in 1.1, honestly:**
 - **Screenshotted and click-tested** on 2026-09-21 via the headless-Chrome CDP script
   (see memory `reference-cdp-browser-check`): the three tabs render, the empty states read
   correctly, and a "What's different" row navigates to `/commitment-rules/{id}`. The
@@ -495,7 +578,7 @@ moves no date is invisible to the first by construction.
 ---
 ---
 
-## Phase 0.2 - what was built (2026-09-21)
+## Phase 1.2 - what was built (2026-09-21)
 
 **A loan's balance now moves on evidence, not on the calendar.** It used to advance on the
 EMI's due date whether or not the money had left - `AmortisationCalculator` said so plainly:
@@ -524,7 +607,7 @@ rule change moved nothing. After 5 October it would not have been free.
 **Decisions taken by the user (2026-09-21):** recorded payments *and* flag what's missing
 (not silent); an overpayment counts against principal.
 
-## Phase 0.3 - what was built (2026-09-21)
+## Phase 1.3 - what was built (2026-09-21)
 
 **The protection primitive.** Nothing in the product could record *being covered*: health
 insurance existed only as a `LOAN` account, because the premium was financed on a card.
@@ -622,7 +705,7 @@ accounts, so their balances never touched it. A lender blocks that principal aga
 limit until it is repaid, so it is not credit you can spend.
 
 Now `limit - outstanding - emiPrincipalBlocked`, with the blocked figure derived from
-**recorded payments** (the same rule as the loan's own page, ROADMAP 0.2) so the two cannot
+**recorded payments** (the same rule as the loan's own page, ROADMAP 1.2) so the two cannot
 disagree. Shown as its own deduction on the card page rather than folded in silently.
 Deliberately **not floored at zero** - over the limit is a real state, and "0 available"
 would hide it.
@@ -656,7 +739,7 @@ Worth knowing for any future row with two actions: the default column fits one.
   **missing primitives** (protection/insurance, plan revision, decision, commitment-promise,
   allocation, runway, baseline, loan payments), what a transaction must mean, state
   transitions, and the threshold table that makes the engine react.
-- **`ROADMAP.md`** - honest state table, Phases 0-7 with impact assessment, the explicit
+- **`ROADMAP.md`** - honest state table, Phases 1-8 with impact assessment, the explicit
   not-building list, and a ten-step build order.
 - **`DOC_INDEX.md`** - living vs superseded; 62 docs reduced to a living set of about 12.
 - Supersession banners added to `design/PRODUCT_STRATEGY.md`, `product/STRATEGY_DEEP_DIVE.md`,

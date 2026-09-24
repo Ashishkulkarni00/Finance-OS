@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { AlertTriangle, CheckCircle2, Sparkles } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/Button';
@@ -33,7 +33,16 @@ export function insightDestination(item: InsightItem): string | null {
  * existing behaviour: only the button acts, because a stray tap next to Room should not
  * navigate away from the screen you came to read.
  */
-export function InsightRow({ item, navigable = false }: { item: InsightItem; navigable?: boolean }) {
+export function InsightRow({
+  item,
+  navigable = false,
+  revealDelay,
+}: {
+  item: InsightItem;
+  navigable?: boolean;
+  /** Held back on first paint so a list of warnings reads as one thing arriving. */
+  revealDelay?: number;
+}) {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const [confirm, { isLoading: confirming }] = useConfirmCommitmentInstanceMutation();
@@ -77,8 +86,14 @@ export function InsightRow({ item, navigable = false }: { item: InsightItem; nav
       className={[
         'flex items-start gap-space-3 rounded-xl p-space-4 text-left',
         destination ? 'w-full transition-opacity duration-150 hover:opacity-90' : '',
+        revealDelay != null ? 'reveal' : '',
       ].join(' ')}
-      style={calm ? CALM_TINT : ATTENTION_TINT}
+      style={
+        {
+          ...(calm ? CALM_TINT : ATTENTION_TINT),
+          ...(revealDelay != null ? { '--reveal-delay': `${revealDelay}ms` } : {}),
+        } as CSSProperties
+      }
     >
       {calm ? (
         <Sparkles size={18} strokeWidth={1.5} className="mt-0.5 shrink-0 text-accent" aria-hidden />
@@ -93,6 +108,9 @@ export function InsightRow({ item, navigable = false }: { item: InsightItem; nav
             <Button
               size="sm"
               variant="secondary"
+              // A 1px lift and a border that warms: tactile, nowhere near a bounce. The card
+              // it sits in is already doing the attention work.
+              className="transition-[transform,border-color,background-color] duration-[180ms] hover:-translate-y-px hover:border-ink-soft"
               disabled={confirming}
               onClick={(e) => {
                 // The row navigates, the button acts. Without this the button would do both.
@@ -120,7 +138,7 @@ export function InsightRow({ item, navigable = false }: { item: InsightItem; nav
  * "What needs you" - the insight engine's ranked list for one screen (Today 3, Month 5).
  * Every screen that used to invent its own warnings renders this instead, so the wording,
  * the order and what counts as urgent are decided once, on the server
- * (STRATEGY_DEEP_DIVE Phase 1). Never claims "nothing needs you" while loading or on error.
+ * (STRATEGY_DEEP_DIVE Phase 2). Never claims "nothing needs you" while loading or on error.
  */
 export function InsightList({ surface, title = 'Needs you', calmNote }: { surface: InsightSurface; title?: string; calmNote?: ReactNode }) {
   const { data, isLoading, isError } = useGetInsightsQuery(surface);
@@ -149,7 +167,7 @@ export function InsightList({ surface, title = 'Needs you', calmNote }: { surfac
             We couldn’t check what needs you just now, so this may be incomplete.
           </p>
         ) : data && data.items.length > 0 ? (
-          data.items.map((item) => <InsightRow key={item.key} item={item} />)
+          data.items.map((item, i) => <InsightRow key={item.key} item={item} revealDelay={Math.min(i, 3) * 55} />)
         ) : (
           <div className="flex flex-col gap-space-1">
             <p className="flex items-center gap-space-2 text-body text-ink-soft">

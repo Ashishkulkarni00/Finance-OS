@@ -7,7 +7,7 @@ import java.util.Set;
 /**
  * One thing worth the user's attention, with the fact behind it and one way to act.
  * Derived at read time (ADR-0011) - never stored. See docs/product/STRATEGY_DEEP_DIVE.md
- * (Phase 1) and PRODUCT_AUDIT.md §6.
+ * (Phase 2) and PRODUCT_AUDIT.md §6.
  *
  * @param key         stable identity ("instance:31:overdue") - de-duplication now,
  *                    dismiss/snooze later (the insight_state table is deferred SQL)

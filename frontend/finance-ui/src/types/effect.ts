@@ -2,7 +2,7 @@ import type { Money } from '@/lib/money';
 import type { InsightItem } from '@/types/insight';
 
 /**
- * What a write just did (ADR-0017, ROADMAP 0.4).
+ * What a write just did (ADR-0017, ROADMAP 1.4).
  *
  * Attached to the response of a write, never a read, and **absent whenever nothing moved** -
  * so the presence of this object is itself the signal that there is something to say.

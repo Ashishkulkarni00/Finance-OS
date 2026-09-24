@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { CircleHelp, Wallet } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useGetPositionQuery } from '@/services/positionService';
+import { useGetFinancialStateQuery } from '@/services/financialStateService';
 import { useGetCurrentCycleQuery } from '@/services/cycleService';
 import { useGetTimelineQuery } from '@/services/timelineService';
 import { useGetAccountsQuery } from '@/services/accountService';
-import { FreeUntilSalaryHero } from '@/features/today/components/FreeUntilSalaryHero';
+import { Pulse } from '@/features/today/components/Pulse';
 import { InsightList } from '@/components/InsightList';
 import { ComingUpList } from '@/features/today/components/ComingUpList';
 import { TodayPrimer } from '@/features/today/components/TodayPrimer';
@@ -26,7 +26,9 @@ export default function TodayPage() {
   const [guideOpen, setGuideOpen] = useState(false);
 
   const { data: accountsPage, isLoading: accountsLoading } = useGetAccountsQuery();
-  const { data: position, isLoading: positionLoading } = useGetPositionQuery();
+  // One read for the whole Pulse. Today no longer fetches position separately: two reads of
+  // the same money are two chances to show different figures on one screen.
+  const { data: financialState, isLoading: stateLoading } = useGetFinancialStateQuery();
   const { data: cycle } = useGetCurrentCycleQuery();
   const { data: timeline, isLoading: timelineLoading, isError: timelineError } = useGetTimelineQuery({ days: 30 });
 
@@ -48,7 +50,9 @@ export default function TodayPage() {
   }
 
   return (
-    <div className="flex flex-col gap-space-6">
+    // The shell settles first and slightly slower than its contents, so the figures arrive
+    // *within* the page rather than racing it (DESIGN_SYSTEM §10).
+    <div className="reveal-shell flex flex-col gap-space-6">
       <div className="flex items-start justify-between gap-space-4">
         <div className="flex flex-col gap-space-1">
           <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">Today</span>
@@ -58,7 +62,7 @@ export default function TodayPage() {
         <button
           type="button"
           onClick={() => setGuideOpen(true)}
-          className="flex shrink-0 items-center gap-space-1 rounded-md px-space-1 text-caption text-ink-muted transition-colors hover:bg-sunken hover:text-ink"
+          className="pressable flex shrink-0 items-center gap-space-1 rounded-md px-space-1 text-caption text-ink-muted transition-colors duration-150 hover:bg-sunken hover:text-ink"
         >
           <CircleHelp size={14} strokeWidth={1.5} aria-hidden />
           How Today works
@@ -67,16 +71,20 @@ export default function TodayPage() {
 
       <TodayPrimer onOpenGuide={() => setGuideOpen(true)} />
 
-      <div className="grid grid-cols-1 gap-space-8 lg:grid-cols-2">
-        <div className="flex flex-col gap-space-8">
-          <FreeUntilSalaryHero position={position} cycle={cycle} isLoading={positionLoading} />
-        </div>
+      {/* Full width: the Pulse's notes column *is* the derivation, and squeezing it into
+          half the page would turn "traceable" back into "take our word for it". */}
+      <Pulse state={financialState} isLoading={stateLoading} />
 
-        <div className="flex flex-col gap-space-8">
+      {/* Both land after the summary has finished, so the eye reaches "what needs me" only
+          once "where do I stand" has settled. */}
+      <div className="grid grid-cols-1 gap-space-8 lg:grid-cols-2">
+        <div className="reveal flex flex-col gap-space-8" style={{ '--reveal-delay': '600ms' } as CSSProperties}>
           {/* One ranked list from the insight engine (≤3): shortfalls, what's due or late,
               card bills, a goal behind - replaces Needs you and the goal card. */}
           <InsightList surface="TODAY" />
+        </div>
 
+        <div className="reveal flex flex-col gap-space-8" style={{ '--reveal-delay': '660ms' } as CSSProperties}>
           <section>
             <SectionHeader trailing="next 30 days">Coming up</SectionHeader>
             <ComingUpList items={timeline} isLoading={timelineLoading} isError={timelineError} />

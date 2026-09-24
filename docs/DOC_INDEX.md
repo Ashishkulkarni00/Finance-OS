@@ -1,6 +1,6 @@
 # Documentation index — what is true, what is history
 
-Written 2026-09-20, **closed out 2026-09-23** (ROADMAP 0.6). There were **62 markdown files**,
+Written 2026-09-20, **closed out 2026-09-23** (ROADMAP 1.6). There were **62 markdown files**,
 56 untouched since 2026-09-18, with two competing strategy documents, three competitor
 analyses and four "experience" docs shadowing four "spec" docs. This index ends that: it names
 the living set and marks everything else as history. There are now 71; the living set is
@@ -34,15 +34,15 @@ readable as a record of how we got here, and must not be cited as current truth.
 | Document | Superseded by | Note |
 |---|---|---|
 | `design/PRODUCT_STRATEGY.md` | `FINANCIAL_OS.md` | The FORECAST/DECIDE/EXPLAIN/STANDING ladder survives inside the new product loop |
-| `product/STRATEGY_DEEP_DIVE.md` | `FINANCIAL_OS.md` + `ROADMAP.md` | Its competitor pass and Phase 2 list are now in the new docs |
+| `product/STRATEGY_DEEP_DIVE.md` | `FINANCIAL_OS.md` + `ROADMAP.md` | Its competitor pass and Phase 3 list are now in the new docs |
 | `product/MVP_DEFINITION.md` | `ROADMAP.md` | Described M1-M13 as future; all are built |
-| `product/INFORMATION_ARCHITECTURE.md` | Needs a rewrite in Phase 1 | Self-contradictory: records the five-tab IA as applied, then tables the old "Month / Add / Plan" |
+| `product/INFORMATION_ARCHITECTURE.md` | Needs a rewrite in Phase 2 | Self-contradictory: records the five-tab IA as applied, then tables the old "Month / Add / Plan" |
 | `product/COMPETITIVE_ANALYSIS.md`, `design/COMPETITIVE_UX_RESEARCH.md` | `FINANCIAL_OS.md` §4/§6 | Three competitor passes existed; the 2026-09-20 research replaces them |
 | `product/UX_PRINCIPLES.md` | `design/UI_UX_PRINCIPLES.md` | Was already a 20-line redirect stub |
 | `product/DOMAIN_MODEL.md` | `FINANCIAL_STATE.md` for the model; still useful for entity detail | Predates insights, forecast, imports, goal schedule, debit cards, card statements |
 | `product/MONTH_EXPERIENCE.md`, `ACCOUNTS_EXPERIENCE.md`, `LEDGER_EXPERIENCE.md`, `PLAN_EXPERIENCE.md` | `design/*_UX_SPEC.md` | Duplicated the specs |
 | `product/PRODUCT_AUDIT.md`, `SCREEN_PURPOSE_AUDIT.md`, `DATA_ENTRY_AUDIT.md`, `LEDGER_IMPROVEMENT_PLAN.md`, `PLANNED_CHANGES.md`, `FUTURE_ROADMAP.md`, `PRODUCT_FEATURE_MAP.md` | `ROADMAP.md` + `FIX_BACKLOG.md` | Point-in-time audits, largely executed |
-| `product/DISCIPLINE_AND_TRUST.md` | Feeds `ROADMAP.md` Phase 0.1 and Phase 5 | Design still valid; was parked by the user |
+| `product/DISCIPLINE_AND_TRUST.md` | Feeds `ROADMAP.md` Phase 1.1 and Phase 6 | Design still valid; was parked by the user |
 
 ---
 
@@ -57,7 +57,7 @@ readable as a record of how we got here, and must not be cited as current truth.
 - ~~`product/INFORMATION_ARCHITECTURE.md` contradicts itself~~ **Banner added 2026-09-23.**
   It was the last unbannered document that a reader could plausibly have cited as truth. The
   banner states the navigation that actually exists and points elsewhere. The **rewrite is
-  still owed in Phase 1**, when the Pulse gives the IA a settled shape to describe — a banner
+  still owed in Phase 2**, when the Pulse gives the IA a settled shape to describe — a banner
   stops it lying, it does not make it useful.
 - ~~ADR index should gain the architectural decisions from D1-D9~~ **Done.** D2 → ADR-0015,
   D7 → ADR-0016, D6 → ADR-0017, D3 → **ADR-0018**, D8 → **ADR-0019**. D1, D4, D5 and D9 are
@@ -68,8 +68,8 @@ readable as a record of how we got here, and must not be cited as current truth.
 
 ### Living documents that were made true in the same pass
 
-- **`ROADMAP.md`** — Phase 0 now carries a status column and honest exit criteria: four of
-  five met, 0.5 frozen. Three items are marked **built but never executed**.
+- **`ROADMAP.md`** — Phase 1 now carries a status column and honest exit criteria: four of
+  five met, 1.5 frozen. Three items are marked **built but never executed**.
 - **`FINANCIAL_STATE.md`** §4 was a list of *missing* primitives, three of which now exist. It
   is split into Built and Still missing, keeping each one's original reason, because the
   reason is still why the thing behaves as it does.

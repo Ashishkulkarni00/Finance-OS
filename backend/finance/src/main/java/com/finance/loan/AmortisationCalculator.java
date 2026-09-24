@@ -15,7 +15,7 @@ import java.util.List;
  * Derives a loan forward from where it stands - its outstanding balance on a date, with
  * a number of EMIs left (V13). Never stored (ADR-0011).
  *
- * <p><strong>Progress is counted from recorded payments</strong> (Phase 0.2). It used to be
+ * <p><strong>Progress is counted from recorded payments</strong> (Phase 1.2). It used to be
  * counted by the calendar - an EMI whose due date had passed was treated as paid - because
  * there was no way to record a loan payment at all. Settling a loan's EMI on Months now
  * writes a {@code LoanPayment}, so the balance moves on evidence instead of on the date.
