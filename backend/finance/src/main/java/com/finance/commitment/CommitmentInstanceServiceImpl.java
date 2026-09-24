@@ -54,7 +54,7 @@ public class CommitmentInstanceServiceImpl implements CommitmentInstanceService 
     private final Clock clock;
     private final CommitmentAutoMatcher autoMatcher;
     private final CommitmentBucketClassifier bucketClassifier;
-    /** Files a settled loan EMI against the period it paid - ROADMAP 0.2. */
+    /** Files a settled loan EMI against the period it paid - ROADMAP 1.2. */
     private final LoanPaymentRecorder loanPayments;
 
     public CommitmentInstanceServiceImpl(CommitmentInstanceRepository repository,
@@ -514,7 +514,7 @@ public class CommitmentInstanceServiceImpl implements CommitmentInstanceService 
         CommitmentInstance saved = repository.save(instance);
         log.info("Commitment instance settled id={} status={}", saved.getId(), saved.getStatus());
 
-        // A settled loan EMI is the evidence the loan's balance moves on (ROADMAP 0.2).
+        // A settled loan EMI is the evidence the loan's balance moves on (ROADMAP 1.2).
         // Only once it's actually paid: a part-payment hasn't cleared the period.
         if (commitment.getSourceType() == CommitmentSource.LOAN
                 && commitment.getSourceId() != null

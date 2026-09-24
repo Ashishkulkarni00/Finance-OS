@@ -20,7 +20,7 @@ const KIND_OPTIONS: { value: ImportRowType; label: string }[] = [
 ];
 
 /**
- * Import a bank or card statement (STRATEGY_DEEP_DIVE Phase 1 piece 5): the biggest single
+ * Import a bank or card statement (STRATEGY_DEEP_DIVE Phase 2 piece 5): the biggest single
  * cut in typing. Choose the account and the CSV the bank gives you → check the rows → import.
  *
  * <p>Nothing is imported until the user presses Import, and nothing is imported unseen:

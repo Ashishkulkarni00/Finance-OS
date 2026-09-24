@@ -129,7 +129,7 @@ fix) or move it to **Done** with the date.
 
 ## Done
 
-- **2026-09-23 - 4.3 closed by ROADMAP 0.2 / ADR-0018.** A settled EMI now files a
+- **2026-09-23 - 4.3 closed by ROADMAP 1.2 / ADR-0018.** A settled EMI now files a
   `LoanPayment` against its period (`LoanPaymentRecorder`), and outstanding, EMIs left and
   repaid all derive from recorded payments rather than elapsed dates. An unrecorded EMI is
   **flagged** (`unrecordedEmis`, `DebtsNeedsALook`) rather than assumed paid. The user's

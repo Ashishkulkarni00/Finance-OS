@@ -8,6 +8,7 @@ import com.finance.common.exception.ResourceNotFoundException;
 import com.finance.common.money.MoneyScale;
 import com.finance.common.user.CurrentUserProvider;
 import com.finance.commitment.CommitmentInstanceRepository;
+import com.finance.commitment.CommitmentMonthlyCost;
 import com.finance.commitment.CommitmentRepository;
 import com.finance.commitment.CommitmentService;
 import com.finance.commitment.domain.Commitment;
@@ -57,10 +58,6 @@ public class GoalServiceImpl implements GoalService {
     private final AccountBalanceCalculator balanceCalculator;
     private final CurrentUserProvider currentUser;
     private final Clock clock;
-
-    /** How far (in percentage points) saving may trail time before a goal reads as behind -
-     *  a few days' slack, so a goal isn't flagged the day after a contribution is due. */
-    static final BigDecimal PACE_TOLERANCE_POINTS = BigDecimal.valueOf(5);
 
     private CommitmentService commitmentService;
     private CommitmentRepository commitmentRepository;
@@ -314,8 +311,78 @@ public class GoalServiceImpl implements GoalService {
                 : requiredByTightestDeadline(schedule, today);
 
         BigDecimal timeElapsedPercent = timeElapsedPercent(goal, today);
-        return new GoalView(goal, MoneyScale.normalise(saved), MoneyScale.normalise(spent), progressPercent, requiredPerMonth,
-                pace(goal, covered, progressPercent, timeElapsedPercent, today), timeElapsedPercent, schedule);
+        Funding funding = funding(goal);
+        return new GoalView(goal, MoneyScale.normalise(saved), MoneyScale.normalise(spent), progressPercent,
+                requiredPerMonth, funding.perMonth(), funding.varies(),
+                pace(goal, covered, requiredPerMonth, funding, today), timeElapsedPercent, schedule);
+    }
+
+    /** What the plan puts in each month, and how much of it cannot be known. */
+    private record Funding(BigDecimal perMonth, int varies) {
+    }
+
+    /**
+     * What the plan actually puts into this goal each month.
+     *
+     * <p>Only bills that <em>fund</em> the goal count. A goal-linked bill settled as an
+     * expense is a payment the goal is <em>for</em> — a trip's bookings — and paying for the
+     * trip does not put money into saving for it ({@code SourceBillSync.applyGoal}).
+     *
+     * <p>A funding bill whose amount varies makes the total <strong>unknown, not smaller</strong>.
+     * The user decides that figure each month, so no claim about "enough" can be read off the
+     * plan (ADR-0006).
+     */
+    private Funding funding(Goal goal) {
+        if (commitmentRepository == null) {
+            return new Funding(null, 0);
+        }
+        BigDecimal perMonth = BigDecimal.ZERO;
+        int varies = 0;
+        for (Commitment bill : commitmentRepository.findBySourceTypeAndSourceIdAndUserIdAndDeletedAtIsNull(
+                CommitmentSource.GOAL, goal.getId(), goal.getUserId())) {
+            if (bill.isArchived() || bill.getSettleAs() == TransactionType.EXPENSE) {
+                continue;
+            }
+            // A one-off top-up is real money and is not a rate. Counting ₹30,000 once as
+            // ₹30,000 every month would make an unfunded goal look comfortably funded.
+            if (CommitmentMonthlyCost.isOneOff(bill)) {
+                continue;
+            }
+            BigDecimal monthly = CommitmentMonthlyCost.of(bill);
+            if (monthly == null) {
+                varies++;
+                continue;
+            }
+            perMonth = perMonth.add(monthly);
+        }
+        return new Funding(MoneyScale.normalise(perMonth), varies);
+    }
+
+    /**
+     * Whether what is going in is enough to arrive on time. See {@link GoalPace} for why this
+     * is no longer measured against the calendar.
+     */
+    private GoalPace pace(Goal goal, BigDecimal current, BigDecimal requiredPerMonth,
+                          Funding funding, LocalDate today) {
+        if (current.compareTo(goal.getTargetAmount()) >= 0) {
+            return GoalPace.REACHED;
+        }
+        if (today.isAfter(goal.getTargetDate())) {
+            return GoalPace.OVERDUE;
+        }
+        if (requiredPerMonth == null || funding.perMonth() == null) {
+            return GoalPace.UNKNOWN;
+        }
+        if (requiredPerMonth.signum() <= 0) {
+            // Nothing more is needed to arrive on time - the schedule already covers it.
+            return GoalPace.ON_TRACK;
+        }
+        if (funding.varies() > 0) {
+            return GoalPace.UNKNOWN;
+        }
+        // No tolerance. Short is short: ₹10,000 going in against ₹15,182 needed is not
+        // "roughly on track", it is ₹5,182 a month short, every month.
+        return funding.perMonth().compareTo(requiredPerMonth) < 0 ? GoalPace.BEHIND : GoalPace.ON_TRACK;
     }
 
     /** One planned payment: its date and amount, and what's been paid against it. */
@@ -456,21 +523,6 @@ public class GoalServiceImpl implements GoalService {
         }
         long elapsed = Math.max(0, Math.min(total, ChronoUnit.DAYS.between(start, today)));
         return BigDecimal.valueOf(elapsed * 100).divide(BigDecimal.valueOf(total), 2, RoundingMode.HALF_UP);
-    }
-
-    private GoalPace pace(Goal goal, BigDecimal current, BigDecimal progressPercent,
-                          BigDecimal timeElapsedPercent, LocalDate today) {
-        if (current.compareTo(goal.getTargetAmount()) >= 0) {
-            return GoalPace.REACHED;
-        }
-        if (today.isAfter(goal.getTargetDate())) {
-            return GoalPace.OVERDUE;
-        }
-        if (timeElapsedPercent == null) {
-            return GoalPace.UNKNOWN;
-        }
-        return progressPercent.add(PACE_TOLERANCE_POINTS).compareTo(timeElapsedPercent) < 0
-                ? GoalPace.BEHIND : GoalPace.ON_TRACK;
     }
 
     /**

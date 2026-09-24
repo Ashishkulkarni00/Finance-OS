@@ -23,7 +23,7 @@ function Line({ label, planned, actual, note }: { label: string; planned: ReactN
 }
 
 /**
- * "September in 60 seconds" - the month against its plan (STRATEGY_DEEP_DIVE Phase 1 piece 4).
+ * "September in 60 seconds" - the month against its plan (STRATEGY_DEEP_DIVE Phase 2 piece 4).
  * What came in, what was paid, what was set aside, what went outside the plan, what didn't
  * happen, and what's different next month. Every figure is the server's (`/cycles/{id}/review`).
  *

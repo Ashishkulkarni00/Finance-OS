@@ -41,17 +41,37 @@ public class GoalBehindRule implements InsightRule {
         return value == null ? "—" : value.setScale(0, RoundingMode.HALF_UP).toPlainString() + "%";
     }
 
+    /**
+     * Why it is behind, in terms the user can act on.
+     *
+     * <p>It used to say "0% saved with 10% of the time gone", which is a fact about the
+     * calendar and no help: nothing in it says what to change. The pace now comes from
+     * funding against requirement ({@link GoalPace}), so the explanation can name the gap —
+     * and a gap has a fix.
+     */
+    private String shortfall(GoalView g) {
+        String target = money(g.goal().getTargetAmount()) + " by " + date(g.goal().getTargetDate());
+        if (g.requiredPerMonth() == null) {
+            return percent(g.progressPercent()) + " saved, towards " + target + ".";
+        }
+        String needed = money(g.requiredPerMonth()) + " a month reaches " + target;
+        BigDecimal funded = g.fundedPerMonth();
+        if (funded == null) {
+            return needed + ".";
+        }
+        if (funded.signum() == 0) {
+            return "Nothing is funding it yet. " + needed + ".";
+        }
+        return money(funded) + " a month is going in, and " + needed + ".";
+    }
+
     private Insight describe(GoalView g) {
         String name = g.goal().getName();
         boolean overdue = g.pace() == GoalPace.OVERDUE;
         String explanation = overdue
                 ? money(g.currentAmount()) + " of " + money(g.goal().getTargetAmount()) + " saved, and the target date ("
                         + date(g.goal().getTargetDate()) + ") has passed. Set a new date, or plan a top-up."
-                : percent(g.progressPercent()) + " saved with " + percent(g.timeElapsedPercent()) + " of the time gone"
-                        + (g.requiredPerMonth() != null
-                                ? "; " + money(g.requiredPerMonth()) + " a month from now reaches "
-                                        + money(g.goal().getTargetAmount()) + " by " + date(g.goal().getTargetDate()) + "."
-                                : ".");
+                : shortfall(g);
         return new Insight("goal:" + g.goal().getId() + ":pace", InsightType.GOAL_BEHIND, Severity.OPPORTUNITY,
                 name + (overdue ? " is past its date" : " is behind its pace"),
                 explanation, g.requiredPerMonth(), g.goal().getTargetDate(),

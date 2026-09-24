@@ -76,7 +76,7 @@ public record LoanResponse(
 
         /**
          * EMIs whose due date has passed with no payment recorded against them
-         * (ROADMAP 0.2). The balance does not move for these - an unpaid EMI is not
+         * (ROADMAP 1.2). The balance does not move for these - an unpaid EMI is not
          * assumed paid - and the user is told rather than left to wonder why the loan
          * isn't shrinking. Zero when everything due has been settled.
          */

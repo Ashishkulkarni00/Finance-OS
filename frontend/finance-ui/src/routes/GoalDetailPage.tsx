@@ -179,6 +179,28 @@ export default function GoalDetailPage() {
             note="The target date has already passed."
           />
         )}
+
+        {/* What is actually going in, beside what is needed. Without this the page states a
+            requirement and never says whether anything is meeting it - which is how a goal
+            with nothing funding it used to read as fine. */}
+        {goal.requiredPerMonth &&
+          (goal.fundingVaries > 0 ? (
+            <StatementRow
+              label="Going in a month"
+              valueNode={<span className="text-row text-ink-muted">—</span>}
+              note={`${goal.fundingVaries === 1 ? 'A bill funding this goal varies' : `${goal.fundingVaries} bills funding this goal vary`}, so what goes in each month is your call — we can't say whether it's enough.`}
+            />
+          ) : (
+            <StatementRow
+              label="Going in a month"
+              value={goal.fundedPerMonth}
+              note={
+                goal.fundedPerMonth != null && Number(goal.fundedPerMonth) === 0
+                  ? 'Nothing is funding this goal yet. Add a bill that pays into it.'
+                  : 'From the bills that pay into this goal. One-off top-ups aren’t counted here — money once isn’t money a month.'
+              }
+            />
+          ))}
       </Statement>
 
       <GoalPayments goal={goal} />

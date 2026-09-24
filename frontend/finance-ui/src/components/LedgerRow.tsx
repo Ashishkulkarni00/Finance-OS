@@ -1,9 +1,12 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
 interface LedgerRowProps {
+  /** Milliseconds to hold this row back on first paint, so a list reads as one thing
+   *  arriving. Opt-in: a register the user is scrolling must not re-perform itself. */
+  revealDelay?: number;
   /** Where the row opens. Every register row is a way in to its detail page. Omit and
    *  pass `onClick` instead for a row whose click opens something other than a route -
    *  the Ledger's rows open an edit sheet in place, not a page. */
@@ -63,6 +66,7 @@ export function LedgerRow({
   reserveAction,
   actionWidth,
   muted,
+  revealDelay,
 }: LedgerRowProps) {
   const navigate = useNavigate();
   const go = onClick ?? (() => to && navigate(to));
@@ -90,12 +94,18 @@ export function LedgerRow({
           go();
         }
       }}
-      style={{ gridTemplateColumns: columns }}
+      style={
+        {
+          gridTemplateColumns: columns,
+          ...(revealDelay != null ? { '--reveal-delay': `${revealDelay}ms` } : {}),
+        } as CSSProperties
+      }
       className={cn(
         'group grid w-full cursor-pointer items-center gap-space-4',
         '-mx-space-2 rounded-lg border-b border-line px-space-2 text-left transition-colors duration-150',
         'last:border-b-0 hover:bg-sunken',
         muted ? 'py-space-2' : 'py-space-3',
+        revealDelay != null && 'reveal',
       )}
     >
       {leading != null && leading}
@@ -118,7 +128,7 @@ export function LedgerRow({
       <ChevronRight
         size={16}
         strokeWidth={1.5}
-        className="shrink-0 text-ink-soft transition-colors group-hover:text-ink-muted"
+        className="shrink-0 text-ink-soft transition-[color,transform] duration-150 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:translate-x-[2px] group-hover:text-ink-muted"
         aria-hidden
       />
     </div>

@@ -17,7 +17,7 @@ import java.time.LocalDate;
  *                             it's null without one (or at TBD confidence)
  * @param payoffDate           the last remaining EMI's due date - known without a rate
  * @param paidPeriods          EMIs recorded as paid since the balance date - settled on
- *                             Months, not merely elapsed (ROADMAP 0.2)
+ *                             Months, not merely elapsed (ROADMAP 1.2)
  * @param unrecordedEmis       EMIs whose due date has passed with nothing recorded against
  *                             them. Never assumed either way: the balance doesn't move for
  *                             them, and the user is told (ADR-0006)

@@ -102,7 +102,7 @@ function CoverNeedsALook({ policies, onOpen }: { policies: InsurancePolicyRespon
 }
 
 /**
- * "Cover" - the fifth Money register (ROADMAP 0.3, ADR-0016).
+ * "Cover" - the fifth Money register (ROADMAP 1.3, ADR-0016).
  *
  * <p>The other four answer "what do I have" and "what do I owe". This one answers the
  * third question: <em>what wouldn't I have to find if this happened?</em>

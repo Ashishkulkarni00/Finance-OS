@@ -53,7 +53,7 @@ public class PlanRevisionRecorder {
      * Records the draft, unless it describes nothing that moved. Returns the saved
      * revision, or null when there was nothing worth recording - callers ignore it; it is
      * returned for the write paths that will want to report the effect back to the user
-     * (ROADMAP 0.4).
+     * (ROADMAP 1.4).
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public PlanRevision record(PlanChangeDraft draft) {

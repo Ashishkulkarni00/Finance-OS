@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-09-23
-**Context:** `FINANCIAL_OS.md` D8 and §7 · `ROADMAP.md` Phase 6 and the not-building list · ADR-0006
+**Context:** `FINANCIAL_OS.md` D8 and §7 · `ROADMAP.md` Phase 7 and the not-building list · ADR-0006
 
 ---
 
@@ -49,15 +49,15 @@ A wrong number the user can trace is a bug. A wrong number in a sentence is a be
 
 ## Consequences
 
-- **`GET /financial-state` (Phase 1.1) is the prerequisite**, not a nice-to-have. Until one
+- **`GET /financial-state` (Phase 2.1) is the prerequisite**, not a nice-to-have. Until one
   object can answer "where do I stand" with provenance, there is nothing safe to put an
-  interface over. This is why D8 sits in Phase 6 and not earlier.
+  interface over. This is why D8 sits in Phase 7 and not earlier.
 - **Provenance (1.3) is load-bearing for this**, not decoration: "every figure carries what
   produced it" is what lets a phrasing layer cite rather than compute.
 - A model answer that cannot be traced to an engine figure must be **withheld**, in the same
   way and for the same reason a partial total is withheld.
 - This forecloses a genuinely useful-sounding feature — free-text "what if I spend ₹X?" —
-  until the simulation behind it exists as real code (Phase 3.2). That is the intended cost.
+  until the simulation behind it exists as real code (Phase 4.2). That is the intended cost.
 
 ## Not in scope
 

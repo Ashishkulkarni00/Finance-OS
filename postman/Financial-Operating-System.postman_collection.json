@@ -4585,7 +4585,26 @@
 									"  pm.expect(b.pace).to.be.oneOf([\"REACHED\", \"OVERDUE\", \"BEHIND\", \"ON_TRACK\", \"UNKNOWN\"]));",
 									"pm.test(\"time gone is a percentage\", () => {",
 									"  if (b.timeElapsedPercent != null) pm.expect(Number(b.timeElapsedPercent)).to.be.within(0, 100);",
-									"});"
+									"});",
+									"",
+									"// Pace is funding against requirement, never the calendar (GoalPace.java).",
+									"const g = pm.response.json();",
+									"pm.test(\"a goal nobody is funding is never ON_TRACK\", () => {",
+									"    if (g.pace !== 'ON_TRACK') return;",
+									"    if (g.requiredPerMonth == null || Number(g.requiredPerMonth) <= 0) return;",
+									"    pm.expect(g.fundedPerMonth).to.not.eql(null);",
+									"    pm.expect(Number(g.fundedPerMonth)).to.be.at.least(Number(g.requiredPerMonth));",
+									"});",
+									"",
+									"pm.test(\"a varying contribution makes the pace UNKNOWN, not a guess\", () => {",
+									"    if (g.fundingVaries > 0 && g.pace !== 'REACHED' && g.pace !== 'OVERDUE'",
+									"        && g.requiredPerMonth != null && Number(g.requiredPerMonth) > 0) {",
+									"        pm.expect(g.pace).to.eql('UNKNOWN');",
+									"    }",
+									"});",
+									"",
+									"pm.test(\"funded is a money string or null - never 0 standing in for unknown\", () =>",
+									"    pm.expect(g.fundedPerMonth === null || typeof g.fundedPerMonth === 'string').to.be.true);"
 								]
 							}
 						}
@@ -4603,7 +4622,7 @@
 								"{{goalId}}"
 							]
 						},
-						"description": "`pace` is derived on every read, never stored. `BEHIND` means the share saved (`progressPercent`) trails the share of time gone since the goal was added (`timeElapsedPercent`) by more than 5 points; `OVERDUE` means the target date passed without the target being reached. Today highlights the highest-priority goal that is `BEHIND` or `OVERDUE`."
+						"description": "`pace` is derived on every read, never stored. `BEHIND` means the share saved (`progressPercent`) trails the share of time gone since the goal was added (`timeElapsedPercent`) by more than 5 points; `OVERDUE` means the target date passed without the target being reached. Today highlights the highest-priority goal that is `BEHIND` or `OVERDUE`.\n\n**Pace is funding against requirement, never the calendar.** It used to compare the share saved against the share of time gone, which called a goal on track because money happened to be in the account the day it was created - the user's emergency fund read `ON_TRACK` at 16.5% saved while needing Rs 15,182 a month that exists nowhere in the plan. `fundedPerMonth` is what the funding bills actually put in; **null means unknown** (a bill whose amount varies), and one-off top-ups are excluded because money once is not money a month."
 					},
 					"response": [
 						{
@@ -9384,6 +9403,134 @@
 							"query": []
 						},
 						"description": "The answer to \"why does this month look different?\", scoped to one salary cycle and ordered oldest first so it reads as a story.\n\n`netMonthlyEffect` is what the cycle’s changes did to the monthly cash requirement. It is **null whenever any one effect is unknown** - a total with the unknowns quietly dropped would read as a fact. `effectComplete` says which case you are in.\n\n`decisions` vs `followedSources` separates responsibility, not arithmetic: both count toward the cash effect, because the money moves either way."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Financial state",
+			"description": "One object spanning the whole position, so every engine - attention, decision, goal, opportunity - reasons over the same picture instead of assembling its own. See `docs/FINANCIAL_STATE.md` and ROADMAP Phase 2.",
+			"item": [
+				{
+					"name": "Where do I stand (the whole position)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+									"const b = pm.response.json();",
+									"",
+									"pm.test(\"money as strings\", () => {",
+									"    pm.expect(b.netWorth.netWorth).to.be.a(\"string\");",
+									"    pm.expect(b.debt.totalOutstanding).to.be.a(\"string\");",
+									"    if (b.runway.liquidTotal != null) pm.expect(b.runway.liquidTotal).to.be.a(\"string\");",
+									"});",
+									"",
+									"pm.test(\"composed, not re-flattened: each area keeps its own shape\", () => {",
+									"    pm.expect(b.position).to.have.property(\"realBalance\");",
+									"    pm.expect(b.shape).to.have.property(\"expectedIn\");",
+									"    pm.expect(b.netWorth).to.have.property(\"totalLiabilities\");",
+									"});",
+									"",
+									"// ADR-0006: null is unknown, never zero. A runway of 0 would read as \"none left\".",
+									"pm.test(\"runway is a figure or absent, never zero standing in for unknown\", () =>",
+									"    pm.expect(b.runway.months == null || Number(b.runway.months) > 0).to.be.true);",
+									"",
+									"pm.test(\"an unpriced bill makes runway a ceiling, not a blank\", () => {",
+									"    if (b.runway.unknownBillCount > 0 && b.runway.months != null) {",
+									"        pm.expect(b.runway.upperBound).to.be.true;",
+									"    }",
+									"});",
+									"",
+									"pm.test(\"runway covers obligations only - the UI must not imply otherwise\", () =>",
+									"    pm.expect(b.runway.coversEssentialsOnly).to.be.true);",
+									"",
+									"pm.test(\"baseline is withheld until there is history for it\", () => {",
+									"    if (b.baseline.cyclesObserved < 2) pm.expect(b.baseline.perCycle == null).to.be.true;",
+									"});",
+									"",
+									"pm.test(\"EMI total is the two parts, and they stay separate too\", () => {",
+									"    const bank = Number(b.debt.bankEmiMonthly), card = Number(b.debt.cardEmiMonthly);",
+									"    pm.expect(Number(b.debt.emiMonthlyTotal)).to.be.closeTo(bank + card, 0.01);",
+									"});",
+									"",
+									"pm.test(\"a debt-free date is withheld unless every loan has one\", () => {",
+									"    if (b.debt.debtFreeDate != null) pm.expect(b.debt.totalOutstanding).to.be.a(\"string\");",
+									"});",
+									"",
+									"pm.test(\"completeness is inherited from position, not recomputed\", () =>",
+									"    pm.expect(b.complete).to.eql(b.position.state === \"OK\"));",
+									"",
+									"// ADR-0006 / ROADMAP 2.3 - every derived figure carries what produced it.",
+									"pm.test(\"runway and debt each carry their working\", () => {",
+									"    pm.expect(b.runway.basis).to.be.an(\"object\");",
+									"    pm.expect(b.debt.basis).to.be.an(\"object\");",
+									"});",
+									"",
+									"pm.test(\"a derivation states its rule in words, not algebra\", () => {",
+									"    [b.runway.basis, b.debt.basis].forEach((p) => {",
+									"        pm.expect(p.formula).to.be.a(\"string\").and.not.empty;",
+									"        pm.expect(p.sections).to.be.an(\"array\").that.is.not.empty;",
+									"    });",
+									"});",
+									"",
+									"// The whole point: the derivation and the figure must agree. If a section's lines do",
+									"// not add up to the section total the server published, one of them is lying.",
+									"pm.test(\"each section's counted lines add up to its own total\", () => {",
+									"    [b.runway.basis, b.debt.basis].forEach((p) => {",
+									"        p.sections.forEach((s) => {",
+									"            if (s.total == null) return;",
+									"            const sum = s.lines",
+									"                .filter((l) => !l.excluded && l.amount != null)",
+									"                .reduce((acc, l) => acc + Number(l.amount), 0);",
+									"            pm.expect(sum).to.be.closeTo(Number(s.total), 0.01);",
+									"        });",
+									"    });",
+									"});",
+									"",
+									"pm.test(\"runway sections are the two sides of its own formula\", () => {",
+									"    const totals = b.runway.basis.sections.filter((s) => s.total != null).map((s) => Number(s.total));",
+									"    pm.expect(totals).to.include(Number(b.runway.liquidTotal));",
+									"    if (b.runway.monthlyEssentials != null) pm.expect(totals).to.include(Number(b.runway.monthlyEssentials));",
+									"});",
+									"",
+									"// An input with no amount is why the figure is a ceiling - it must be shown, not dropped.",
+									"pm.test(\"an unpriced bill appears as an excluded line, not a silent omission\", () => {",
+									"    if (b.runway.unknownBillCount > 0) {",
+									"        const excluded = b.runway.basis.sections.flatMap((s) => s.lines).filter((l) => l.excluded);",
+									"        pm.expect(excluded.length).to.be.at.least(b.runway.unknownBillCount);",
+									"        excluded.forEach((l) => pm.expect(l.amount == null).to.be.true);",
+									"    }",
+									"});",
+									"",
+									"pm.test(\"references are typed, never routes - the server has no view on screens\", () => {",
+									"    b.runway.basis.sections.flatMap((s) => s.lines).forEach((l) => {",
+									"        if (l.ref) {",
+									"            pm.expect([\"ACCOUNT\", \"COMMITMENT\", \"LOAN\", \"GOAL\", \"INVESTMENT\"]).to.include(l.ref.kind);",
+									"            pm.expect(l.ref.id).to.be.a(\"number\");",
+									"        }",
+									"    });",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/financial-state",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"financial-state"
+							]
+						},
+						"description": "The whole position in one object (ROADMAP 2.1). Composed from the calculators that already own each part - position, cycle shape, net worth, loans - plus the three this phase adds: **runway**, **baseline** and the rolled-up **debt position**. Derived on every read, never stored (ADR-0011).\n\n**Runway** is not Real Balance and answers the opposite question. Real Balance asks \"what can I spend today\", so it excludes the emergency fund by design; runway asks \"what could I reach if income stopped\", and the emergency fund is precisely the answer. It counts mandatory *obligations* only - `coversEssentialsOnly` is always true - so day-to-day spending is on top of it. Savings (a SIP, an emergency-fund transfer) are excluded: in the situation runway describes, those stop.\n\n**`upperBound: true` means \"at most\".** Bills with no amount yet are left out and counted in `unknownBillCount`. Essentials can only grow, so the runway can only shrink. Refusing outright would blank the figure forever for anyone with a variable electricity bill.\n\n**`emiMonthlyTotal` is an obligation measure, never cash flow.** A card-billed EMI reaches the user inside the card bill, so treating this as money leaving would double-count it (rule 4). Use the cycle's `committed` for cash out.\n\n**`baseline.perCycle` is null until two complete cycles exist.** A first-month user has no usual, and inventing one turns a measurement back into a budget.\n\n**Every derived figure carries its working** (2.3). `runway.basis` and `debt.basis` each give the rule in words, the inputs grouped as the formula reads, a server-computed subtotal per side, and the caveats. Inputs the figure could not use are `excluded: true` with a null amount - a bill with no amount is *why* the runway is a ceiling, so hiding it would make an incomplete derivation look complete. `ref` is typed (`ACCOUNT`, `COMMITMENT`, `LOAN`, …); turning it into a link is the client's business."
 					},
 					"response": []
 				}

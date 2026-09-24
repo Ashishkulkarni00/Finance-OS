@@ -18,7 +18,7 @@ public interface LoanPaymentRepository extends JpaRepository<LoanPayment, Long> 
 
     /**
      * What was actually paid against each period, oldest first - the figures a loan's
-     * balance is now derived from (Phase 0.2).
+     * balance is now derived from (Phase 1.2).
      *
      * <p>Native, because {@code LoanPayment.transactionId} is a plain column rather than a
      * mapped association: there is no entity graph to join along, and the alternative is

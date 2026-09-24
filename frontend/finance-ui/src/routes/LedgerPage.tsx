@@ -45,7 +45,7 @@ function groupByDay(rows: TransactionResponse[]): { date: string; rows: Transact
  * "The Ledger" - the evidence layer behind every derived figure in the product. See
  * docs/product/LEDGER_EXPERIENCE.md and docs/design/LEDGER_UX_SPEC.md.
  *
- * <p>Phase 1 only: the ledger exists and can be linked to (§12 of the product doc).
+ * <p>Phase 2 only: the ledger exists and can be linked to (§12 of the product doc).
  * Turning the rest of the product's figures into links here is phase 2, not yet done.
  */
 export default function LedgerPage() {

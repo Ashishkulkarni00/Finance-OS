@@ -21,11 +21,11 @@ reversed. Each one states the decision, why, and what it costs.
 | [0012](0012-injectable-clock.md) | Time is injected, never called statically | Accepted | M1 |
 | [0013](0013-spring-boot-4-consequences.md) | Consequences of Spring Boot 4 | Accepted | M1 |
 | [0014](0014-transaction-idempotency-keys.md) | Idempotency keys are handled in the service, backed by a table | Accepted | M2 |
-| [0015](0015-plans-are-versioned.md) | Plans are versioned: every commitment/goal change is recorded | Accepted | Phase 0.1 |
-| [0016](0016-cover-is-not-an-asset.md) | Insurance is its own primitive, and cover is never an asset | Accepted | Phase 0.3 |
-| [0017](0017-writes-report-their-own-effect.md) | A write reports its own effect; a warning is announced on crossing | Accepted | Phase 0.4 |
-| [0018](0018-debt-truth-comes-from-recorded-payments.md) | A loan's truth is its recorded payments, not the calendar | Accepted | Phase 0.2 |
-| [0019](0019-ai-is-an-interface-never-the-engine.md) | AI is an interface over the state engine, never a calculator | Accepted | Phase 0.6 |
+| [0015](0015-plans-are-versioned.md) | Plans are versioned: every commitment/goal change is recorded | Accepted | Phase 1.1 |
+| [0016](0016-cover-is-not-an-asset.md) | Insurance is its own primitive, and cover is never an asset | Accepted | Phase 1.3 |
+| [0017](0017-writes-report-their-own-effect.md) | A write reports its own effect; a warning is announced on crossing | Accepted | Phase 1.4 |
+| [0018](0018-debt-truth-comes-from-recorded-payments.md) | A loan's truth is its recorded payments, not the calendar | Accepted | Phase 1.2 |
+| [0019](0019-ai-is-an-interface-never-the-engine.md) | AI is an interface over the state engine, never a calculator | Accepted | Phase 1.6 |
 
 ## Writing a new one
 

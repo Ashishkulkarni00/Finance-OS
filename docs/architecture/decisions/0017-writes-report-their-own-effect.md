@@ -77,7 +77,7 @@ feasible and whether an obligation is coverable are all still computed fresh on 
 (ADR-0011). The table only remembers *what the product has already said*, which is not a
 fact about money and cannot drift from one.
 
-This is the same table `ROADMAP.md` 2.2 needs for dismiss and snooze, designed once here
+This is the same table `ROADMAP.md` 3.2 needs for dismiss and snooze, designed once here
 rather than twice.
 
 ### 6. Silence is a valid effect, and loudness is proportional
@@ -128,7 +128,7 @@ Per rule 8, the wording never judges. "₹699 a day left" — never "you're over
   (`ShortfallRule`, `CardBillRule`, `GoalBehindRule`, `PlanItemRule`) are what the user will
   hear from; `GoalBehindRule` is known to be wrong today (a goal with ₹0 saved and nothing
   funding it reads `ON_TRACK`), so this decision makes fixing goal pace more urgent, not less.
-- Crossings become first-class attention items in Phase 2.4 by reading the same table.
+- Crossings become first-class attention items in Phase 3.4 by reading the same table.
 
 ## Alternatives rejected
 
@@ -139,5 +139,5 @@ Rejected on behaviour, not on cost.
 write exactly, and makes a projection bug able to roll back a recorded expense. Rejected.
 
 **Warn before saving instead of reporting after.** That is a different feature — the
-consequence preview of `ROADMAP.md` 3.2 — and it belongs to the decision engine. 0.4 never
+consequence preview of `ROADMAP.md` 4.2 — and it belongs to the decision engine. 1.4 never
 blocks a write; it reports one.

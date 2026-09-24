@@ -88,7 +88,7 @@ export function DebtsNeedsALook({ loans }: { loans: LoanResponse[] }) {
     }
     // An EMI that fell due and wasn't recorded comes first among the rest: until it is,
     // this loan's balance, EMIs left and payoff date are all still describing last month
-    // (ROADMAP 0.2). Nothing else shown for the loan is trustworthy while it's true.
+    // (ROADMAP 1.2). Nothing else shown for the loan is trustworthy while it's true.
     if (loan.unrecordedEmis > 0) {
       const n = loan.unrecordedEmis;
       return [
