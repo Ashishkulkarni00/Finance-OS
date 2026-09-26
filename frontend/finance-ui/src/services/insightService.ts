@@ -7,6 +7,7 @@ export const insightService = baseApi.injectEndpoints({
     getInsights: build.query<InsightListResponse, InsightSurface>({
       query: (surface) => `/insights?surface=${surface}`,
       providesTags: [
+        'Insight',
         { type: 'CommitmentInstance' as const, id: 'LIST' },
         'Position',
         'Projection',
@@ -27,6 +28,7 @@ export const insightService = baseApi.injectEndpoints({
     getAllInsights: build.query<InsightListResponse, void>({
       query: () => '/insights/all',
       providesTags: [
+        'Insight',
         { type: 'CommitmentInstance' as const, id: 'LIST' },
         'Position',
         'Projection',
@@ -36,7 +38,39 @@ export const insightService = baseApi.injectEndpoints({
         'Timeline',
       ],
     }),
+
+    /**
+     * "I know" — silent until the situation itself changes (ROADMAP 3.2).
+     *
+     * The key is encoded: insight keys contain colons (`goal:6:pace`), and an unencoded one
+     * is at the mercy of whatever the server's path parser makes of them.
+     */
+    dismissInsight: build.mutation<void, string>({
+      query: (key) => ({ url: `/insights/${encodeURIComponent(key)}/dismiss`, method: 'POST' }),
+      invalidatesTags: ['Insight'],
+    }),
+
+    /** "Not this week" — silent until a date, whatever happens in the meantime. */
+    snoozeInsight: build.mutation<void, { key: string; days: number }>({
+      query: ({ key, days }) => ({
+        url: `/insights/${encodeURIComponent(key)}/snooze?days=${days}`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['Insight'],
+    }),
+
+    /** Undo — it speaks again immediately. */
+    restoreInsight: build.mutation<void, string>({
+      query: (key) => ({ url: `/insights/${encodeURIComponent(key)}/restore`, method: 'POST' }),
+      invalidatesTags: ['Insight'],
+    }),
   }),
 });
 
-export const { useGetInsightsQuery, useGetAllInsightsQuery } = insightService;
+export const {
+  useGetInsightsQuery,
+  useGetAllInsightsQuery,
+  useDismissInsightMutation,
+  useSnoozeInsightMutation,
+  useRestoreInsightMutation,
+} = insightService;

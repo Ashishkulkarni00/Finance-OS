@@ -41,8 +41,9 @@ Rewritten from scratch 2026-09-17; stack, feature map and data snapshot refreshe
 ## 2. Stack and commands
 - **Backend:** `webapp/backend/finance`
   - Spring Boot 4.1.1, Hibernate 7, Jackson 3 (`tools.jackson.*`), Flyway, MySQL 8.
-  - The latest migration is **V20** (`insight_state`). V18 plan revisions · V19 insurance
-    policies · V20 notification state — each asked for explicitly; the freeze is back on.
+  - The latest migration is **V21** (`insight_state` dismissal columns). V18 plan revisions ·
+    V19 insurance policies · V20 notification state · V21 dismiss/snooze — each asked for
+    explicitly; the freeze is back on.
   - Tests: `JAVA_HOME=C:/Users/DELL/.jdks/corretto-21.0.4 MAVEN_OPTS="-Xmx512m" ./mvnw.cmd -B -o test`. Last known **125/125**, but **frozen since 2026-09-17** and not run since; Phase 1.1-1.4 added none. Treat that number as history, not as a current pass. Use `test-compile` — compiling is not running.
   - Dev server: `:8080` with devtools; it reloads on compile.
     - A test build can trigger a restart. Wait with an until-loop on `/api/v1/health`, not `sleep`.
@@ -66,7 +67,9 @@ Rewritten from scratch 2026-09-17; stack, feature map and data snapshot refreshe
 
 ## 3. What exists (feature map)
 - **Navigation:** Today · Months · Ahead · Money (tabs: Overview · Cards · Debts · Investments · **Cover**) · Ledger, plus Add. Cover added 2026-09-21 (ADR-0016).
-- **Needs you** (`/needs-you`, 2026-09-23): every insight, uncapped, grouped by what it costs to ignore. Reached from the "See all" on Today's and Months' own lists, which are unchanged. A **drill-down of Today, not a sixth tab** — Today's job is already "where do I stand now". Polls every 30s; a row opens what it is about.
+- **Needs you** (`/needs-you`, 2026-09-23): every insight, uncapped, grouped by what it costs to ignore. Reached from the "See all" on Today's and Months' own lists, which are unchanged. A **drill-down of Today, not a sixth tab** — Today's job is already "where do I stand now". Polls every 30s; a row opens what it is about. Each row can be answered (*I know* / snooze); answered ones fold under "N you've answered" rather than disappearing.
+- **Insight rules** (all derived, never stored): shortfall · card bill · plan item · goal behind · goal funding unclear (2026-09-24) · **rate mismatch** (2026-09-25 — money set aside while dearer debt runs; assumes **no** savings rate, and never suggests emptying the fund). Idle cash and subscription drift are the two left in ROADMAP 3.1, and neither can fire truthfully on this user's data yet — see CONTINUE_HERE before building either.
+- **Spend baseline** (`SpendBaselineCalculator`): the median of flexible spending over up to 6 **ended** cycles, minimum 2. **A cycle with no entries at all is skipped** (2026-09-26) — an unused month is not an observation of ₹0, and counting one would have had the app announce a fabricated "usual" on the user's first real day.
 - **The app speaks on write** (ROADMAP 1.4, ADR-0017): recording or settling closes the sheet and reports what it did in a toast, bottom-right — what is left to spend today before → after, free until salary, and anything that just crossed a line. `QUIET` expires in 10s and is held while hovered; `HELD` waits. A warning is announced **once, when it becomes true**, and once again when it stops; `insight_state` is the memory.
 - **Ahead (since 2026-09-19):** a 12-month forecast (`GET /forecast`, a pure rule projection - not blended with actuals) with a money-unlock calendar, above the Goals section. Reserve-ahead, what-if and Get back on track are next.
 - **Accounts:**
@@ -146,4 +149,4 @@ Rewritten from scratch 2026-09-17; stack, feature map and data snapshot refreshe
 - **2.11:** An expense bill from a non-spendable bank still reduces Free.
 - **3.2:** Card bills are missing from Needs you.
 - **3.3:** A manual card-bill plan item would double count.
-- **4.1-4.6:** Rough edges (settings 500, devtools restart, varies keeps amount, Postman gaps, two orphan postings). *4.3 closed by ADR-0018.*
+- **4.1-4.7:** Rough edges (settings 500, devtools restart, varies keeps amount, Postman gaps, two orphan postings, **4.7 nested `<button>` on Needs you**). *4.3 closed by ADR-0018.*

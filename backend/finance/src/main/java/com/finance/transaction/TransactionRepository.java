@@ -23,6 +23,17 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
 
     Optional<Transaction> findByIdAndUserIdAndDeletedAtIsNull(Long id, Long userId);
 
+    /**
+     * How many entries the user recorded in a window - the difference between a month in
+     * which nothing was spent and a month the app was not used at all.
+     *
+     * <p>Only ever compared against zero. The two read identically in every total, and
+     * treating the second as an observation of ₹0 is the null-means-unknown mistake
+     * (CLAUDE.md rule 3) in its most expensive form: it drags a baseline down and the
+     * product then measures the user against a month that never happened.
+     */
+    long countByUserIdAndDeletedAtIsNullAndDateBetween(Long userId, LocalDate from, LocalDate to);
+
     /** The latest entry of this kind with the same description - where a statement row's
      *  category is suggested from (the user's own past choice, never a guess). */
     Optional<Transaction> findFirstByUserIdAndTypeAndDescriptionIgnoreCaseAndDeletedAtIsNullOrderByDateDescIdDesc(
