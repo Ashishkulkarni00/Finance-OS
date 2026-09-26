@@ -108,6 +108,17 @@ fix) or move it to **Done** with the date.
 - **Fix, if wanted.** Hard-delete the three rows and their postings after a `mysqldump`;
   harmless either way.
 
+### 4.7 A nested `<button>` on Needs you logs a React hydration error
+- Found 2026-09-25 in the headless console while screenshotting `/needs-you`:
+  *"In HTML, `<button>` cannot be a descendant of `<button>`"*, traced through `AppShell` →
+  `Outlet`. `InsightRow` renders the whole row as a button when `navigable` (the dedicated
+  page passes it), and the row's own **"I know"** and action buttons sit inside it.
+- **Cost.** Nothing visibly broken — the click handlers work, because `stopPropagation` was
+  added for exactly this. But nested interactive elements are invalid HTML: screen readers
+  announce one control, and the inner button is not reliably reachable by keyboard.
+- **Fix.** Make the row a `<div>` with an overlaid stretched link or an `onClick` plus
+  `role="link"`/`tabIndex`, so the action buttons are siblings rather than descendants.
+
 ---
 
 ## Data to check (not code)

@@ -23,5 +23,9 @@ public enum InsightType {
     /** A credit card bill's due date has passed with money still owed. */
     CARD_BILL_OVERDUE,
     /** The top goal is behind its pace or past its date. */
-    GOAL_BEHIND
+    GOAL_BEHIND,
+    /** A goal is funded by a bill with no set amount, so its pace cannot be judged at all. */
+    GOAL_FUNDING_UNCLEAR,
+    /** Money is set aside while debt costing more than it can earn is still running. */
+    RATE_MISMATCH
 }

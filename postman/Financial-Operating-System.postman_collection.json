@@ -9699,6 +9699,8 @@
 									"pm.test(\"one row per thing needing you - keys are unique\", () => { const keys = b.items.map((i) => i.key); pm.expect(new Set(keys).size).to.eql(keys.length); });",
 									"pm.test(\"ranked: severity never rises down the list\", () => { const order = [\"CRITICAL\", \"ATTENTION\", \"OPPORTUNITY\", \"INFO\"]; for (let k = 1; k < b.items.length; k++) pm.expect(order.indexOf(b.items[k].severity)).to.be.at.least(order.indexOf(b.items[k - 1].severity)); });",
 									"pm.test(\"money as strings\", () => b.items.forEach((i) => { if (i.impact != null) pm.expect(i.impact).to.be.a(\"string\"); }));",
+									"pm.test(\"a rate mismatch prices the trade and links the loan\", () => b.items.filter((i) => i.type === \"RATE_MISMATCH\").forEach((i) => { pm.expect(i.impact, \"the yearly cost of holding\").to.be.a(\"string\"); pm.expect(i.when, \"undated - true until the debt clears, not an event\").to.be.undefined; pm.expect(i.action.route).to.match(/^[/]loans[/][0-9]+$/); pm.expect(i.severity, \"nothing is going wrong\").to.eql(\"OPPORTUNITY\"); }));",
+									"pm.test(\"a rate mismatch never says to empty the fund\", () => b.items.filter((i) => i.type === \"RATE_MISMATCH\").forEach((i) => pm.expect(i.explanation, \"the closing sentence is part of the rule, not decoration\").to.include(\"not a reason to empty it\")));",
 									"pm.test(\"at least as many as the capped Today list\", () => pm.expect(b.items.length).to.be.at.least(0));"
 								]
 							}

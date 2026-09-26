@@ -9,6 +9,10 @@ public interface InsightStateRepository extends JpaRepository<InsightState, Long
     /** Everything currently true for this user - the left-hand side of the diff on a write. */
     List<InsightState> findByUserIdAndClearedAtIsNull(Long userId);
 
+    /** Warnings that stopped being true, most recently cleared first - the recovery half of
+     *  ADR-0017, which until now only ever appeared in a toast nobody may have been watching. */
+    List<InsightState> findByUserIdAndClearedAtIsNotNullOrderByClearedAtDesc(Long userId);
+
     /** One warning's history, newest first: how often it recurs and how long it lasts. */
     List<InsightState> findByUserIdAndInsightKeyOrderByFirstSeenAtDesc(Long userId, String insightKey);
 }

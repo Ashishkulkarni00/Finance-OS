@@ -82,14 +82,52 @@ user opening five tabs. ✅ **Met 2026-09-24 — Phase 2 is closed.**
 
 ## Phase 3 — Attention + Opportunity, unified
 
-| # | Item | Impact |
-|---|---|---|
-| 3.1 | Merge opportunity rules into the insight engine; add idle cash, subscription drift, rate mismatch (saving at 6% while paying 22%), goal underfunded early | Backend (rules), no schema |
-| 3.2 | **Dismiss/snooze** (`insight_state`) | DB (1 table), backend, UI |
-| 3.3 | **A voice when healthy** — "nothing needs you; here's what moved" | Backend wording + UI |
-| 3.4 | Threshold crossings from 1.4 become first-class attention items | Backend |
+| # | Item | Impact | Status |
+|---|---|---|---|
+| 3.1 | Merge opportunity rules into the insight engine; add idle cash, subscription drift, rate mismatch (saving at 6% while paying 22%), goal underfunded early | Backend (rules), no schema | 🟡 **In progress.** ~~goal underfunded~~ done 2026-09-24 (`GoalFundingUnclearRule`). ~~rate mismatch~~ done 2026-09-25 (`RateMismatchRule`) — **no savings rate is assumed**, see below. Idle cash and subscription drift not started — one rule at a time, each checked on real data first |
+| 3.2 | **Dismiss/snooze** (`insight_state`) | DB (1 table), backend, UI | ✅ **Done 2026-09-25** · **V21** (two columns, applied) · `InsightSilencer` · dismiss / snooze / restore · answered items folded, never dropped · **the dismiss click itself is untested** — needs a POST |
+| 3.3 | **A voice when healthy** — "nothing needs you; here's what moved" | Backend wording + UI | ✅ **Done 2026-09-25** · `CalmVoice` → `whatMoved` on `GET /insights`, shown under the list whenever nothing is urgent |
+| 3.4 | Threshold crossings from 1.4 become first-class attention items | Backend | **Mostly already true — rescope before building.** A crossing that *starts* is already an `Insight`, on `/needs-you`, dismissable (1.4 + 3.2); one that *clears* gets a line from `CalmVoice` (3.3). What is genuinely missing: a crossing is only ever seen if you happen to be looking. The toast lasts 10s, `CalmVoice.recovery()` returns **one** recovery, only from the last 7 days, and only when nothing urgent is live — so a warning that starts and clears between two visits is never mentioned. `insight_state` holds the history and nothing reads it as a timeline. Proposed: a **"What changed"** list on `/needs-you` over cleared rows, each with *Got it*. **No V22** — `dismissed_at` from 3.2 is already the right marker |
 
 **Exit:** the product has something worth saying every week, and never says it twice.
+
+### 3.1 — why `RateMismatchRule` assumes no savings rate
+
+The item above is phrased "saving at 6% while paying 22%", but nothing in the model records
+what an account earns, and inventing a figure to complete that sentence is the
+confident-wrong failure rule 3 forbids. It is not needed. The cost of *not* repaying is
+arithmetic over figures we already hold — `min(saved, outstandingPrincipal) × annualRate` —
+capped at the loan's balance, because interest can only be saved on debt that exists.
+
+The rule also must not read as *"empty your emergency fund"*, which is where a naive rate
+comparison lands. A fund spent on debt means the next emergency is borrowed again, plausibly
+on the same card at the same rate. So the output is the price of the trade and nothing more
+(D8), and the closing sentence — *"this is the price of its size, not a reason to empty it"* —
+is part of the rule, asserted in Postman, not decoration.
+
+Fires narrowly: top rate ≥ 12% (below that the trade is a legitimate matter of taste), the
+trade costing ≥ ₹1,500 a year, loan `ACTIVE` with a balance. One insight, dearest loan only,
+keyed `loan:{id}:rate-mismatch` so the next loan up is a fresh crossing when this one clears.
+
+**The threshold is the yearly cost, not the balance**, after a balance floor proved to be the
+wrong variable: ₹10,000 against 22% is ₹2,208 a year and worth a line, the same ₹10,000
+against 12% is ₹1,200 and arguably is not.
+
+**And a goal's balance is not money you can move.** The rule shipped comparing the whole
+₹33,000 of this user's emergency fund and was corrected within the hour: HDFC Premium carries
+a mandatory ₹25,000 minimum, so only ₹8,000 is reachable and the true cost is ₹1,766, not
+₹7,286. `reachable()` subtracts a linked account's mandatory minimum, and the wording states
+what is held back. `FinancialContext` gained `List<Account> accounts` for this — `projections`
+carries only *spendable* accounts, and this rule is about money deliberately kept out of that.
+
+### 3.1 — why idle cash and subscription drift are not built
+
+Both were investigated on 2026-09-25 against real data and neither can fire truthfully yet.
+**Idle cash:** every non-spendable rupee is already claimed — the ₹33,000 fund by a goal (and
+a ₹25,000 minimum), the ₹16,900 cash wallet by commitment 41, which transfers all of it on
+2 Oct. A rule pointing at money that has a plan trains the user to dismiss the channel.
+**Subscription drift:** needs history, and there is roughly one month of it. Details and the
+exclusion set to use later are in `CONTINUE_HERE.md`.
 
 ---
 

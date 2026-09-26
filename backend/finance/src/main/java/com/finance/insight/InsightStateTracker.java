@@ -94,6 +94,11 @@ public class InsightStateTracker {
             if (insight.severity().ordinal() < existing.getSeverity().ordinal()) {
                 existing.setSeverity(insight.severity());
                 started.add(insight);
+                // The one case where "silent until something changes" needs code: this
+                // warning has got worse, so the answer the user gave was to a milder thing
+                // (ROADMAP 3.2). A dismissal must not outlive what it dismissed.
+                existing.setDismissedAt(null);
+                existing.setSnoozedUntil(null);
             }
             repository.save(existing);
         }

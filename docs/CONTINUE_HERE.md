@@ -1,4 +1,4 @@
-# Continue here (rewritten 2026-09-23)
+# Continue here (rewritten 2026-09-25)
 
 **This top block — down to the `---` — is the whole handoff contract. A session started
 with the single word "continue" must be able to act on it with no other input.** Everything
@@ -11,109 +11,241 @@ Everything else under `docs/` is history unless `DOC_INDEX.md` lists it as livin
 
 ---
 
+## HOW TO TALK TO THE USER — read this before writing a reply
+
+**Short, plain, direct. Say the thing, then stop.** The user asked for this twice in one
+sentence on 2026-09-25 ("tell me simply", "let's keep it simple and quick"), after a reply
+that buried a one-word decision under three tables.
+
+- **One question at a time**, in a sentence. Not a menu, not a comparison table.
+- Don't restate the plan, the handoff, or anything they already know.
+- Long structured write-ups belong **here**, in the docs — not in chat. That is what this
+  file is for.
+- If they ask "what do you want from me", the answer is one line.
+
+This changes how much gets *printed*, never how much gets verified.
+
+---
+
 ## NEXT ACTION
 
-**Start ROADMAP Phase 3 - Attention + Opportunity, unified.** Branch
-`feature/financial-os-reassessment-phase-2`, **still not pushed** (Phase 2 + the goal-pace
-fix are all uncommitted).
+**The user starts real use on 28 September 2026.** Until that is done and verified, it
+outranks everything. The checklist is *Fresh start on 28 September* immediately below —
+Claude cannot make any of those writes, so the job is to guide, then verify through the API.
+
+After that: **Phase 3.4, rescoped** — see ROADMAP §3.4. Both remaining 3.1 rules were
+investigated on 2026-09-25 and **neither should be built yet**; the evidence is under *Why
+idle cash was not built* below. The user asked for idle cash and the honest answer was that it
+cannot fire truthfully on their data — tell them that first, do not silently substitute.
+
+---
+
+## Fresh start on 28 September (prepared 2026-09-26)
+
+The user asked for the app to carry nothing from September. **The code side is done** (the
+baseline fix below). What is left is theirs to click.
+
+### The one code change that was needed
+
+**An empty cycle is no longer counted as a month of ₹0 spending.**
+`SpendBaselineCalculator` took every *ended* cycle. An empty **28 Jul – 27 Aug** cycle sits
+beside the first real month, so at 00:00 on 28 September there would have been exactly two
+ended cycles — September (₹3,200 flexible) and one that never existed (₹0) — which is
+`MINIMUM_CYCLES`, and the app would have greeted the user's first real day with
+*"You usually spend ₹1,600 a month day to day, measured over 2 months."*
+
+A fabricated fact, on day one, from the median of a half-set-up month and a month that never
+happened. `TransactionRepository.countByUserIdAndDeletedAtIsNullAndDateBetween` now gates it:
+a cycle with **no entries at all** is not an observation. *Any* entry counts, not just
+flexible ones — a month whose only entries were EMIs really was a month of ₹0 day-to-day
+spending, and that is genuine.
+
+With it, 28 September has **one** observation, which is below the minimum, so the honest
+answer comes back instead: not yet known. Two real months in and it starts working.
+
+**Proof it took effect:** `GET /financial-state` → `baseline.cyclesObserved` went **1 → 0**.
+The empty July cycle is excluded today; the September one is not ended yet.
+
+### What the user does on the 28th
+
+1. **Delete the nine junk rows first** (Ledger; they are in the *Fixes* table below). They are
+   inside the September cycle, so they distort the ₹3,200 that becomes an observation later.
+2. **Re-anchor each account's balance.** Money → the account → **Update balance**.
+   **Set "True as of" to 27 September, not the 28th.** The balance is
+   `openingBalance + sum(postings dated **strictly after** the anchor)`
+   (`PostingRepository.sumPostingsForAccount`: `t.date > :openingAsOf`), so an anchor of
+   28 Sep would silently exclude the salary credited that same day. 27 Sep is the exact cycle
+   boundary and lets everything from the 28th onward count.
+3. The four other data fixes in the table below.
+
+### What needs nothing, and why — all verified 2026-09-26
+
+| | |
+|---|---|
+| **October's plan** | Cycle 3 (28 Sep – 27 Oct) already holds **18 PENDING** instances. Cycle 1 (28 Aug – 27 Sep) holds **zero**. Nothing from September is in October's plan |
+| **"What's different this month"** | `PlanChanges` treats the plan's first month as the baseline and reports nothing. `planStart` is the earliest `INCOME` rule's `activeFrom` — *Salary credit*, **2026-09-28** — which is exactly the October cycle's start, so it resolves correctly with no intervention |
+| **Goals** | Progress derives from the linked account, so re-anchoring HDFC Premium moves the goal with it |
+| **Loans** | First EMI is 5 Oct, `unrecordedEmis: 0`. Nothing to clear |
+| **Closing September** | Not worth doing. Cycle 1 has no commitment instances, so a close records "Kept 0 of 0", which renders nothing by design. Leave it open |
+| **`insight_state`** | The 23 Sep row (`goal:6:pace`) stays open **deliberately**. The warning is still true, and re-announcing a live warning is what ADR-0017 exists to prevent |
+| **Transactions in September** | They stay in the Ledger by design (soft delete only, rule 6). After re-anchoring they no longer affect any balance |
+
+**Before starting anything, put the October data fixes in front of the user.** They begin
+real use on **28 September** — three days out as of this writing — and their own standing
+rule is that October correctness outranks features. All five were re-verified against
+`:8080` on 2026-09-25 and all five are still open; they are in *The user's October data
+fixes* below. Claude cannot make these writes.
 
 | # | |
 |---|---|
-| 3.1 | New rules in the insight engine: idle cash, subscription drift, rate mismatch (saving at 6% while paying 22%), goal underfunded early |
-| 3.2 | **Dismiss / snooze** - the `insight_state` columns already designed in ADR-0017. Needs **V21**, so ask before writing it |
-| 3.3 | **A voice when healthy** - "nothing needs you; here's what moved" |
-| 3.4 | Threshold crossings from 1.4 become first-class attention items |
+| 3.1 | 🟡 goal-underfunded (2026-09-24) and **rate mismatch (2026-09-25)** done. Idle cash and subscription drift left |
+| 3.2 | ✅ done 2026-09-25 · **V21 applied** · the dismiss click itself is **still unverified** |
+| 3.3 | ✅ done 2026-09-25 |
+| 3.4 | **Rescope before building** — most of it is already true. See ROADMAP §3.4 |
 
-**Exit:** something worth saying every week, and never said twice.
+### 3.1 rate mismatch — what was built (2026-09-25)
 
-**Phase 2 is closed and goal pace is fixed (2026-09-24).** The blocker that stood in front of
-Phase 3 is gone: the engine's existing goal rule no longer makes a false claim, so adding
-four more rules on top of it is now safe.
+**`RateMismatchRule`** — money set aside while debt that costs more than it can earn is still
+running (`FINANCIAL_STATE.md` §7, "allocation is costing money"). Nothing in the product had
+ever connected a goal to a loan; each screen was correct alone and the one fact joining them
+was visible from neither.
 
-## Goal pace - fixed 2026-09-24 (was the oldest known correctness bug)
+**Live on the user's data, screenshotted on `/needs-you`:**
 
-**It measured the calendar, not the money.** Pace compared the share of the target saved
-against the share of time gone since the goal was created. That called the emergency fund
-`ON_TRACK` at 16.5% saved with 2.56% of the time gone - while it needed **Rs 15,182 a month
-that exists nowhere in the plan** - purely because Rs 33,000 happened to be in the account on
-the day the goal was made. And a goal added yesterday was *always* on track, because no time
-had passed yet.
+> **₹8,000 you could move, while ₹42,701 costs 22.08% a year**
+> Money in Emergency fund doesn't reduce what Health Insurance charges. Emergency fund holds
+> ₹33,000, but ₹25,000 has to stay put as a minimum balance. Holding ₹8,000 rather than
+> repaying costs about ₹1,766 a year. Money you can reach in a hurry is still worth having —
+> this is the price of its size, not a reason to empty it.
 
-**It now measures funding against requirement.** `GoalServiceImpl.funding()` sums the bills
-that actually pay into the goal; `pace()` compares that with `requiredPerMonth`. This is
-exactly the test `GoalPace`'s own javadoc used to describe as "the better test… needs a bill
-linked to its goal, which doesn't exist yet" - goal-funded bills (`CommitmentSource.GOAL`) do
-exist now, so the note was stale rather than wrong.
+**Four decisions, all load-bearing — reasoning in ROADMAP §3.1:**
+- **No savings rate is assumed.** The roadmap says "saving at 6% while paying 22%", but
+  nothing models what an account earns and inventing a figure breaks rule 3. Not needed:
+  `min(reachable, outstandingPrincipal) × annualRate` is arithmetic over figures we hold.
+- **A mandatory minimum balance is not savings you can spend.** ⚠️ **This was shipped wrong
+  and corrected the same day.** The first version compared the goal's whole ₹33,000 and said
+  the trade cost **₹7,286 a year**. HDFC Premium carries a mandatory ₹25,000 minimum
+  (`minimumBalanceMandatory`, `hold.locked` ₹25,000, `available` ₹8,000), so only ₹8,000 can
+  actually move: the real figure is **₹1,766**, a **4× overstatement** urging a transfer that
+  is not even possible. `reachable()` subtracts the minimum, and the wording now says what is
+  held back so the figure cannot look arbitrary next to the balance on the goal page.
+  *The lesson worth carrying: a goal's `currentAmount` is not the same as money you can use.*
+- **It must not read as "empty your fund."** A fund spent on debt means the next emergency is
+  borrowed again at the same rate. The closing sentence is part of the rule and is
+  **asserted in Postman** so a future edit cannot quietly drop it.
+- **The bar is the yearly cost (₹1,500), not the balance.** A balance floor was the first
+  attempt and it was the wrong variable — ₹10,000 against 22% is worth saying, the same
+  ₹10,000 against 12% arguably is not. Only the product of the two is what the user acts on.
+  Also: top rate ≥ 12%, loan `ACTIVE` with a balance. One insight, dearest loan only.
+  `OPPORTUNITY` — nothing is going wrong.
 
-**Three judgements inside it:**
-- **Only bills that *fund* count.** A goal-linked bill settled as an EXPENSE is a payment the
-  goal is *for* - a trip's bookings - and paying for the trip does not save for it.
-- **One-off top-ups are excluded.** Money once is not money a month. Counting the Rs 17,000
-  and Rs 30,000 EF top-ups as monthly funding made the EF look funded at Rs 47,000/month.
-  The `isOneOff` rule moved to `CommitmentMonthlyCost` so the forecast and the goal engine
-  share one definition rather than keeping a third copy (the frontend has one too).
-- **A varying contribution makes the pace UNKNOWN, never a guess.** What goes in each month
-  is then the user's decision, and no honest claim can be read off the plan (ADR-0006).
-- **No tolerance.** Rs 10,000 against Rs 15,182 needed is not "roughly on track"; it is
-  Rs 5,182 short, every month.
+**Files:** `insight/rules/RateMismatchRule.java` (new) · `InsightType.RATE_MISMATCH` ·
+`FinancialContext` gained `List<LoanView> loans` **and `List<Account> accounts`** (the
+projections list covers only *spendable* accounts, so a rule about money deliberately held
+back had nowhere to read it) · `InsightService` injects `LoanService` · `types/insight.ts` ·
+two Postman assertions on *What needs you - everything*.
 
-**Live now:** Bangalore trip **BEHIND** (needs Rs 12,000/mo, funded Rs 0) - Emergency fund
-**UNKNOWN** (needs Rs 15,182/mo, one varying funding bill). Both were verified through the
-API and on screen.
+**No schema. No bean cycle** — `LoanServiceImpl` depends on `AccountService`,
+`@Lazy CommitmentService` and two repos; nothing reaches `InsightService`, which is consumed
+only by `WriteEffects` and `FinancialStateServiceImpl`.
 
-**User-visible:** the insight no longer says *"0% saved with 12% of the time gone"* - a fact
-about the calendar that names nothing to change. It says **"Nothing is funding it yet.
-Rs 12,000 a month reaches Rs 12,000 by 31 Oct."** The goal page gained a **"Going in a
-month"** row beside "Set aside a month", so a goal can no longer state a requirement while
-staying silent about whether anything meets it.
+**Verified:** backend compiles and the running app serves it (`GET /insights/all` → key
+`loan:7:rate-mismatch`, impact `1766.40`, route `/loans/7`, no `when`); frontend
+`tsc -b --noEmit` + `vite build` clean; **screenshotted** on `/needs-you` in headless Chrome
+with every non-GET blocked. Nothing in the frontend switches on `InsightType`, so no
+exhaustive match needed updating — the UI groups by severity.
 
-**Follow-ups this opened, none urgent:**
-- A goal whose funding varies now produces **no insight at all** (`GoalBehindRule` fires only
-  on BEHIND/OVERDUE). The EF - the user's most important goal - is therefore silent. A rule
-  saying *"we can't tell whether X is on track; its contribution varies"* belongs in **3.1**.
-- Planned one-off top-ups do **not** reduce `requiredPerMonth`. Correct for a *rate*, arguably
-  wrong for *feasibility*: the Rs 47,000 of EF top-ups genuinely do shorten the road. Left
-  alone deliberately - it is a pre-existing question, not something this change caused.
-- ROADMAP **5.1 is now half done**; the remaining half is required/month against what is
-  actually free, which needs the goal engine to read cash flow.
+**Keyed on the loan** (`loan:{id}:rate-mismatch`), so when Health Insurance clears in Sep 2027
+this crossing clears and a new one opens for Coding Ninjas at 19.05%. That is news, not a
+repeat (ADR-0017).
 
-## Today-page motion (2026-09-24)
+**Still unverified by a click:** *Open loan* → `/loans/7` was not exercised; the route exists
+(`App.tsx:62`). And **`I know` on this row has never been pressed** — same POST gap as 3.2.
 
-Asked for: "10-20% more perceived life, not 200% more animation." Built as **CSS only** -
-no motion library. Framer Motion is ~50KB gzipped to do opacity and transform, which the
-compositor already does without a React re-render, and this project's stack is deliberately
-small.
+### Why idle cash was not built (investigated 2026-09-25)
 
-- **Tokens in `index.css`** (`--motion-fast|normal|emphasis|stagger`, two easings) so no file
-  invents timing. `DESIGN_SYSTEM.md` §10 now carries them.
-- **`.reveal` / `.reveal-shell`** - opacity + 8px rise, delay via `--reveal-delay`. Opt-in
-  everywhere: shared components (`StatementRow`, `LedgerRow`, `InsightRow`) take a
-  `revealDelay` prop and animate only when given one, so Months and the Ledger are untouched.
-- **`AnimatedCollapse`** - grid `0fr → 1fr`, not a measured pixel height. Nothing to re-measure
-  when a figure wraps, and no jank.
-- **Order:** shell 420ms → label → figure (+70ms) → day rate (+140ms) → summary rows 55ms
-  apart → Needs you / Coming up (+600ms).
-- **`useAnimatedMoney` was left exactly as it was.** It already animates *on change only*,
-  never on mount - which is both the old rule and the user's §4.
+The user asked for it directly. It was not built because **it cannot fire truthfully on this
+data**, and firing untruthfully is the one thing rule 3 forbids. Every non-spendable rupee is
+already accounted for:
 
-**The design system said the opposite, and that was resolved rather than ignored.** §10 banned
-"staggered card entrances". The request asked for a 55ms stagger. Those are different things -
-one is cards announcing themselves, the other is an 8px rise you notice only by its absence -
-so §10 was **revised, not repealed**, and now says which is which. A doc left contradicting
-the code is the thing that rots.
+| Money | Status |
+|---|---|
+| HDFC Premium **₹33,000** | Linked to goal 1 (Emergency fund). Allocated — and ₹25,000 of it is a mandatory minimum. Already covered by `RateMismatchRule` |
+| Cash wallet **₹16,900** | **Looks idle and is not.** Commitment **41** — *Emergency fund top-up*, ₹17,000, `TRANSFER`, **from Cash wallet**, active 28 Sep–27 Oct — moves the whole lot on 2 Oct |
+| HDFC Salary ₹7,291 · IDBI ₹709 | Spendable working money |
+| SIP - Zerodha ₹5,000 | An investment, not cash |
 
-**Accessibility:** the global `prefers-reduced-motion` reset already flattened durations. It
-did **not** zero `animation-delay`, so a staggered element would have sat invisible behind
-`both` for the length of its delay - motion reduced into a blank screen. Fixed, and verified
-by emulating the setting: delays `0.66s → 0s`, nothing below full opacity.
+So an idle-cash rule either says nothing, or points at ₹16,900 that has a plan — which trains
+the user to dismiss the channel (see memory `feedback-behavioural-reasoning-wanted`). Building
+it would also mean shipping a rule that has never been seen to fire, which is what
+"do not build blind" was meant to prevent.
 
-**Verified on screen:** mid-flight sampling shows the cascade (`1.00, 1.00, 0.96, 0.00, 0.53,
-0.00…` resolving to all `1.00`); the collapse transitions `0px → 263px`; the settled page is
-pixel-identical to before, which is the point.
+**When it becomes worth building:** after the user starts recording real months, if a balance
+appears with no goal link, no reservation and no commitment drawing on it. The exclusion set
+above is the design — write it then, against data that proves it.
 
-**Also touched, because §8 and §11 named them:** `Button` gained a 0.98 press, `LedgerRow`'s
-chevron moves 2px on hover, the sidebar's Add control presses. All shared - flagged for the
-user, easy to revert.
+**Subscription drift is in the same position, for a different reason:** it needs history, and
+there is about one month of it. Spotify ₹139, TV+WiFi ₹1,000 and the archived Anthropic
+₹2,373 cannot drift against a baseline that does not exist yet.
+
+### Found on the way, not fixed (2026-09-25)
+
+- **`GET /api/v1/commitment-rules` returns 500.** The route does not exist — the real one is
+  `/commitments`. Same unknown-path-returns-500 family as `GET /users/me`. Logged below.
+- **Nested `<button>` on `/needs-you`** — React hydration error in the console.
+  `FIX_BACKLOG.md` **4.7**, with the fix.
+- **A new bill exists that the handoff did not know about:** `EMI - Processing fees`
+  (id 50, `VARIABLE`, due 7th, one month only 28 Sep–27 Oct, "processing fees + first month
+  interest of health insurance").
+
+### 3.2 - what was built
+
+A warning is derived on every read and never stored, so "delete this" cannot mean anything:
+the next read works it out again and the button looks broken. Dismissal is therefore
+remembered **beside** the warning - it stays true, and the product stops saying it.
+
+**V21** adds two columns to `insight_state`: `dismissed_at` and `snoozed_until`. Two, not one
+status, because they are different promises - a dismissal is answered by the world changing,
+a snooze by the calendar.
+
+**"Until something changes" needs no expiry rule.** The mechanism was already there: a
+warning that clears and returns opens a *new* row (ADR-0017 - a recurrence is a different
+event from one that never left), and a new row carries no dismissal. The single case needing
+code is **escalation**, where the same row gets louder - `InsightStateTracker` undismisses it,
+because an answer given to a milder thing must not outlive it.
+
+**Rules stay pure.** Filtering happens once, in `InsightSilencer`, read by
+`InsightService.evaluate`. A rule that had to remember to check dismissal is a rule that will
+eventually forget.
+
+**Dismissing records the warning if it has never been recorded.** The tracker only writes on a
+**write**, because that is what makes a crossing a crossing - recording on read would mean the
+state was already there by the time anything was written and the toast would announce nothing.
+The consequence is that a warning true since before the user's last write has no row. Refusing
+to dismiss it would be an unexplainable failure: it is on screen, and the button would claim it
+does not exist. So `InsightSilencer.rowFor` creates it, with the fields the tracker would have
+written. The controller resolves the key against what is **currently true**, so a resolved
+warning cannot be dismissed.
+
+**Answered items are folded, never dropped** - `"N you've answered"` at the foot of
+`/needs-you`, each with *Show it again*. A list you can silently lose things from is one you
+stop trusting.
+
+**API:** `POST /insights/{key}/dismiss` · `/snooze?days=` (1-90) · `/restore`. Keys contain
+colons (`goal:6:pace`) and are URL-encoded by the client.
+
+### Found on the way, not fixed
+
+**A GET to a POST-only route returns 500, not 405.** `HttpRequestMethodNotSupportedException`
+is unhandled in `GlobalExceptionHandler` - the same family as the known "`GET /users/me`
+returns 500". Pre-existing, now visible on the new routes. One `@ExceptionHandler` would fix it.
+
+**Two of the user's bills are both named "HDFC - Credit card EMI"** (Rs 2,648 Mobile Mom,
+Rs 3,998 Health Insurance), so 3.3's unlock line cannot say which one ends. A naming problem
+in the user's data - worth raising with them.
+
+**No Postman assertions yet** for `GOAL_FUNDING_UNCLEAR`, `whatMoved`, or the three new
+endpoints. Add them together in the next slice so the Insights folder is touched once.
 
 **Decided with the user (do not reopen):**
 - Speak after any write that matters, **not** after every write. Silence is a valid effect.
@@ -242,28 +374,15 @@ everything, live, where a row takes you to what it is about.
 - **Verified via headless CDP:** the page renders, groups correctly, "See all" is present on
   Today, and clicking the row lands on `/goals/6`, which renders.
 
-**Still open from that conversation:** the user also asked for a **toast** (top-right, ~5s,
-dismissible) and **remove/dismiss** from the list. Neither is built. My advice on record:
-`QUIET` may auto-fade but `HELD` must not; the Room delta belongs in the toast only and
-**not** in the list, or the list becomes a second transaction log; and "remove" has to mean
-*dismiss/snooze* recorded in `insight_state`, because the rules re-derive truth on every read
-and a deleted row returns within seconds. Dismiss needs **V21** (two columns) and is
-ROADMAP 3.2 pulled forward. The user has not answered those three questions.
+**All three things left open by that conversation were since answered and built** — the toast
+(1.4, moved to bottom-right, `QUIET` fades and `HELD` does not), and dismiss/snooze (3.2, on
+V21). The advice that survived and is still binding: **the Room delta belongs in the toast
+only, never in the list**, or the list becomes a second transaction log.
 
-**NEXT: verify it.** Everything below is the honest limit of what is known.
-
-- Backend and frontend both compile and build clean; `mvnw test-compile` passes; the app
-  boots with V20, so `ddl-auto=validate` accepted the entity; reads are unchanged
-  (`/position` still ₹9,497 · Room ₹1,899.40) and carry no `effect` key.
-- **No effect has ever been produced.** It needs a POST, which the sandbox blocks and which
-  would write to real data. `insight_state` is empty.
-- **Ask the user to record one small real expense**, then check: the response carries
-  `effect`, `insight_state` gains rows, and a second identical write reports **no** started
-  crossing — that last one is the whole feature, and is what would catch a broken diff.
-
-**Expect on the very first write:** everything currently true is announced as though it just
-started, because nothing was recorded before. Today that is exactly one insight
-(`goal:6:pace`), so it is harmless — but it is also **the wrong warning**, see below.
+**Superseded, kept only so the contradiction is not re-discovered:** an earlier version of
+this block said *"no effect has ever been produced, `insight_state` is empty"*. That stopped
+being true on 2026-09-23 — six real writes produced exactly one row (`goal:6:pace`), which is
+recorded under *VERIFIED ON SCREEN AND IN DATA* above.
 
 **Deliberately not done, with reasons:**
 - **`DELETE` endpoints report nothing.** 204 has no body, and deleting a bill genuinely
@@ -306,20 +425,26 @@ Phase 1 first. **Keep this; it is a real gap, and the design is settled enough t
 
 ---
 
-## The user's October data fixes (still outstanding)
+## The user's October data fixes (all five re-verified against `:8080` on 2026-09-25)
 
-They start using Kosh for real on **28 September**, so these outrank features. **Two of the
-four changed on 2026-09-22 — re-read before acting:**
+They start using Kosh for real on **28 September**, so these outrank features. Every one below
+was checked live on 2026-09-25 and every one is **still open**.
+
+| What | Where it is | Why it matters |
+|---|---|---|
+| **Nine junk rows, ₹1,597** | txns **66–74**, all dated 2026-09-23: `test`, `test - 2`…`test - 4`, plus `fr`, `jghuig`, `gj` | Inflates today's spend, Real Balance and net worth. **Three more than earlier handoffs recorded** — the old note said "66–71, ₹1,597", but 66–71 sums to ₹1,100; 72–74 make up the rest |
+| **Home Support → Utilities** | commitment **9**, `category: {id:10, Utilities}` | Should be Family Support. Distorts the fixed-spend baseline from month one |
+| **"Emergenecy fund contribution"** | category **19** | Typo, visible everywhere it is used |
+| **"Antropic claude subscription" archived** | commitment **14** | October carries no ₹2,373. Months → THE PLAN → "1 stopped" → *Start it again*. Rename to **Anthropic** while there — the spelling is wrong too |
+| **Two bills share one name** | **47** = ₹2,648 (Mobile Mom, ends Feb 2027) · **48** = ₹3,998 (Health Insurance, ends Sep 2027), both "HDFC - Credit card EMI" | Not cosmetic. 3.3's unlock line cannot say which one ends, and `PlanChanges` detects supersessions **by name** — two rows sharing one is exactly its known collision case |
+
+Unchanged from before, and not a fix the user can click:
 
 - **The RD – Mom bill no longer exists.** The user deleted it (`plan_revisions`: `ENDED`,
   −₹1,000). October is not carrying a wrong ₹1,000, it is carrying **none**.
 - **"RD settles as EXPENSE" cannot be fixed by editing the bill.** `SourceBillSync.java:149`
   sets it from the holding: no investment account means no destination, so `EXPENSE` is the
   only valid answer. The RD was added as "Outside the ledger". See the parked section above.
-- **"Antropic claude subscription" is still archived** — Months → THE PLAN → "1 stopped" →
-  *Start it again*, then rename to **Anthropic**.
-- **Home Support ₹10,000 is categorised as Utilities** (should be Family Support) and category
-  19 reads **"Emergenecy fund contribution"**. Both distort a baseline from month one.
 
 Claude cannot make these writes. Guide the user, then verify through the API.
 
@@ -338,12 +463,16 @@ loud at the moment of a write*, not something buried on a screen.
 
 ## WAITING ON THE USER
 
-- **One recorded expense**, so 1.4's effect path runs for the first time. Nothing else can
-  verify it.
-- **The two parked withdrawal decisions** (see PARKED above) — only when 1.4 is finished.
-- **Migration freeze** — lifted three times, each explicitly and narrowly: `V18__plan_revisions.sql`,
-  `V19__insurance_policies.sql`, and `V20__insight_state.sql` (2026-09-23, for 1.4 only).
-  **Assume it is back on** and ask before writing another.
+- **The five October data fixes.** Three days to real use. See the table above.
+- **One click on "I know"** on `/needs-you`, so 3.2's dismiss path runs once. It is a POST —
+  the sandbox blocks it and it writes to their own notification state, so nothing else can
+  verify it. Deferred by the user on 2026-09-25 ("later — carry on"); it blocks nothing.
+  Expected: the row goes, a **"1 you've answered"** toggle appears at the foot, and
+  *Show it again* restores it.
+- **The two parked withdrawal decisions** (see PARKED above).
+- **Migration freeze** — lifted four times, each explicitly and narrowly:
+  `V18__plan_revisions.sql`, `V19__insurance_policies.sql`, `V20__insight_state.sql`, and
+  `V21__insight_state_dismissal.sql`. **Assume it is back on** and ask before writing another.
 - **Test freeze** — still in force. When it lifts, `ROADMAP.md` 1.5 should cover what 1.1 and
   1.2 introduced: a supersession links old rule to new; a `VARIABLE` amount change records a
   **null** effect rather than zero; an `INCOME` commitment's effect is negated; a snapshot's
@@ -407,18 +536,18 @@ things that compiled and type-checked but were wrong on screen: a "0 stopped" ti
 superlative applied to two equal months, every unlock silently vanishing. **Screenshot after
 building; the build passing is not evidence that it works.**
 
-## Git state at handoff (2026-09-22)
+## Git state at handoff (2026-09-25)
 
-- Branch **`feature/financial-os-reassessment-phase-1`**, cut from `uat-release` by the user.
-- **116 uncommitted paths — 87 modified, 29 new.** Nothing has been committed across two
-  sessions. The user commits and pushes; Claude does not run git. **They have asked to finish
-  all of Phase 1 before pushing** — do not offer to commit partway.
-- New and worth knowing about: `backend/.../com/finance/plan/`, `.../insurance/`,
-  `V18__plan_revisions.sql`, `V19__insurance_policies.sql`, ADR-0015, ADR-0016,
-  `frontend/.../features/cover/`, `MonthBriefing.tsx`, `PlanDecisions.tsx`,
-  `StoppedBills.tsx`, `CoverPage.tsx`, `insuranceService.ts`, `planRevisionService.ts`.
-- Backend and frontend both compile, lint and build clean. The backend is **running** with
-  V18 and V19 applied; Spring DevTools restarts it on `mvnw compile`.
+- Branch **`feature/financial-os-reassessment-phase-3`**. Phase 1's work is committed —
+  everything uncommitted is Phase 3.
+- **24 uncommitted paths.** The user commits and pushes; Claude does not run git, not even to
+  undo its own edit (that rule was broken once, on 2026-09-21).
+- New files not yet tracked: `insight/CalmVoice.java`, `insight/InsightSilencer.java`,
+  `insight/rules/GoalFundingUnclearRule.java`, `insight/rules/RateMismatchRule.java`,
+  `V21__insight_state_dismissal.sql`.
+- Backend and frontend both compile and build clean. The backend is **running** with V21
+  applied; Spring DevTools restarts it on `mvnw compile` (wait on `/api/v1/health` with an
+  until-loop, not `sleep`).
 
 ## DEFERRED SCHEMA
 
@@ -435,8 +564,12 @@ pending schema change here rather than writing a migration unprompted.
 - **`PlanChanges` detects a supersession by matching `name` + `activeTo === dayBefore`.**
   Breaks if a bill is renamed in the same edit; collides when two bills share a name.
   `supersededSubjectId` (ADR-0015) is exact and should replace it.
-- **`GET /api/v1/users/me` returns 500**, not 404, for an unknown path. The real path is
-  `/api/v1/me`.
+- **An unknown path returns 500, not 404.** `GET /api/v1/users/me` (the real path is
+  `/api/v1/me`) and `GET /api/v1/commitment-rules` (the real path is `/commitments` — the
+  frontend service is *named* `commitmentRuleService` but calls `/commitments`) both do it.
+  Related: **a GET to a POST-only route returns 500, not 405** —
+  `HttpRequestMethodNotSupportedException` is unhandled in `GlobalExceptionHandler`. One
+  `@ExceptionHandler` covers the family.
 - **Stray empty cycles exist for 2029** (Aug and Sep) — harmless, probably from navigating
   far ahead.
 - **`AddCommitmentSheet` and `AddGoalSheet` have no "why" field**; only editing does. The API
