@@ -37,11 +37,17 @@ export function InsightRow({
   item,
   navigable = false,
   revealDelay,
+  onDismiss,
 }: {
   item: InsightItem;
   navigable?: boolean;
   /** Held back on first paint so a list of warnings reads as one thing arriving. */
   revealDelay?: number;
+  /**
+   * Offers "I know" on this row. Only the dedicated page passes it — answering a warning is a
+   * deliberate act, not something to sit a hand's width from Room on Today.
+   */
+  onDismiss?: (key: string) => void;
 }) {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
@@ -123,6 +129,21 @@ export function InsightRow({
           </div>
         )}
       </div>
+
+      {/* Quiet, and to one side. Answering a warning should be available without competing
+          with the thing that actually resolves it. */}
+      {onDismiss && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDismiss(item.key);
+          }}
+          className="shrink-0 rounded-md px-space-1 text-caption text-ink-muted underline-offset-2 transition-colors duration-150 hover:text-ink hover:underline"
+        >
+          I know
+        </button>
+      )}
     </div>
   );
 
@@ -175,6 +196,21 @@ export function InsightList({ surface, title = 'Needs you', calmNote }: { surfac
               Nothing needs you right now.
             </p>
             {calmNote && <p className="pl-[26px] text-caption text-ink-muted">{calmNote}</p>}
+          </div>
+        )}
+
+        {/* What moved (ROADMAP 3.3). Shown under the list, not only in its empty state: a
+            week with two things "worth knowing" and nothing urgent is still a good week, and
+            that is exactly when the product has something to say and nothing to warn about.
+            The server withholds this entirely when anything urgent is showing, so there is no
+            judgement to make here. */}
+        {data && data.whatMoved?.length > 0 && (
+          <div className="mt-space-1 flex flex-col gap-space-1 border-t border-line pt-space-3">
+            {data.whatMoved.map((line) => (
+              <p key={line} className="text-caption text-ink-muted">
+                {line}
+              </p>
+            ))}
           </div>
         )}
       </div>

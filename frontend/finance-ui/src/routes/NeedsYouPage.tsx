@@ -1,9 +1,16 @@
-import { CheckCircle2 } from 'lucide-react';
+import { useState } from 'react';
+import { CheckCircle2, ChevronDown } from 'lucide-react';
+import { AnimatedCollapse } from '@/components/AnimatedCollapse';
+import { cn } from '@/lib/cn';
 import { ErrorState } from '@/components/ErrorState';
 import { InsightRow } from '@/components/InsightList';
 import { SectionHeader } from '@/components/SectionHeader';
 import { Skeleton } from '@/components/Skeleton';
-import { useGetAllInsightsQuery } from '@/services/insightService';
+import {
+  useDismissInsightMutation,
+  useGetAllInsightsQuery,
+  useRestoreInsightMutation,
+} from '@/services/insightService';
 import type { InsightItem, InsightSeverity } from '@/types/insight';
 
 /** How often the page re-asks. Long enough not to hammer a single-user backend, short
@@ -46,7 +53,12 @@ export function NeedsYouPage() {
     refetchOnMountOrArgChange: true,
   });
 
+  const [dismiss] = useDismissInsightMutation();
+  const [restore] = useRestoreInsightMutation();
+  const [showSilenced, setShowSilenced] = useState(false);
+
   const items: InsightItem[] = data?.items ?? [];
+  const silenced = data?.silenced ?? [];
   const bands = BANDS.map((band) => ({
     ...band,
     items: items.filter((i) => band.severity.includes(i.severity)),
@@ -87,11 +99,53 @@ export function NeedsYouPage() {
             <p className="mb-space-3 text-caption text-ink-muted">{band.note}</p>
             <div className="flex flex-col gap-space-3">
               {band.items.map((item) => (
-                <InsightRow key={item.key} item={item} navigable />
+                <InsightRow key={item.key} item={item} navigable onDismiss={(key) => dismiss(key)} />
               ))}
             </div>
           </section>
         ))
+      )}
+
+      {/* Answered, not lost. Folded away rather than deleted: a list you can silently drop
+          things from is one you stop trusting, and an accidental "I know" would otherwise
+          have no way back. Same disclosure pattern as "1 stopped" on Months. */}
+      {silenced.length > 0 && (
+        <section>
+          <button
+            type="button"
+            onClick={() => setShowSilenced((v) => !v)}
+            aria-expanded={showSilenced}
+            className="inline-flex items-center gap-space-1 rounded-md px-space-1 text-caption text-ink-muted transition-colors duration-150 hover:text-ink"
+          >
+            {silenced.length} you’ve answered
+            <ChevronDown
+              size={13}
+              strokeWidth={1.75}
+              aria-hidden
+              className={cn('transition-transform duration-[180ms]', showSilenced && 'rotate-180')}
+            />
+          </button>
+
+          <AnimatedCollapse open={showSilenced}>
+            <ul className="mt-space-3 flex flex-col gap-space-2 border-t border-line pt-space-3">
+              {silenced.map((s) => (
+                <li key={s.key} className="flex items-baseline justify-between gap-space-4">
+                  <span className="min-w-0 truncate text-caption text-ink-muted">
+                    {s.title}
+                    {s.snoozedUntil && ' · back soon'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => restore(s.key)}
+                    className="shrink-0 rounded-md px-space-1 text-caption text-accent underline-offset-2 transition-colors duration-150 hover:underline"
+                  >
+                    Show it again
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </AnimatedCollapse>
+        </section>
       )}
     </div>
   );

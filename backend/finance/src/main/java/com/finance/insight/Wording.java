@@ -15,6 +15,7 @@ import java.util.Locale;
 public final class Wording {
 
     private static final DateTimeFormatter DAY_MONTH = DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH);
+    private static final DateTimeFormatter DAY_MONTH_YEAR = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH);
 
     private Wording() {
     }
@@ -44,8 +45,21 @@ public final class Wording {
         return (amount.signum() < 0 ? "−₹" : "₹") + out;
     }
 
+    /**
+     * "5 Oct". Day and month only, for a date inside the next few weeks - a card bill, a
+     * missed plan item - where the year is never in doubt.
+     *
+     * <p>Use {@link #date(LocalDate, LocalDate)} for anything that can fall in another year.
+     * A goal dated 31 August 2027 rendered as "31 Aug" reads as this August, which is the
+     * kind of quietly wrong that a person acts on.
+     */
     public static String date(LocalDate date) {
         return date.format(DAY_MONTH);
+    }
+
+    /** "5 Oct", or "31 Aug 2027" once the year stops being obvious. */
+    public static String date(LocalDate date, LocalDate today) {
+        return date.getYear() == today.getYear() ? date.format(DAY_MONTH) : date.format(DAY_MONTH_YEAR);
     }
 
     /** "today", "tomorrow", "in 3 days", "yesterday", "4 days ago". */

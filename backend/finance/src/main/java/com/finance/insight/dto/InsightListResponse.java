@@ -14,7 +14,19 @@ import java.util.List;
  * {@code GET /insights?surface=TODAY|MONTH}: the few that matter, ranked, and how many
  * there are in all ("and 2 more"). Wording is the server's so every screen says it the same way.
  */
-public record InsightListResponse(List<Item> items, int total) {
+public record InsightListResponse(List<Item> items, int total, List<String> whatMoved,
+                                  List<Silenced> silenced) {
+
+    /**
+     * A warning the user has answered (ROADMAP 3.2). Folded away on screen rather than
+     * dropped: a list you can silently lose things from is one you stop trusting, and a
+     * dismissal made by accident would otherwise have no way back.
+     *
+     * @param snoozedUntil set when it comes back on its own; null for "until it changes"
+     */
+    public record Silenced(String key, String title, java.time.Instant dismissedAt,
+                           java.time.Instant snoozedUntil) {
+    }
 
     public record Item(
             String key,
@@ -41,7 +53,17 @@ public record InsightListResponse(List<Item> items, int total) {
     }
 
     public static InsightListResponse of(List<Insight> shown, int total) {
-        return new InsightListResponse(shown.stream().map(InsightListResponse::item).toList(), total);
+        return of(shown, total, List.of());
+    }
+
+    /**
+     * @param whatMoved facts worth knowing when nothing is urgent (ROADMAP 3.3). Empty is the
+     *                  normal case and means exactly that — nothing moved, so nothing is said.
+     *                  Never populated beside a CRITICAL or ATTENTION item: a reassurance
+     *                  printed next to a warning reads as the product missing the point.
+     */
+    public static InsightListResponse of(List<Insight> shown, int total, List<String> whatMoved) {
+        return new InsightListResponse(shown.stream().map(InsightListResponse::item).toList(), total, whatMoved, List.of());
     }
 
     /** One insight on the wire. Shared so a warning reads identically wherever it appears -

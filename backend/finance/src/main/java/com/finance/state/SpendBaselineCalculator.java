@@ -5,6 +5,7 @@ import com.finance.common.user.CurrentUserProvider;
 import com.finance.cycle.CycleRepository;
 import com.finance.cycle.CycleService;
 import com.finance.cycle.domain.Cycle;
+import com.finance.transaction.TransactionRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
@@ -35,6 +36,16 @@ import java.util.List;
  *       commitment worklist; including them would make the baseline mostly a restatement of
  *       the plan, which the user already knows, and would swamp the part that actually
  *       varies.</li>
+ *   <li><strong>A cycle with nothing recorded in it is not an observation.</strong> An ended
+ *       cycle the user never used reports ₹0 flexible spending, which is indistinguishable
+ *       in every total from a month of genuine thrift - and counting it is the
+ *       null-means-zero mistake (rule 3) at its most expensive, because it drags "usual"
+ *       down and the product then measures the user against a month that never happened.
+ *       Found 2026-09-26: an empty 28 Jul - 27 Aug cycle sat beside the first real month, and
+ *       on the morning of the user's first real day the app would have announced
+ *       "you usually spend ₹1,600 a month" - the median of ₹3,200 and a month that did not
+ *       exist. With the empty one skipped there is one observation, which is below
+ *       {@link #MINIMUM_CYCLES}, so the honest answer is returned instead: not yet known.</li>
  * </ol>
  */
 @Component
@@ -52,13 +63,16 @@ public class SpendBaselineCalculator {
 
     private final CycleRepository cycleRepository;
     private final CycleService cycleService;
+    private final TransactionRepository transactionRepository;
     private final CurrentUserProvider currentUser;
     private final Clock clock;
 
     public SpendBaselineCalculator(CycleRepository cycleRepository, CycleService cycleService,
+                                   TransactionRepository transactionRepository,
                                    CurrentUserProvider currentUser, Clock clock) {
         this.cycleRepository = cycleRepository;
         this.cycleService = cycleService;
+        this.transactionRepository = transactionRepository;
         this.currentUser = currentUser;
         this.clock = clock;
     }
@@ -75,9 +89,15 @@ public class SpendBaselineCalculator {
                 .toList();
 
         List<BigDecimal> totals = new ArrayList<>();
+        List<Cycle> observed = new ArrayList<>();
         for (Cycle cycle : ended) {
+            if (!used(userId, cycle)) {
+                // Not a month of no spending - a month with no data. See the class note.
+                continue;
+            }
             try {
                 totals.add(MoneyScale.normalise(cycleService.flexibleSpending(cycle.getId()).total()));
+                observed.add(cycle);
             } catch (RuntimeException e) {
                 // One unreadable cycle must not cost the user their whole baseline; it is
                 // simply one fewer observation, and cyclesObserved says so.
@@ -89,12 +109,26 @@ public class SpendBaselineCalculator {
             return SpendBaseline.unknown(totals.size());
         }
 
+        // The window the user is told about must be the months actually measured, not every
+        // month that has ended - otherwise "measured over 2 months" spans a gap it skipped.
         List<BigDecimal> sorted = totals.stream().sorted().toList();
-        Cycle earliest = ended.getLast();
-        Cycle latest = ended.getFirst();
+        Cycle earliest = observed.getLast();
+        Cycle latest = observed.getFirst();
         return new SpendBaseline(median(sorted), sorted.size(),
                 earliest.getStartDate(), latest.getEndDate(),
                 sorted.getFirst(), sorted.getLast());
+    }
+
+    /**
+     * Did the user record anything at all in this cycle?
+     *
+     * <p>Any entry counts, not just flexible spending: a month whose only entries were EMIs
+     * and rent really was a month with ₹0 of day-to-day spending, and that is a genuine
+     * observation worth keeping.
+     */
+    private boolean used(Long userId, Cycle cycle) {
+        return transactionRepository.countByUserIdAndDeletedAtIsNullAndDateBetween(
+                userId, cycle.getStartDate(), cycle.getEndDate()) > 0;
     }
 
     /** Even counts take the mean of the middle two - in BigDecimal, like all money here. */

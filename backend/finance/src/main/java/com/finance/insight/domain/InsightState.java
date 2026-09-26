@@ -77,10 +77,30 @@ public class InsightState {
     @Column(name = "cleared_at")
     private Instant clearedAt;
 
+    /**
+     * "I know" — the user has seen this and is leaving it as it stands (ROADMAP 3.2).
+     *
+     * <p>Deliberately on the occurrence, not the key. A warning that clears and later becomes
+     * true again opens a <em>new</em> row, and the new row carries no dismissal — so "silent
+     * until something changes" needs no expiry rule and nothing to clean up. The only case
+     * needing code is escalation, where the same row gets louder.
+     */
+    @Column(name = "dismissed_at")
+    private Instant dismissedAt;
+
+    /** "Not this week." Compared against now, so a lapsed snooze simply stops matching. */
+    @Column(name = "snoozed_until")
+    private Instant snoozedUntil;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
     public boolean isLive() {
         return clearedAt == null;
+    }
+
+    /** Answered, and so not to be spoken: dismissed outright, or snoozed past now. */
+    public boolean isSilenced(Instant now) {
+        return dismissedAt != null || (snoozedUntil != null && snoozedUntil.isAfter(now));
     }
 }

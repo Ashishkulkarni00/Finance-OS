@@ -12,6 +12,7 @@ import com.finance.insight.InsightType;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.math.RoundingMode;
 import java.util.Comparator;
 import java.util.EnumSet;
@@ -33,7 +34,7 @@ public class GoalBehindRule implements InsightRule {
                 .filter(g -> g.pace() == GoalPace.BEHIND || g.pace() == GoalPace.OVERDUE)
                 .min(Comparator.comparingInt((GoalView g) -> g.goal().getPriority())
                         .thenComparing(g -> g.goal().getTargetDate()))
-                .map(g -> List.of(describe(g)))
+                .map(g -> List.of(describe(g, ctx.today())))
                 .orElse(List.of());
     }
 
@@ -49,8 +50,8 @@ public class GoalBehindRule implements InsightRule {
      * funding against requirement ({@link GoalPace}), so the explanation can name the gap —
      * and a gap has a fix.
      */
-    private String shortfall(GoalView g) {
-        String target = money(g.goal().getTargetAmount()) + " by " + date(g.goal().getTargetDate());
+    private String shortfall(GoalView g, LocalDate today) {
+        String target = money(g.goal().getTargetAmount()) + " by " + date(g.goal().getTargetDate(), today);
         if (g.requiredPerMonth() == null) {
             return percent(g.progressPercent()) + " saved, towards " + target + ".";
         }
@@ -65,13 +66,13 @@ public class GoalBehindRule implements InsightRule {
         return money(funded) + " a month is going in, and " + needed + ".";
     }
 
-    private Insight describe(GoalView g) {
+    private Insight describe(GoalView g, LocalDate today) {
         String name = g.goal().getName();
         boolean overdue = g.pace() == GoalPace.OVERDUE;
         String explanation = overdue
                 ? money(g.currentAmount()) + " of " + money(g.goal().getTargetAmount()) + " saved, and the target date ("
-                        + date(g.goal().getTargetDate()) + ") has passed. Set a new date, or plan a top-up."
-                : shortfall(g);
+                        + date(g.goal().getTargetDate(), today) + ") has passed. Set a new date, or plan a top-up."
+                : shortfall(g, today);
         return new Insight("goal:" + g.goal().getId() + ":pace", InsightType.GOAL_BEHIND, Severity.OPPORTUNITY,
                 name + (overdue ? " is past its date" : " is behind its pace"),
                 explanation, g.requiredPerMonth(), g.goal().getTargetDate(),

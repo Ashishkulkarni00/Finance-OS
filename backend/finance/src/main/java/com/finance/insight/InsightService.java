@@ -7,6 +7,7 @@ import com.finance.commitment.CommitmentInstanceService;
 import com.finance.cycle.CycleService;
 import com.finance.cycle.domain.Cycle;
 import com.finance.goal.GoalService;
+import com.finance.loan.LoanService;
 import com.finance.projection.ProjectionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,11 +48,14 @@ public class InsightService {
     private final ProjectionService projectionService;
     private final CreditCardService creditCardService;
     private final GoalService goalService;
+    private final LoanService loanService;
+    private final InsightSilencer silencer;
     private final Clock clock;
 
     public InsightService(List<InsightRule> rules, CycleService cycleService, CommitmentInstanceService instanceService,
                           AccountService accountService, ProjectionService projectionService,
-                          CreditCardService creditCardService, GoalService goalService, Clock clock) {
+                          CreditCardService creditCardService, GoalService goalService,
+                          LoanService loanService, InsightSilencer silencer, Clock clock) {
         this.rules = rules;
         this.cycleService = cycleService;
         this.instanceService = instanceService;
@@ -59,6 +63,8 @@ public class InsightService {
         this.projectionService = projectionService;
         this.creditCardService = creditCardService;
         this.goalService = goalService;
+        this.loanService = loanService;
+        this.silencer = silencer;
         this.clock = clock;
     }
 
@@ -97,7 +103,12 @@ public class InsightService {
                 }
             }
         }
-        List<Insight> ranked = new ArrayList<>(byKey.values());
+        // Filtered once, here, rather than in each rule: a rule that had to remember to
+        // check dismissal is a rule that will eventually forget (ROADMAP 3.2).
+        java.util.Set<String> silencedKeys = silencer.silencedKeys();
+        List<Insight> ranked = byKey.values().stream()
+                .filter(i -> !silencedKeys.contains(i.key()))
+                .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
         ranked.sort(Comparator.comparingInt((Insight i) -> i.severity().ordinal())
                 .thenComparing(i -> i.when() == null ? LocalDate.MAX : i.when())
                 .thenComparing((Insight i) -> i.impact() == null ? java.math.BigDecimal.ZERO : i.impact(),
@@ -108,8 +119,9 @@ public class InsightService {
     private FinancialContext buildContext() {
         LocalDate today = LocalDate.now(clock);
         Cycle cycle = cycleService.resolveCurrent();
+        List<Account> accounts = accountService.listActive();
         List<FinancialContext.AccountProjection> projections = new ArrayList<>();
-        for (Account account : accountService.listActive()) {
+        for (Account account : accounts) {
             if (!account.countsAsSpendable()) {
                 continue;
             }
@@ -121,6 +133,7 @@ public class InsightService {
             }
         }
         return new FinancialContext(today, cycle, instanceService.listForCycle(cycle.getId()), projections,
-                creditCardService.list().cards(), goalService.list(false, Pageable.unpaged()).getContent());
+                creditCardService.list().cards(), goalService.list(false, Pageable.unpaged()).getContent(),
+                loanService.list(Pageable.unpaged()).getContent(), accounts);
     }
 }
