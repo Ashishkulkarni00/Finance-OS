@@ -8,6 +8,7 @@ import { useGetInsightsQuery } from '@/services/insightService';
 import { useConfirmCommitmentInstanceMutation } from '@/services/commitmentInstanceService';
 import { useAppDispatch } from '@/store/hooks';
 import { openAddSheet, openSettleSheet } from '@/store/slices/uiSlice';
+import { useDocAnchor } from '@/features/help/useDocAnchor';
 import type { InsightItem, InsightSurface } from '@/types/insight';
 
 const ATTENTION_TINT = { backgroundColor: 'color-mix(in srgb, var(--attention) 8%, var(--surface))' } as const;
@@ -51,6 +52,7 @@ export function InsightRow({
 }) {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+  const docAnchor = useDocAnchor('insight.item');
   const [confirm, { isLoading: confirming }] = useConfirmCommitmentInstanceMutation();
   const calm = item.severity === 'OPPORTUNITY' || item.severity === 'INFO';
   const action = item.action;
@@ -89,6 +91,7 @@ export function InsightRow({
   const body = (
     <div
       data-insight=""
+      {...docAnchor}
       className={[
         'flex items-start gap-space-3 rounded-xl p-space-4 text-left',
         destination ? 'w-full transition-opacity duration-150 hover:opacity-90' : '',

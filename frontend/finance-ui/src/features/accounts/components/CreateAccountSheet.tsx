@@ -82,7 +82,7 @@ export function CreateAccountSheet({ open, onClose }: CreateAccountSheetProps) {
         </Button>
       }
     >
-      <form id="add-account" onSubmit={handleSubmit(onSubmit)} onKeyDown={handleEnterAdvance} autoComplete="off" className="flex flex-col gap-space-6">
+      <form id="add-account" data-doc="account.form" onSubmit={handleSubmit(onSubmit)} onKeyDown={handleEnterAdvance} autoComplete="off" className="flex flex-col gap-space-6">
         <AccountFormFields register={register} watch={watch} setValue={setValue} errors={errors} />
       </form>
     </Modal>

@@ -1,19 +1,18 @@
 import { PagePrimer } from '@/components/PagePrimer';
+import { byId } from '@/features/help/content';
+import { termsOf } from '@/features/help/retrofit';
 
-const RULES = [
-  { term: 'Available', means: 'what you can actually move from an account' },
-  { term: 'Net worth', means: 'everything you own minus everything you owe' },
-  { term: 'Needs a look', means: 'an account problem worth fixing' },
-];
-
-/** Accounts in one sentence - see `PagePrimer`. */
+/** Accounts in one sentence - see `PagePrimer`. Retrofitted: its three rules come from
+ *  `accounts.how-accounts-works`'s terms block (the ones marked `primer: true`), not a
+ *  local array - IN_APP_MANUAL.md §1, §8. */
 export function AccountsPrimer({ onOpenGuide }: { onOpenGuide: () => void }) {
+  const rules = termsOf(byId['accounts.how-accounts-works']!, true);
   return (
     <PagePrimer
       storageKey="kosh.accounts.primer.dismissed"
       headline="What you own, what you owe, and what each account can actually do for you."
       detail="A balance isn’t always yours to move — a bank minimum or money set aside can hold part of it back."
-      rules={RULES}
+      rules={rules}
       guideLabel="How it works"
       onOpenGuide={onOpenGuide}
     />

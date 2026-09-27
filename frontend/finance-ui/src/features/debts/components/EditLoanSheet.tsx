@@ -169,7 +169,7 @@ export function EditLoanSheet({ loan, open, onClose }: EditLoanSheetProps) {
         </Button>
       }
     >
-      <form id="edit-loan" onSubmit={handleSubmit(onSubmit)} onKeyDown={handleEnterAdvance} autoComplete="off" className="flex flex-col gap-space-6">
+      <form id="edit-loan" data-doc="loan.form" onSubmit={handleSubmit(onSubmit)} onKeyDown={handleEnterAdvance} autoComplete="off" className="flex flex-col gap-space-6">
         <div className="rounded-lg border border-line">
           <FormRow label="Loan" error={errors.name?.message}>
             <input {...register('name')} autoComplete="off" className={FORM_ROW_CONTROL} autoFocus />

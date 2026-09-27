@@ -7,6 +7,7 @@ import { formatMoney } from '@/lib/money';
 import { cn } from '@/lib/cn';
 import type { GoalResponse, GoalScheduleLine } from '@/types/goal';
 import { AddCommitmentSheet } from './AddCommitmentSheet';
+import { useDocAnchor } from '@/features/help/useDocAnchor';
 
 function statusText(line: GoalScheduleLine): { text: string; tone: 'muted' | 'positive' | 'attention' } {
   switch (line.status) {
@@ -32,6 +33,7 @@ function statusText(line: GoalScheduleLine): { text: string; tone: 'muted' | 'po
  */
 export function GoalPayments({ goal }: { goal: GoalResponse }) {
   const [adding, setAdding] = useState<{ amount?: string; month?: string; name?: string } | null>(null);
+  const scheduleLineDoc = useDocAnchor('goal.schedule-line');
   const schedule = goal.schedule ?? [];
   const goalMonth = goal.targetDate.slice(0, 7);
 
@@ -63,6 +65,7 @@ export function GoalPayments({ goal }: { goal: GoalResponse }) {
                 <li
                   key={line.commitmentId ?? 'rest'}
                   className="flex items-start justify-between gap-space-3 border-b border-line py-space-3 last:border-b-0"
+                  {...scheduleLineDoc}
                 >
                   <div className="flex min-w-0 flex-col">
                     <span className="num text-caption text-ink-muted">{formatDayMonthYear(line.date)}</span>

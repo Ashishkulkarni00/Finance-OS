@@ -2,6 +2,7 @@ import { Amount } from '@/components/Amount';
 import { Row } from '@/components/Row';
 import { StatusPill } from '@/components/StatusPill';
 import { formatDayMonthYear } from '@/lib/dates';
+import { useDocAnchor } from '@/features/help/useDocAnchor';
 import type { InsurancePolicyResponse } from '@/types/insurance';
 
 /**
@@ -31,8 +32,11 @@ export function PolicyRow({ policy, onOpen }: { policy: InsurancePolicyResponse;
   const who = policy.covers ? ` · ${policy.covers}` : '';
   const insurer = policy.insurer ? ` · ${policy.insurer}` : '';
   const lastFour = policy.policyLastFour ? ` ··${policy.policyLastFour}` : '';
+  const docAnchor = useDocAnchor('cover.policy');
+  const renewalDoc = useDocAnchor('cover.renewal');
 
   return (
+    <div {...docAnchor}>
     <Row
       primary={
         <span className="flex items-center gap-space-2">
@@ -42,7 +46,14 @@ export function PolicyRow({ policy, onOpen }: { policy: InsurancePolicyResponse;
           {policy.archived && <StatusPill tone="neutral">Stopped</StatusPill>}
         </span>
       }
-      secondary={`${policy.typeLabel}${who}${insurer}${lastFour} · ${renewalNote(policy)}`}
+      secondary={
+        <>
+          {policy.typeLabel}
+          {who}
+          {insurer}
+          {lastFour} · <span {...renewalDoc}>{renewalNote(policy)}</span>
+        </>
+      }
       trailing={
         <span className="flex flex-col items-end">
           {/* Cover, not an amount held - so it is never coloured or signed like a balance. */}
@@ -54,5 +65,6 @@ export function PolicyRow({ policy, onOpen }: { policy: InsurancePolicyResponse;
       }
       onClick={onOpen}
     />
+    </div>
   );
 }

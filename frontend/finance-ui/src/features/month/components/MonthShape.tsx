@@ -4,13 +4,29 @@ import { Skeleton } from '@/components/Skeleton';
 import { formatMoney, formatPercent } from '@/lib/money';
 import { cn } from '@/lib/cn';
 import { useGetCycleShapeQuery } from '@/services/commitmentInstanceService';
+import { useDocAnchor } from '@/features/help/useDocAnchor';
 import type { CycleResponse } from '@/types/cycle';
 import type { CycleShapeResponse } from '@/types/commitment';
 
-/** One column of the derivation: operator, label, figure, and the line under it. */
-function Term({ op, label, children, note }: { op?: string; label: string; children: ReactNode; note?: ReactNode }) {
+/** One column of the derivation: operator, label, figure, and the line under it. Right-
+ *  clicking a column opens what that specific term means (`docKey`), independent of the
+ *  whole-line `month.shape` anchor on the row it sits in - the closer anchor wins. */
+function Term({
+  op,
+  label,
+  children,
+  note,
+  docKey,
+}: {
+  op?: string;
+  label: string;
+  children: ReactNode;
+  note?: ReactNode;
+  docKey: string;
+}) {
+  const doc = useDocAnchor(docKey);
   return (
-    <div className="flex min-w-0 flex-col gap-space-1">
+    <div className="flex min-w-0 flex-col gap-space-1" {...doc}>
       <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">
         {op && <span className="num mr-space-1 text-ink-soft" aria-hidden>{op}</span>}
         {label}
@@ -41,6 +57,7 @@ function flexibleNote(shape: CycleShapeResponse): string | undefined {
  */
 export function MonthShape({ cycle }: { cycle: CycleResponse | undefined }) {
   const { data: shape, isLoading, isError } = useGetCycleShapeQuery(cycle?.id ?? 0, { skip: !cycle });
+  const docAnchor = useDocAnchor('month.shape');
 
   if (isError) {
     return <p className="text-caption text-ink-muted">The month’s outline couldn’t load. Refresh to try again.</p>;
@@ -54,10 +71,11 @@ export function MonthShape({ cycle }: { cycle: CycleResponse | undefined }) {
   const showPace = shape.spentShare != null && shape.cycleElapsed > 0;
 
   return (
-    <div className="flex flex-col gap-space-4">
+    <div className="flex flex-col gap-space-4" {...docAnchor}>
       <div className="grid grid-cols-2 gap-space-4 sm:grid-cols-4">
         <Term
           label="Comes in"
+          docKey="month.comes-in"
           note={
             shape.state === 'NO_INCOME'
               ? 'no salary planned'
@@ -68,13 +86,18 @@ export function MonthShape({ cycle }: { cycle: CycleResponse | undefined }) {
         >
           <Amount value={shape.expectedIn} role="section" className="text-ink" />
         </Term>
-        <Term op="−" label="Committed" note="bills, EMIs, card payments">
+        <Term op="−" label="Committed" docKey="month.committed" note="bills, EMIs, card payments">
           <Amount value={shape.committed} role="section" className="text-ink" />
         </Term>
-        <Term op="−" label="Set aside" note="savings and investments">
+        <Term op="−" label="Set aside" docKey="month.set-aside" note="savings and investments">
           <Amount value={shape.plannedSavings} role="section" className="text-ink" />
         </Term>
-        <Term op="=" label="Flexible" note={<span className={cn(negative && 'text-attention')}>{flexibleNote(shape)}</span>}>
+        <Term
+          op="="
+          label="Flexible"
+          docKey="month.flexible"
+          note={<span className={cn(negative && 'text-attention')}>{flexibleNote(shape)}</span>}
+        >
           <Amount value={shape.flexible} role="section" className={negative ? 'text-attention' : 'text-ink'} />
         </Term>
       </div>

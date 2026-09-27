@@ -8,6 +8,7 @@ import { useAppDispatch } from '@/store/hooks';
 import { openSettleSheet } from '@/store/slices/uiSlice';
 import type { CommitmentInstanceResponse } from '@/types/commitment';
 import { CheckCircle2 } from 'lucide-react';
+import { useDocAnchor } from '@/features/help/useDocAnchor';
 
 interface ResolveStepProps {
   instances: CommitmentInstanceResponse[] | undefined;
@@ -18,11 +19,12 @@ interface ResolveStepProps {
 export function ResolveStep({ instances, isLoading }: ResolveStepProps) {
   const dispatch = useAppDispatch();
   const [confirm] = useConfirmCommitmentInstanceMutation();
+  const doc = useDocAnchor('month.close.resolve');
 
   const unresolved = (instances ?? []).filter((i) => i.status === 'UNVERIFIED' || i.status === 'NEEDS_REVIEW');
 
   return (
-    <div className="flex flex-col gap-space-6">
+    <div className="flex flex-col gap-space-6" {...doc}>
       <div>
         <h1 className="text-editorial font-serif text-ink">Anything left to resolve?</h1>
         <p className="mt-space-2 text-body text-ink-muted">

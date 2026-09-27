@@ -110,7 +110,7 @@ export function PolicySheet({ open, onClose, policy }: PolicySheetProps) {
 
   return (
     <Modal open={open} onClose={onClose} title={editing ? `Edit ${policy.name}` : 'Add cover'} footer={null}>
-      <div className="flex flex-col gap-space-4">
+      <div className="flex flex-col gap-space-4" data-doc="cover.form">
         <div className="rounded-lg border border-line">
           <FormRow label="What">
             <input

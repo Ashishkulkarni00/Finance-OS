@@ -2,14 +2,16 @@ import { Row } from '@/components/Row';
 import { Skeleton } from '@/components/Skeleton';
 import { Amount } from '@/components/Amount';
 import { useGetAccountsQuery } from '@/services/accountService';
+import { useDocAnchor } from '@/features/help/useDocAnchor';
 
 /** Step 1 - a calm eyeball check before anything else. SCREEN_SPECS S6. */
 export function ConfirmBalancesStep() {
   const { data: accountsPage, isLoading } = useGetAccountsQuery();
   const accounts = accountsPage?.content ?? [];
+  const doc = useDocAnchor('month.close.confirm');
 
   return (
-    <div className="flex flex-col gap-space-6">
+    <div className="flex flex-col gap-space-6" {...doc}>
       <div>
         <h1 className="text-editorial font-serif text-ink">Do these balances look right?</h1>
         <p className="mt-space-2 text-body text-ink-muted">

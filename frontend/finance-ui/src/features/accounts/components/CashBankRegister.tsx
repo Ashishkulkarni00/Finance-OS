@@ -4,6 +4,7 @@ import { SectionHeader } from '@/components/SectionHeader';
 import { LedgerRow, MetaFacts } from '@/components/LedgerRow';
 import { formatMoney } from '@/lib/money';
 import { useOutgoingsByAccount, summariseOutgoings } from '../useOutgoingsByAccount';
+import { useDocAnchor } from '@/features/help/useDocAnchor';
 import type { AccountResponse } from '@/types/api';
 
 interface CashBankRegisterProps {
@@ -45,6 +46,9 @@ function heldExplanation(account: AccountResponse): string | undefined {
  */
 export function CashBankRegister({ accounts, isLoading }: CashBankRegisterProps) {
   const outgoings = useOutgoingsByAccount();
+  // One anchor reused for every row - the key names the concept ("an account balance"),
+  // not this specific account, so it is the same for every row in the register.
+  const balanceDoc = useDocAnchor('account.balance');
 
   if (isLoading) {
     return (
@@ -105,7 +109,7 @@ export function CashBankRegister({ accounts, isLoading }: CashBankRegisterProps)
                 />
               }
               amount={
-                <>
+                <span {...balanceDoc}>
                   <Amount
                     value={account.currentBalance}
                     role="row"
@@ -114,7 +118,7 @@ export function CashBankRegister({ accounts, isLoading }: CashBankRegisterProps)
                   />
                   {/* Labelled only when there's a second figure to contrast it with. */}
                   {differs && <div className="text-caption text-ink-muted">balance</div>}
-                </>
+                </span>
               }
             />
           );

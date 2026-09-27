@@ -121,7 +121,7 @@ export function AddGoalSheet({ open, onClose, goal }: AddGoalSheetProps) {
         </Button>
       }
     >
-      <form id="add-goal" onSubmit={handleSubmit(onSubmit)} onKeyDown={handleEnterAdvance} autoComplete="off" className="flex flex-col gap-space-6">
+      <form id="add-goal" data-doc="goal.form" onSubmit={handleSubmit(onSubmit)} onKeyDown={handleEnterAdvance} autoComplete="off" className="flex flex-col gap-space-6">
         <div className="rounded-lg border border-line">
           <FormRow label="Goal" error={errors.name?.message}>
             <input {...register('name')} autoComplete="off" placeholder="Emergency fund, a trip, a deposit…" className={FORM_ROW_CONTROL} autoFocus />

@@ -175,7 +175,7 @@ export function AddInvestmentSheet({ open, onClose }: AddInvestmentSheetProps) {
         </Button>
       }
     >
-      <form id="add-investment" onSubmit={handleSubmit(onSubmit)} onKeyDown={handleEnterAdvance} autoComplete="off" className="flex flex-col gap-space-6">
+      <form id="add-investment" data-doc="investment.form" onSubmit={handleSubmit(onSubmit)} onKeyDown={handleEnterAdvance} autoComplete="off" className="flex flex-col gap-space-6">
         <div className="rounded-lg border border-line">
           <FormRow label="Name" error={errors.name?.message}>
             <input {...register('name')} autoComplete="off" placeholder="SIP - Zerodha, Provident fund…" className={FORM_ROW_CONTROL} autoFocus />

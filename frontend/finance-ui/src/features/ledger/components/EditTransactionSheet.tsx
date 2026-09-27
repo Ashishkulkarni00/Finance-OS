@@ -147,7 +147,7 @@ export function EditTransactionSheet({ transaction, onClose }: EditTransactionSh
         </div>
       }
     >
-      <form id="edit-transaction" onSubmit={handleSubmit(onSubmit)} onKeyDown={handleEnterAdvance} autoComplete="off" className="flex flex-col items-center gap-space-6">
+      <form id="edit-transaction" data-doc="transaction.form" onSubmit={handleSubmit(onSubmit)} onKeyDown={handleEnterAdvance} autoComplete="off" className="flex flex-col items-center gap-space-6">
         <TransactionFormFields
           register={register}
           control={control}

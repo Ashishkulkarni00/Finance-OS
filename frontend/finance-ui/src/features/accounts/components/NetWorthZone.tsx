@@ -4,6 +4,7 @@ import { Amount } from '@/components/Amount';
 import { Skeleton } from '@/components/Skeleton';
 import { Statement, StatementRow } from '@/components/Statement';
 import { formatMoney } from '@/lib/money';
+import { useDocAnchor } from '@/features/help/useDocAnchor';
 import { useGetInvestmentSummaryQuery } from '@/services/investmentService';
 import type { AccountResponse } from '@/types/api';
 import type { CashPositionResponse, NetWorthResponse } from '@/types/position';
@@ -40,6 +41,7 @@ function unconfirmedBalances(accounts: AccountResponse[]): AccountResponse[] {
  */
 export function NetWorthZone({ netWorth, cash, accounts, isLoading, isError }: NetWorthZoneProps) {
   const { data: investments } = useGetInvestmentSummaryQuery();
+  const netWorthDoc = useDocAnchor('networth.total');
 
   if (isLoading) {
     return (
@@ -61,7 +63,7 @@ export function NetWorthZone({ netWorth, cash, accounts, isLoading, isError }: N
 
   return (
     <div className="grid grid-cols-1 gap-space-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] lg:gap-0">
-      <div className="flex flex-col gap-space-2 lg:pr-space-8">
+      <div className="flex flex-col gap-space-2 lg:pr-space-8" {...netWorthDoc}>
         <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">Net worth</span>
         {isError || !netWorth ? (
           <span className="text-body text-ink-soft">Net worth isn’t available right now.</span>
