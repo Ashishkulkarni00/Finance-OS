@@ -2,6 +2,7 @@ import { ArrowDownRight, ArrowUpRight, ArrowRightLeft } from 'lucide-react';
 import { Amount } from '@/components/Amount';
 import { LedgerRow, MetaFacts } from '@/components/LedgerRow';
 import { categoryPath } from '@/lib/categoryGroups';
+import { useDocAnchor } from '@/features/help/useDocAnchor';
 import { cn } from '@/lib/cn';
 import type { TransactionResponse, TransactionType } from '@/types/transaction';
 import type { CategoryResponse } from '@/types/category';
@@ -90,6 +91,9 @@ export function TransactionRow({
   const direction = directionOf(transaction.type);
   const isTransfer = transaction.type === 'TRANSFER' || transaction.type === 'INVESTMENT';
   const category = categoryPath(transaction.category, categories);
+  const docAnchor = useDocAnchor('ledger.row');
+  const categoryDoc = useDocAnchor('ledger.category');
+  const accountDoc = useDocAnchor('ledger.account');
 
   // Most entries get their description from the category they were filed under, so the
   // row was printing the same word three times - as the name, as the line under it, and
@@ -99,25 +103,31 @@ export function TransactionRow({
 
   const facts = isTransfer
     ? [
-        { label: 'From', value: transaction.account.name },
-        { label: 'To', value: transaction.toAccount?.name ?? '—' },
+        { label: 'From', value: <span {...accountDoc}>{transaction.account.name}</span> },
+        { label: 'To', value: <span {...accountDoc}>{transaction.toAccount?.name ?? '—'}</span> },
       ]
     : [
-        ...(category && category !== transaction.description ? [{ label: 'Category', value: category }] : []),
-        { label: 'Account', value: transaction.account.name },
+        ...(category && category !== transaction.description
+          ? [{ label: 'Category', value: <span {...categoryDoc}>{category}</span> }]
+          : []),
+        { label: 'Account', value: <span {...accountDoc}>{transaction.account.name}</span> },
       ];
 
   return (
-    <LedgerRow
-      onClick={onClick}
-      leading={<TypeMark direction={direction} />}
-      primary={transaction.description}
-      // The note is the workbook's own corrections, finally rendered; merchant is the
-      // fallback when there's no note. Both were stored and shown nowhere until now.
-      secondary={secondary === transaction.description ? undefined : secondary}
-      meta={<MetaFacts items={facts} />}
-      amount={<TransactionAmount amount={transaction.amount} direction={direction} />}
-      muted={isTransfer}
-    />
+    // `LedgerRow` doesn't pass through arbitrary props - wrapping it is the same pattern
+    // `LoanRow` uses for `loan.card`.
+    <div {...docAnchor}>
+      <LedgerRow
+        onClick={onClick}
+        leading={<TypeMark direction={direction} />}
+        primary={transaction.description}
+        // The note is the workbook's own corrections, finally rendered; merchant is the
+        // fallback when there's no note. Both were stored and shown nowhere until now.
+        secondary={secondary === transaction.description ? undefined : secondary}
+        meta={<MetaFacts items={facts} />}
+        amount={<TransactionAmount amount={transaction.amount} direction={direction} />}
+        muted={isTransfer}
+      />
+    </div>
   );
 }

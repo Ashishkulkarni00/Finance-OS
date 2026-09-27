@@ -9,6 +9,7 @@ import { LedgerRow, DomainRule, MetaFacts } from '@/components/LedgerRow';
 import { formatMoney } from '@/lib/money';
 import { formatShortDate } from '@/lib/dates';
 import { useGetGoalsQuery } from '@/services/goalService';
+import { useDocAnchor } from '@/features/help/useDocAnchor';
 import type { GoalResponse } from '@/types/goal';
 
 const MONTH_YEAR = new Intl.DateTimeFormat('en-IN', { month: 'short', year: 'numeric' });
@@ -25,13 +26,18 @@ const MONTH_YEAR = new Intl.DateTimeFormat('en-IN', { month: 'short', year: 'num
 function GoalRow({ goal }: { goal: GoalResponse }) {
   // The next payment it has to make - a trip's bookings - is the date that matters most.
   const next = (goal.schedule ?? []).find((l) => l.commitmentId != null && l.status !== 'PAID');
+  const cardDoc = useDocAnchor('goal.card');
+  const paceDoc = useDocAnchor('goal.pace');
   return (
+    // `LedgerRow` doesn't pass through arbitrary props - wrapping it is the same pattern
+    // `LoanRow` uses for `loan.card`.
+    <div {...cardDoc}>
     <LedgerRow
       to={`/goals/${goal.id}`}
       leading={<DomainRule domain="goal" />}
       primary={goal.name}
       secondary={
-        <span className="flex items-center gap-space-3">
+        <span className="flex items-center gap-space-3" {...paceDoc}>
           <span className="h-[6px] w-32 shrink-0 overflow-hidden rounded-full bg-sunken" aria-hidden>
             <span className="block h-full rounded-full bg-goal" style={{ width: `${Math.min(100, goal.progressPercent)}%` }} />
           </span>
@@ -64,6 +70,7 @@ function GoalRow({ goal }: { goal: GoalResponse }) {
         </>
       }
     />
+    </div>
   );
 }
 

@@ -5,6 +5,7 @@ import { formatMoney } from '@/lib/money';
 import { useGetNetWorthQuery } from '@/services/positionService';
 import { useGetLoansQuery } from '@/services/loanService';
 import { useGetGoalsQuery } from '@/services/goalService';
+import { useDocAnchor } from '@/features/help/useDocAnchor';
 
 /** Step 4 - net worth, debt, and goals, as they stand right now. SCREEN_SPECS S6.
  *  No deltas yet - a real "moved since last cycle" comparison needs a prior closed-cycle
@@ -14,12 +15,13 @@ export function WhatMovedStep() {
   const { data: netWorth, isLoading: netWorthLoading } = useGetNetWorthQuery();
   const { data: loansPage, isLoading: loansLoading } = useGetLoansQuery();
   const { data: goalsPage, isLoading: goalsLoading } = useGetGoalsQuery();
+  const doc = useDocAnchor('month.close.moved');
 
   const loans = loansPage?.content ?? [];
   const goals = goalsPage?.content ?? [];
 
   return (
-    <div className="flex flex-col gap-space-6">
+    <div className="flex flex-col gap-space-6" {...doc}>
       <div>
         <h1 className="text-editorial font-serif text-ink">What moved</h1>
         <p className="mt-space-2 text-body text-ink-muted">Where things stand today.</p>

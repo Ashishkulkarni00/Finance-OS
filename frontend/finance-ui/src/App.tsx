@@ -23,6 +23,9 @@ const CardsPage = lazy(() => import('./routes/CardsPage'));
 const CreditCardDetailPage = lazy(() => import('./routes/CreditCardDetailPage'));
 const MoneyLayout = lazy(() => import('./routes/MoneyLayout'));
 const ImportPage = lazy(() => import('./routes/ImportPage'));
+const HelpHomePage = lazy(() => import('./routes/HelpHomePage'));
+const HelpCategoryPage = lazy(() => import('./routes/HelpCategoryPage'));
+const HelpTopicPage = lazy(() => import('./routes/HelpTopicPage'));
 
 /** No persisted "onboarding done" flag exists (and shouldn't need one) - a user with
  *  zero accounts has nothing for the rest of the product to show, which is exactly
@@ -74,6 +77,11 @@ export function App() {
             <Route path="/investments" element={<Navigate to="/money/investments" replace />} />
             <Route path="/cards" element={<Navigate to="/money/cards" replace />} />
             <Route path="/cards/:accountId" element={<CreditCardDetailPage />} />
+            {/* The in-app manual - registered inside AppShell so the rail stays visible
+                and a reader is never stranded (IN_APP_MANUAL.md §5). */}
+            <Route path="/help" element={<HelpHomePage />} />
+            <Route path="/help/:category" element={<HelpCategoryPage />} />
+            <Route path="/help/:category/:slug" element={<HelpTopicPage />} />
           </Route>
         </Routes>
       </Suspense>

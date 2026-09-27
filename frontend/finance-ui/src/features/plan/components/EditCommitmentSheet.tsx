@@ -337,7 +337,7 @@ function EditForm({
   };
 
   return (
-    <form id="edit-commitment" onSubmit={handleSubmit(onSubmit, onInvalid)} onKeyDown={handleEnterAdvance} autoComplete="off" className="flex flex-col gap-space-6">
+    <form id="edit-commitment" data-doc="commitment.form" onSubmit={handleSubmit(onSubmit, onInvalid)} onKeyDown={handleEnterAdvance} autoComplete="off" className="flex flex-col gap-space-6">
       <CommitmentFields
         form={form}
         accounts={accounts}

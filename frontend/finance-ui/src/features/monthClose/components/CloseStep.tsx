@@ -5,6 +5,7 @@ import { NumberDisplay } from '@/components/NumberDisplay';
 import { ErrorState } from '@/components/ErrorState';
 import { formatMoney } from '@/lib/money';
 import { cn } from '@/lib/cn';
+import { useDocAnchor } from '@/features/help/useDocAnchor';
 import type { CycleSnapshotResponse } from '@/types/cycle';
 
 interface CloseStepProps {
@@ -82,6 +83,7 @@ function PlanVsActual({ snapshot }: { snapshot: CycleSnapshotResponse }) {
 
 /** Step 6 (final) - the actual write, and the permanent record it leaves behind. SCREEN_SPECS S6. */
 export function CloseStep({ onClose, isClosing, error, snapshot, onDone }: CloseStepProps) {
+  const doc = useDocAnchor('month.close.close');
   if (snapshot) {
     return (
       <div className="flex flex-col items-center gap-space-6 py-space-8 text-center">
@@ -105,7 +107,7 @@ export function CloseStep({ onClose, isClosing, error, snapshot, onDone }: Close
   }
 
   return (
-    <div className="flex flex-col gap-space-6">
+    <div className="flex flex-col gap-space-6" {...doc}>
       <div>
         <h1 className="text-editorial font-serif text-ink">Ready to close this cycle?</h1>
         <p className="mt-space-2 text-body text-ink-muted">

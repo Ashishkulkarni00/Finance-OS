@@ -17,6 +17,7 @@ import { formatMoney } from '@/lib/money';
 import { useDeleteCardStatementMutation, useGetCardStatementsQuery, useGetCreditCardQuery } from '@/services/cardService';
 import { useAppDispatch } from '@/store/hooks';
 import { openAddSheet } from '@/store/slices/uiSlice';
+import { useDocAnchor } from '@/features/help/useDocAnchor';
 
 const STATUS = {
   PAID: { tone: 'positive', label: 'Paid' },
@@ -36,6 +37,7 @@ export default function CreditCardDetailPage() {
   const id = Number(accountId);
   const [editing, setEditing] = useState(false);
   const [recording, setRecording] = useState(false);
+  const unbilledDoc = useDocAnchor('card.unbilled');
 
   const { data: card, isLoading, isError, refetch } = useGetCreditCardQuery(id, { skip: !id });
   const { data: statements } = useGetCardStatementsQuery(id, { skip: !id || !card?.setUp });
@@ -181,7 +183,7 @@ export default function CreditCardDetailPage() {
             note="Everything spent on the card and not paid yet. It’s already taken out of what’s free this month."
           />
           {card.unbilled != null && (
-            <StatementRow label="Spent since the statement" value={card.unbilled} note="Heading for the next bill." />
+            <StatementRow label={<span {...unbilledDoc}>Spent since the statement</span>} value={card.unbilled} note="Heading for the next bill." />
           )}
           {card.setUp && (
             <StatementRow

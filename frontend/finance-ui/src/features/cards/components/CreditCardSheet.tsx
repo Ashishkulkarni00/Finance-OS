@@ -159,7 +159,7 @@ export function CreditCardSheet({ open, onClose, card }: CreditCardSheetProps) {
         </Button>
       }
     >
-      <form id="credit-card" onSubmit={handleSubmit(onSubmit)} onKeyDown={handleEnterAdvance} autoComplete="off" className="flex flex-col gap-space-6">
+      <form id="credit-card" data-doc="card.form" onSubmit={handleSubmit(onSubmit)} onKeyDown={handleEnterAdvance} autoComplete="off" className="flex flex-col gap-space-6">
         <p className="text-caption text-ink-soft">
           A credit card is its own account, not linked to a bank. What you spend on it is owed until you pay the bill.
         </p>

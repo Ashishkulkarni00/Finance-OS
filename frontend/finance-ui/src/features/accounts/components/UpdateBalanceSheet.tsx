@@ -116,7 +116,7 @@ export function UpdateBalanceSheet({ account, open, onClose }: UpdateBalanceShee
         </Button>
       }
     >
-      <form id="update-balance" onSubmit={handleSubmit(onSubmit)} onKeyDown={handleEnterAdvance} autoComplete="off" className="flex flex-col gap-space-5">
+      <form id="update-balance" data-doc="account.update-balance-form" onSubmit={handleSubmit(onSubmit)} onKeyDown={handleEnterAdvance} autoComplete="off" className="flex flex-col gap-space-5">
         {shownOwed != null ? (
           <p className="text-body text-ink-soft">
             Kosh currently shows{' '}
