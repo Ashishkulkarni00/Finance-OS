@@ -2,6 +2,7 @@ import { Amount } from '@/components/Amount';
 import { LedgerRow, DomainRule, MetaFacts } from '@/components/LedgerRow';
 import { ConfidencePill } from './ConfidencePill';
 import { formatShortDate } from '@/lib/dates';
+import { useDocAnchor } from '@/features/help/useDocAnchor';
 import type { LoanResponse } from '@/types/loan';
 
 const MONTH_YEAR = new Intl.DateTimeFormat('en-IN', { month: 'short', year: 'numeric' });
@@ -24,12 +25,18 @@ function ordinalDay(day: number): string {
  */
 export function LoanRow({ loan }: { loan: LoanResponse }) {
   const repaid = loan.amountRepaid != null && Number(loan.amountRepaid) > 0 ? loan.amountRepaid : null;
+  const docAnchor = useDocAnchor('loan.card');
+  const emiDoc = useDocAnchor('loan.emi');
+  const outstandingDoc = useDocAnchor('loan.outstanding');
 
   const progress = loan.payoffDate
     ? `debt-free ${MONTH_YEAR.format(new Date(loan.payoffDate))}`
     : 'payoff date needs the real terms';
 
   return (
+    // `LedgerRow` doesn't pass through arbitrary props - wrapping it is what lets a
+    // right-click anywhere on the row resolve to this loan's help topic.
+    <div {...docAnchor}>
     <LedgerRow
       to={`/loans/${loan.id}`}
       leading={<DomainRule domain="debt" />}
@@ -63,15 +70,16 @@ export function LoanRow({ loan }: { loan: LoanResponse }) {
       }
       amount={
         <>
-          <span className="text-ink">
+          <span className="text-ink" {...emiDoc}>
             <Amount value={loan.emi} role="row" />
             <span className="text-caption text-ink-muted">/mo</span>
           </span>
-          <div className="text-caption text-ink-muted">
+          <div className="text-caption text-ink-muted" {...outstandingDoc}>
             <Amount value={loan.remainingPayments} role="caption" /> to go
           </div>
         </>
       }
     />
+    </div>
   );
 }

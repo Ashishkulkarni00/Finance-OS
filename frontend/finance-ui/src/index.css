@@ -147,6 +147,10 @@
   /* Content measure */
   --width-content: 1120px;
   --width-nav-rail: 240px;
+  /* The manual's own mode (IN_APP_MANUAL.md §5): the app rail's 240px is freed, and goes
+     to the reading column's margin and right rail, not to prose measure - §5a fixes body
+     text at 68ch regardless of how much width is available. */
+  --width-content-help: 1320px;
 }
 
 @layer base {
@@ -226,6 +230,25 @@
 
 .effect-toast {
   animation: effect-toast-in 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* The help overlay sliding in from the right - IN_APP_MANUAL.md §5a: "the same 220ms
+   cubic-bezier(0.22, 1, 0.36, 1) slide the effect toast uses, so the product has one
+   motion language." Reduced motion is already handled by the blanket rule above this
+   block, which flattens every animation-duration to near-zero. */
+@keyframes help-overlay-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.help-overlay-panel {
+  animation: help-overlay-in 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 /* How long it will stay, shown rather than guessed at. The bar IS the timer: its

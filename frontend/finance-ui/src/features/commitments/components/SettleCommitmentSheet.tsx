@@ -228,7 +228,7 @@ export function SettleCommitmentSheet() {
       {!instance ? (
         <div className="flex justify-center py-space-8 text-body text-ink-muted">Loading…</div>
       ) : (
-        <div className="flex flex-col gap-space-5">
+        <div className="flex flex-col gap-space-5" data-doc="commitment.settle-form">
           <div className="flex overflow-hidden rounded-lg border border-border text-label" role="tablist">
             {(
               [

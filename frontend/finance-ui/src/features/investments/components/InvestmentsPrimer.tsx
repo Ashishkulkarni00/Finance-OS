@@ -1,19 +1,17 @@
 import { PagePrimer } from '@/components/PagePrimer';
+import { byId } from '@/features/help/content';
+import { termsOf } from '@/features/help/retrofit';
 
-const RULES = [
-  { term: 'Put to work', means: 'everything you’ve invested so far' },
-  { term: 'Value', means: 'what a holding is worth — add it from your statement' },
-  { term: 'Growing for later', means: 'invested, but not money you could reach' },
-];
-
-/** Investments in one sentence - see `PagePrimer`. */
+/** Investments in one sentence - see `PagePrimer`. Retrofitted from
+ *  `investments.how-investments-works`. */
 export function InvestmentsPrimer({ onOpenGuide }: { onOpenGuide: () => void }) {
+  const rules = termsOf(byId['investments.how-investments-works']!, true);
   return (
     <PagePrimer
       storageKey="kosh.investments.primer.dismissed"
       headline="Money you’ve put to work, where it’s put, and how it’s growing."
       detail="Growth is shown once you add what your holdings are worth — nothing here guesses a market value."
-      rules={RULES}
+      rules={rules}
       guideLabel="How it works"
       onOpenGuide={onOpenGuide}
     />

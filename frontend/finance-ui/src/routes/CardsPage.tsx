@@ -13,6 +13,7 @@ import { CreditCardSheet } from '@/features/cards/components/CreditCardSheet';
 import { DebitCardSheet } from '@/features/cards/components/DebitCardSheet';
 import { billLine, cardIdentity, formatShare, TONE_CLASS } from '@/features/cards/cardFormat';
 import { formatMoney } from '@/lib/money';
+import { useDocAnchor } from '@/features/help/useDocAnchor';
 import { useGetCreditCardsQuery, useGetDebitCardsQuery } from '@/services/cardService';
 import type { DebitCardResponse } from '@/types/card';
 
@@ -34,6 +35,9 @@ export default function CardsPage() {
 
   const cards = overview?.cards ?? [];
   const share = formatShare(overview?.utilisation);
+  const statementDoc = useDocAnchor('card.statement');
+  const availableDoc = useDocAnchor('card.available');
+  const limitDoc = useDocAnchor('card.limit');
 
   const banks = new Map<number, { name: string; cards: DebitCardResponse[] }>();
   for (const card of debitCards ?? []) {
@@ -94,7 +98,7 @@ export default function CardsPage() {
                   note="Already taken out of what’s free this month."
                 />
                 <StatementRow
-                  label="Bills to pay"
+                  label={<span {...statementDoc}>Bills to pay</span>}
                   value={overview.billsDueTotal}
                   note={
                     overview.billsDueCount === 0
@@ -107,9 +111,9 @@ export default function CardsPage() {
                 )}
                 <StatementRow
                   variant="subtotal"
-                  label="Credit available"
+                  label={<span {...availableDoc}>Credit available</span>}
                   value={overview.totalAvailable}
-                  note={share ? `Of ${formatMoney(overview.totalLimit)} in limits · ${share} used` : undefined}
+                  note={share ? <span {...limitDoc}>{`Of ${formatMoney(overview.totalLimit)} in limits · ${share} used`}</span> : undefined}
                 />
               </Statement>
             </section>
@@ -146,8 +150,8 @@ export default function CardsPage() {
                         card.setUp && (
                           <MetaFacts
                             items={[
-                              { label: 'Limit', value: formatMoney(card.creditLimit) },
-                              { label: 'Available', value: formatMoney(card.availableCredit) },
+                              { label: 'Limit', value: <span {...limitDoc}>{formatMoney(card.creditLimit)}</span> },
+                              { label: 'Available', value: <span {...availableDoc}>{formatMoney(card.availableCredit)}</span> },
                             ]}
                           />
                         )

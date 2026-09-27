@@ -15,6 +15,7 @@ import { formatMoney, formatPercent } from '@/lib/money';
 import { formatDayMonthYear, formatSalaryDate, shiftIsoDays } from '@/lib/dates';
 import { useGetCycleForDateQuery } from '@/services/cycleService';
 import { useGetCycleStandingQuery } from '@/services/commitmentInstanceService';
+import { useDocAnchor } from '@/features/help/useDocAnchor';
 import type { FinancialStateResponse } from '@/types/financialState';
 
 /**
@@ -54,6 +55,11 @@ export function Pulse({ state, isLoading }: { state: FinancialStateResponse | un
 
   const position = state?.position;
   const animated = useAnimatedMoney(position?.state === 'OK' ? position.realBalance : null);
+  const realBalanceDoc = useDocAnchor('position.real-balance');
+  const roomDoc = useDocAnchor('position.room');
+  const freeThisMonthDoc = useDocAnchor('today.free-this-month');
+  const netWorthRowDoc = useDocAnchor('today.net-worth-row');
+  const needsYouCountDoc = useDocAnchor('today.needs-you-count');
 
   // The salary that lands at the end of this cycle, shown but never added in until it
   // arrives - the one piece of context the old hero carried that no other line does.
@@ -97,7 +103,7 @@ export function Pulse({ state, isLoading }: { state: FinancialStateResponse | un
           Free until salary · {salaryOn}
         </span>
         {complete ? (
-          <div className="reveal" style={{ '--reveal-delay': '70ms' } as CSSProperties}>
+          <div className="reveal" style={{ '--reveal-delay': '70ms' } as CSSProperties} {...realBalanceDoc}>
             <Amount value={animated} role="hero" className={negative ? 'text-attention' : 'text-accent'} />
           </div>
         ) : (
@@ -112,9 +118,11 @@ export function Pulse({ state, isLoading }: { state: FinancialStateResponse | un
               'More is planned to leave before salary than you hold. Needs you shows where it runs short.'
             ) : (
               <>
-                <Amount value={position.roomToday} role="body" className="text-ink" /> a day for {state.daysToSalary}{' '}
-                {state.daysToSalary === 1 ? 'day' : 'days'} ·{' '}
-                <Amount value={position.roomLeft} role="body" className="text-ink" /> left today
+                <span {...roomDoc}>
+                  <Amount value={position.roomToday} role="body" className="text-ink" /> a day for {state.daysToSalary}{' '}
+                  {state.daysToSalary === 1 ? 'day' : 'days'}
+                </span>{' '}
+                · <Amount value={position.roomLeft} role="body" className="text-ink" /> left today
               </>
             )}
           </p>
@@ -161,7 +169,7 @@ export function Pulse({ state, isLoading }: { state: FinancialStateResponse | un
       <Statement notes leaders className="border-t-2 border-ink">
         {/* 2 — the month in one line, the same figures Months leads with. */}
         <StatementRow
-          label="Free this month"
+          label={<span {...freeThisMonthDoc}>Free this month</span>}
           revealDelay={300}
           value={shape.flexible}
           note={
@@ -179,7 +187,7 @@ export function Pulse({ state, isLoading }: { state: FinancialStateResponse | un
         {/* 3 — safety. Deliberately not comparable to line 1: this counts the emergency
             fund, which Free until salary excludes by design. */}
         <StatementRow
-          label={<WhyLabel text="If income stopped" open={why === 'runway'} onClick={() => setWhy(why === 'runway' ? null : 'runway')} />}
+          label={<WhyLabel text="If income stopped" docKey="today.runway" open={why === 'runway'} onClick={() => setWhy(why === 'runway' ? null : 'runway')} />}
           revealDelay={355}
           valueNode={
             runway.months == null ? (
@@ -205,7 +213,7 @@ export function Pulse({ state, isLoading }: { state: FinancialStateResponse | un
 
         {/* 4 — debt as one position rather than five loans. */}
         <StatementRow
-          label={<WhyLabel text="Owed" open={why === 'debt'} onClick={() => setWhy(why === 'debt' ? null : 'debt')} />}
+          label={<WhyLabel text="Owed" docKey="today.owed" open={why === 'debt'} onClick={() => setWhy(why === 'debt' ? null : 'debt')} />}
           revealDelay={410}
           value={debt.totalOutstanding}
           note={
@@ -226,7 +234,7 @@ export function Pulse({ state, isLoading }: { state: FinancialStateResponse | un
 
         {/* 5 — the long view, stated once and not dwelt on. */}
         <StatementRow
-          label="Net worth"
+          label={<span {...netWorthRowDoc}>Net worth</span>}
           revealDelay={465}
           value={netWorth.netWorth}
           emphasiseNegative
@@ -236,7 +244,7 @@ export function Pulse({ state, isLoading }: { state: FinancialStateResponse | un
         {/* 6 — the only line that asks for anything. */}
         <StatementRow
           variant="subtotal"
-          label="Needs you"
+          label={<span {...needsYouCountDoc}>Needs you</span>}
           revealDelay={520}
           valueNode={
             <Link to="/needs-you" className="num text-row text-ink underline-offset-4 hover:underline">
@@ -259,12 +267,26 @@ export function Pulse({ state, isLoading }: { state: FinancialStateResponse | un
 
 /** A label that offers its own derivation. Underlined on hover only - a statement peppered
  *  with permanent links reads as a web page, not a ledger. */
-function WhyLabel({ text, open, onClick }: { text: string; open: boolean; onClick: () => void }) {
+function WhyLabel({
+  text,
+  open,
+  onClick,
+  docKey,
+}: {
+  text: string;
+  open: boolean;
+  onClick: () => void;
+  /** A `data-doc` key for this row, so right-clicking the label opens what it means -
+   *  distinct from clicking it, which opens the worked breakdown itself. */
+  docKey?: string;
+}) {
+  const doc = useDocAnchor(docKey ?? '');
   return (
     <button
       type="button"
       onClick={onClick}
       aria-expanded={open}
+      {...(docKey ? doc : {})}
       className="inline-flex items-center gap-space-1 text-left underline-offset-4 hover:underline"
     >
       {text}

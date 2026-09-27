@@ -5,6 +5,7 @@ import { LedgerRow, DomainRule, MetaFacts } from '@/components/LedgerRow';
 import { formatPercent } from '@/lib/money';
 import { formatShortDate } from '@/lib/dates';
 import { useRecordValuationMutation } from '@/services/investmentService';
+import { useDocAnchor } from '@/features/help/useDocAnchor';
 import { cn } from '@/lib/cn';
 import type { InvestmentResponse } from '@/types/investment';
 import { EditInvestmentSheet } from './EditInvestmentSheet';
@@ -24,15 +25,20 @@ function ordinalDay(day: number): string {
  * and current (state the gain).
  */
 function GainLine({ investment }: { investment: InvestmentResponse }) {
+  const gainDoc = useDocAnchor('investment.gain');
   if (investment.currentValue == null) {
-    return <span className="text-ink-muted">Not valued yet · add what it’s worth to see how it’s grown</span>;
+    return (
+      <span className="text-ink-muted" {...gainDoc}>
+        Not valued yet · add what it’s worth to see how it’s grown
+      </span>
+    );
   }
 
   const stale = (investment.valuationAgeDays ?? 0) > STALE_AFTER_DAYS;
   const up = investment.gain != null && Number(investment.gain) >= 0;
 
   return (
-    <span className={cn('num', up ? 'text-positive' : 'text-critical')}>
+    <span className={cn('num', up ? 'text-positive' : 'text-critical')} {...gainDoc}>
       {up ? '+' : ''}
       <Amount value={investment.gain} role="caption" className={up ? 'text-positive' : 'text-critical'} />
       {investment.gainPercent != null && ` · ${formatPercent(investment.gainPercent)}`}
@@ -61,6 +67,7 @@ export function InvestmentRow({ investment }: { investment: InvestmentResponse }
   const [editingDetails, setEditingDetails] = useState(false);
   const [value, setValue] = useState('');
   const [recordValuation, { isLoading }] = useRecordValuationMutation();
+  const rowDoc = useDocAnchor('investment.row');
 
   const save = async () => {
     if (!/^\d+(\.\d{1,2})?$/.test(value)) return;
@@ -70,6 +77,7 @@ export function InvestmentRow({ investment }: { investment: InvestmentResponse }
   };
 
   return (
+    <div {...rowDoc}>
     <LedgerRow
       // There is no /investments/:id page - the row used to link to one, so every click
       // (here and on Accounts) went to a route nothing renders. A holding with a ledger
@@ -166,5 +174,6 @@ export function InvestmentRow({ investment }: { investment: InvestmentResponse }
         )
       }
     />
+    </div>
   );
 }

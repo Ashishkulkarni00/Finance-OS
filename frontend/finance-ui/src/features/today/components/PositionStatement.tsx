@@ -4,6 +4,7 @@ import { ChevronDown } from 'lucide-react';
 import { Statement, StatementRow } from '@/components/Statement';
 import { SectionHeader } from '@/components/SectionHeader';
 import { Skeleton } from '@/components/Skeleton';
+import { useDocAnchor } from '@/features/help/useDocAnchor';
 import { cn } from '@/lib/cn';
 import type { PositionResponse } from '@/types/position';
 
@@ -23,6 +24,10 @@ interface PositionStatementProps {
  */
 export function PositionStatement({ position, isLoading }: PositionStatementProps) {
   const [expanded, setExpanded] = useState(false);
+  const heldDoc = useDocAnchor('position.held');
+  const reservedDoc = useDocAnchor('position.reserved');
+  const committedDoc = useDocAnchor('position.committed');
+  const owedCardsDoc = useDocAnchor('position.owed-cards');
 
   if (isLoading) {
     return (
@@ -72,7 +77,7 @@ export function PositionStatement({ position, isLoading }: PositionStatementProp
       </SectionHeader>
 
       <Statement notes>
-        <StatementRow label="Held across accounts" value={breakdown.held} note="Bank and cash only - not cards, loans or investments." />
+        <StatementRow label={<span {...heldDoc}>Held across accounts</span>} value={breakdown.held} note="Bank and cash only - not cards, loans or investments." />
         {showDetail &&
           breakdown.accounts.map((a) => (
             <StatementRow
@@ -91,10 +96,10 @@ export function PositionStatement({ position, isLoading }: PositionStatementProp
             />
           ))}
 
-        <StatementRow label="Reserved" value={breakdown.reserved} deduct note="Set aside for something specific. Not yours to spend." />
+        <StatementRow label={<span {...reservedDoc}>Reserved</span>} value={breakdown.reserved} deduct note="Set aside for something specific. Not yours to spend." />
 
         <StatementRow
-          label="Committed"
+          label={<span {...committedDoc}>Committed</span>}
           value={breakdown.committed}
           deduct
           note={
@@ -111,7 +116,7 @@ export function PositionStatement({ position, isLoading }: PositionStatementProp
         {/* A comparison, not arithmetic. Hidden when nothing is owed on any card. */}
         {Number(breakdown.cardDues) > 0 && (
           <StatementRow
-            label="Owed on credit cards"
+            label={<span {...owedCardsDoc}>Owed on credit cards</span>}
             value={breakdown.cardDues}
             deduct
             note="Already spent on cards. Paying the bill moves money, it doesn't spend it again."

@@ -33,6 +33,21 @@ This changes how much gets *printed*, never how much gets verified.
 outranks everything. The checklist is *Fresh start on 28 September* immediately below —
 Claude cannot make any of those writes, so the job is to guide, then verify through the API.
 
+**In flight: the in-app manual, branch `feature/documentation`.** Spec and build notes in
+`docs/design/IN_APP_MANUAL.md`. **Phases A and B are built and verified on screen** —
+67 topics, 17 categories, 65 worked examples, 57 right-click anchors, and the retrofit that
+puts the 7 guide sheets and 7 primers on one shared content source. **63 uncommitted paths.**
+
+What is left is polish, listed under *Outstanding* in that spec: `attention` and `faq` are
+thin (2 topics each), the per-figure anchor sweep is not exhaustive, long-press is unverified,
+and no visible help icon was added to an existing page.
+
+**One trap recorded there and worth repeating here:** `vite build` does **not** execute the
+help content module, so it passes while the app is broken. `content/index.ts` validates at
+module load and *throws* — the only real check is loading a page in a browser. A subagent hit
+its rate limit between adding that check and adding the content it demands, and left the whole
+app unable to boot.
+
 After that: **Phase 3.4, rescoped** — see ROADMAP §3.4. Both remaining 3.1 rules were
 investigated on 2026-09-25 and **neither should be built yet**; the evidence is under *Why
 idle cash was not built* below. The user asked for idle cash and the honest answer was that it

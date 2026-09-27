@@ -1,71 +1,26 @@
 import { X } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/Button';
-
-/** The badge on a loan row, and what it changes about the figures beside it. */
-const BADGES: { label: string; means: string }[] = [
-  { label: 'Confirmed', means: 'Terms taken from the sanction letter or a statement. Every figure is derived.' },
-  { label: 'Estimated', means: 'Worked out from what you entered, not paperwork. Close, not exact.' },
-  {
-    label: 'Terms not supplied',
-    means: 'No interest rate yet. The EMI and payments left are known; the payoff date and amount repaid aren’t shown.',
-  },
-  { label: 'Payment unverified', means: 'A payment we couldn’t confirm left. Counted as still owed until you confirm it.' },
-];
-
-/** Situations first - the questions this page raises, the same shape as the other guides. */
-const CASES: { question: string; answer: string }[] = [
-  {
-    question: 'How do I record an EMI I’ve paid?',
-    answer:
-      'As an Expense from the bank account it left, in the Loan EMI category — or Settle it from Months if it’s set up as a bill there. Not as a transfer to the loan.',
-  },
-  {
-    question: 'How do I record paying extra towards a loan?',
-    answer: 'As a Transfer from your bank account to the loan account. That’s a prepayment, and it reduces what you owe.',
-  },
-  {
-    question: 'Why isn’t the card EMI added to what leaves every month?',
-    answer:
-      'It arrives inside your card bill, and paying the card bill is already how that money leaves. Adding it again would count the same money twice.',
-  },
-  {
-    question: 'Why is there no payoff date?',
-    answer:
-      'The loan has no interest rate recorded. A payoff date worked out from a guessed rate would look exact and be wrong, so none is shown. Add the rate from the sanction letter and it appears.',
-  },
-  {
-    question: 'Why isn’t each EMI split into principal and interest?',
-    answer:
-      'The split needs the real rate and start date. With them, the loan’s own page shows the full schedule; without them, a made-up split would be worse than none.',
-  },
-  {
-    question: 'What is “Still to pay”?',
-    answer:
-      'Every EMI still to come, added up — what will actually leave your hands, which stays knowable even when the terms aren’t. It isn’t the same as the principal outstanding.',
-  },
-];
-
-const ELSEWHERE: { thing: string; where: string }[] = [
-  { thing: 'When this month’s EMI is due, and whether it’s paid', where: 'Months' },
-  { thing: 'The balance of the account an EMI leaves from', where: 'Accounts' },
-  { thing: 'Every EMI payment you’ve recorded', where: 'Ledger' },
-];
-
-interface DebtsGuideSheetProps {
-  open: boolean;
-  onClose: () => void;
-}
+import { byId } from '@/features/help/content';
+import { termsOf, qaOf, elsewhereOf, fullTopicHref } from '@/features/help/retrofit';
 
 /**
  * "How Debts works" - the counterpart of the Ledger, Today, Months and Accounts guides.
  *
  * <p>Debts is where the product most often declines to show a number - no payoff date, no
  * repaid figure, no interest split - and each refusal reads as missing data unless the
- * reason is one click away. This is also where the note about EMIs not being split used
- * to sit, as a paragraph under the list that nobody was looking for at that moment.
+ * reason is one click away.
+ *
+ * <p><strong>Retrofitted</strong> (IN_APP_MANUAL.md §1, §8): the badges, cases and
+ * "elsewhere" list below come from the manual's `loans.how-debts-works` topic.
  */
-export function DebtsGuideSheet({ open, onClose }: DebtsGuideSheetProps) {
+export function DebtsGuideSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const topic = byId['loans.how-debts-works']!;
+  const badges = termsOf(topic);
+  const cases = qaOf(topic);
+  const elsewhere = elsewhereOf(topic);
+
   return (
     <Modal
       open={open}
@@ -87,12 +42,12 @@ export function DebtsGuideSheet({ open, onClose }: DebtsGuideSheetProps) {
         <div>
           <p className="mb-space-3 text-label font-medium text-ink">The badge on each loan</p>
           <div className="rounded-lg border border-line">
-            {BADGES.map((b) => (
+            {badges.map((b) => (
               <div
-                key={b.label}
+                key={b.term}
                 className="grid grid-cols-[9rem_minmax(0,1fr)] gap-space-3 border-b border-line px-space-4 py-space-3 last:border-b-0"
               >
-                <span className="text-label font-medium text-ink">{b.label}</span>
+                <span className="text-label font-medium text-ink">{b.term}</span>
                 <span className="text-caption text-ink-muted">{b.means}</span>
               </div>
             ))}
@@ -102,7 +57,7 @@ export function DebtsGuideSheet({ open, onClose }: DebtsGuideSheetProps) {
         <div>
           <p className="mb-space-3 text-label font-medium text-ink">If you’re wondering…</p>
           <div className="rounded-lg border border-line">
-            {CASES.map((c) => (
+            {cases.map((c) => (
               <div key={c.question} className="border-b border-line px-space-4 py-space-3 last:border-b-0">
                 <p className="text-label text-ink">{c.question}</p>
                 <p className="mt-space-1 text-caption text-ink-muted">{c.answer}</p>
@@ -114,7 +69,7 @@ export function DebtsGuideSheet({ open, onClose }: DebtsGuideSheetProps) {
         <div>
           <p className="mb-space-3 text-label font-medium text-ink">Not on Debts, on purpose</p>
           <div className="flex flex-col gap-space-2">
-            {ELSEWHERE.map((e) => (
+            {elsewhere.map((e) => (
               <div key={e.thing} className="flex items-start gap-space-2 text-caption">
                 <X size={14} strokeWidth={2} className="mt-0.5 shrink-0 text-ink-muted" aria-hidden />
                 <span className="text-ink-soft">
@@ -124,6 +79,14 @@ export function DebtsGuideSheet({ open, onClose }: DebtsGuideSheetProps) {
             ))}
           </div>
         </div>
+
+        <Link
+          to={fullTopicHref(topic)}
+          onClick={onClose}
+          className="text-caption text-accent underline-offset-2 hover:underline"
+        >
+          Read the full guide in the manual
+        </Link>
       </div>
     </Modal>
   );

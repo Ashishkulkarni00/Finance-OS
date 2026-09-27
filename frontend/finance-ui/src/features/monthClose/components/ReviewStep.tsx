@@ -6,6 +6,7 @@ import { PlanChanges } from '@/features/month/components/PlanChanges';
 import { cycleMonthName, formatShortDate, shiftIsoDays } from '@/lib/dates';
 import { useGetCycleReviewQuery } from '@/services/commitmentInstanceService';
 import { useGetCycleForDateQuery } from '@/services/cycleService';
+import { useDocAnchor } from '@/features/help/useDocAnchor';
 import type { CycleResponse } from '@/types/cycle';
 
 /** One line of the plan-against-actual statement: what it was, planned, what happened. */
@@ -35,6 +36,7 @@ export function ReviewStep({ cycle }: { cycle: CycleResponse }) {
   const { data: review, isLoading } = useGetCycleReviewQuery(cycle.id);
   const { data: next } = useGetCycleForDateQuery(shiftIsoDays(cycle.endDate, 1));
   const month = cycleMonthName(cycle.endDate);
+  const doc = useDocAnchor('month.close.review');
 
   if (isLoading || !review) {
     return (
@@ -46,7 +48,7 @@ export function ReviewStep({ cycle }: { cycle: CycleResponse }) {
   }
 
   return (
-    <div className="flex flex-col gap-space-8">
+    <div className="flex flex-col gap-space-8" {...doc}>
       <div>
         <h1 className="text-editorial font-serif text-ink">{month} against its plan</h1>
         <p className="mt-space-2 text-caption text-ink-muted">

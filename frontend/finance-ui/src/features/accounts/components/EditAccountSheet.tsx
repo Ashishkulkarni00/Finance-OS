@@ -106,7 +106,7 @@ export function EditAccountSheet({ account, open, onClose }: EditAccountSheetPro
         </Button>
       }
     >
-      <form id="edit-account" onSubmit={handleSubmit(onSubmit)} onKeyDown={handleEnterAdvance} autoComplete="off" className="flex flex-col gap-space-5">
+      <form id="edit-account" data-doc="account.form" onSubmit={handleSubmit(onSubmit)} onKeyDown={handleEnterAdvance} autoComplete="off" className="flex flex-col gap-space-5">
         <AccountFormFields register={register} watch={watch} setValue={setValue} errors={errors} mode="edit" />
         <p className="text-caption text-ink-muted">To change what this account holds, use Update balance instead.</p>
       </form>

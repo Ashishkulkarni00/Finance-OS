@@ -1,5 +1,6 @@
 import { Amount } from '@/components/Amount';
 import { Skeleton } from '@/components/Skeleton';
+import { useDocAnchor } from '@/features/help/useDocAnchor';
 import type { InsuranceSummaryResponse } from '@/types/insurance';
 
 /**
@@ -11,6 +12,9 @@ import type { InsuranceSummaryResponse } from '@/types/insurance';
  * So it is shown as cover, beside its cost, and never near net worth.
  */
 export function CoverStanding({ summary, isLoading }: { summary?: InsuranceSummaryResponse; isLoading: boolean }) {
+  const coverDoc = useDocAnchor('cover.policy');
+  const premiumDoc = useDocAnchor('cover.premium');
+
   if (isLoading || !summary) {
     return <Skeleton className="h-20 w-full" />;
   }
@@ -18,14 +22,14 @@ export function CoverStanding({ summary, isLoading }: { summary?: InsuranceSumma
   return (
     <div className="flex flex-col gap-space-4">
       <div className="flex flex-wrap items-start gap-space-8">
-        <div className="flex flex-col items-start gap-space-2">
+        <div className="flex flex-col items-start gap-space-2" {...coverDoc}>
           <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">Covered for</span>
           <Amount value={summary.totalCover} role="hero" className="text-ink" />
           <span className="text-caption text-ink-muted">
             across {summary.policies} {summary.policies === 1 ? 'policy' : 'policies'}
           </span>
         </div>
-        <div className="flex flex-col items-start gap-space-2">
+        <div className="flex flex-col items-start gap-space-2" {...premiumDoc}>
           <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">Costs you</span>
           {/* Null is unknown, never ₹0 - a policy whose premium was never recorded still
               costs something, and ₹0 would quietly improve the monthly picture. */}

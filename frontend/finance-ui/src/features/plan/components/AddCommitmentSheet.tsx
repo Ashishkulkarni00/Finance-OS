@@ -458,7 +458,7 @@ export function AddCommitmentSheet({ open, onClose, defaultStart, preset }: AddC
           </div>
         </div>
       ) : (
-        <form id="add-commitment" onSubmit={handleSubmit(onSubmit)} onKeyDown={handleEnterAdvance} autoComplete="off" className="flex flex-col gap-space-6">
+        <form id="add-commitment" data-doc="commitment.form" onSubmit={handleSubmit(onSubmit)} onKeyDown={handleEnterAdvance} autoComplete="off" className="flex flex-col gap-space-6">
           <CommitmentFields
             form={form}
             accounts={accounts}

@@ -90,7 +90,7 @@ export function DebitCardSheet({ open, onClose, card, defaultAccountId }: DebitC
 
   return (
     <Modal open={open} onClose={onClose} title={card ? `Edit ${card.name}` : 'Add a debit card'} footer={null}>
-      <form id="debit-card" onSubmit={handleSubmit(onSubmit)} onKeyDown={handleEnterAdvance} autoComplete="off" className="flex flex-col gap-space-6">
+      <form id="debit-card" data-doc="card.form" onSubmit={handleSubmit(onSubmit)} onKeyDown={handleEnterAdvance} autoComplete="off" className="flex flex-col gap-space-6">
         <p className="text-caption text-ink-soft">
           A debit card has no balance of its own. What you spend with it comes straight out of its bank account, so record those
           spends as expenses from that account.

@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { Compass, Calendar, Wallet, Target, Receipt, Plus } from 'lucide-react';
+import { Compass, Calendar, Wallet, Target, Receipt, Plus, HelpCircle } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useAppDispatch } from '@/store/hooks';
 import { openAddSheet, openPageAdd } from '@/store/slices/uiSlice';
@@ -70,6 +70,24 @@ export function NavRail() {
           </li>
         ))}
       </ul>
+
+      {/* Help is not a sixth job the product does - it sits below a hairline, quieter
+          than the five above, always present rather than competing (IN_APP_MANUAL.md
+          §5's Navigation entry). */}
+      <div className="mt-auto border-t border-line pt-space-4">
+        <NavLink
+          to="/help"
+          className={() =>
+            cn(
+              'flex items-center gap-space-3 rounded-lg px-space-3 py-space-2 text-label transition-colors duration-150',
+              isOwned(pathname, ['/help']) ? 'text-accent font-medium' : 'text-ink-muted hover:bg-sunken hover:text-ink-soft',
+            )
+          }
+        >
+          <HelpCircle size={18} strokeWidth={1.5} />
+          Help
+        </NavLink>
+      </div>
     </nav>
   );
 }

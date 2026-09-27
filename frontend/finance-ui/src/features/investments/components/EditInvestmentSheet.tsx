@@ -119,7 +119,7 @@ export function EditInvestmentSheet({ investment, open, onClose }: { investment:
         </Button>
       }
     >
-      <form id="edit-investment" onSubmit={handleSubmit(onSubmit)} onKeyDown={handleEnterAdvance} autoComplete="off" className="flex flex-col gap-space-6">
+      <form id="edit-investment" data-doc="investment.form" onSubmit={handleSubmit(onSubmit)} onKeyDown={handleEnterAdvance} autoComplete="off" className="flex flex-col gap-space-6">
         <div className="rounded-lg border border-line">
           <FormRow label="Name" error={errors.name?.message}>
             <input {...register('name')} autoComplete="off" className={FORM_ROW_CONTROL} autoFocus />

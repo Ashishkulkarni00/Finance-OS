@@ -129,7 +129,7 @@ export function AddSheet() {
         </Button>
       }
     >
-      <form id="add-transaction" onSubmit={handleSubmit(onSubmit)} onKeyDown={handleEnterAdvance} autoComplete="off" className="flex flex-col items-center gap-space-6">
+      <form id="add-transaction" data-doc="transaction.form" onSubmit={handleSubmit(onSubmit)} onKeyDown={handleEnterAdvance} autoComplete="off" className="flex flex-col items-center gap-space-6">
         <TransactionFormFields
           register={register}
           control={control}

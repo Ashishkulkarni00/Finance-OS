@@ -149,7 +149,7 @@ export function AddLoanSheet({ open, onClose }: AddLoanSheetProps) {
         </Button>
       }
     >
-      <form id="add-loan" onSubmit={handleSubmit(onSubmit)} onKeyDown={handleEnterAdvance} autoComplete="off" className="flex flex-col gap-space-6">
+      <form id="add-loan" data-doc="loan.form" onSubmit={handleSubmit(onSubmit)} onKeyDown={handleEnterAdvance} autoComplete="off" className="flex flex-col gap-space-6">
         <div className="rounded-lg border border-line">
           <FormRow label="Loan" error={errors.name?.message}>
             <input {...register('name')} autoComplete="off" placeholder="Bike loan, education loan…" className={FORM_ROW_CONTROL} autoFocus />

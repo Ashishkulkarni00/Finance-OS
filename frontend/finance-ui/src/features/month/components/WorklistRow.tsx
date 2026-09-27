@@ -54,24 +54,29 @@ export function WorklistRow({ instanceId, primary, secondary, meta, amount, acti
     ) : undefined;
 
   return (
-    <LedgerRow
-      to={`/commitments/${instanceId}`}
-      leading={
-        completed ? (
-          <CheckCircle2 size={18} strokeWidth={1.5} className="shrink-0 text-positive" aria-hidden />
-        ) : (
-          (leading ?? <DomainRule domain="commit" />)
-        )
-      }
-      primary={primary}
-      secondary={secondary}
-      meta={meta}
-      amount={amount}
-      action={actions}
-      reserveAction
-      // Room for the pencil beside Settle / Estimate.
-      actionWidth="7.5rem"
-      muted={completed}
-    />
+    // `LedgerRow` doesn't pass through arbitrary props - wrapping it is what lets a
+    // right-click anywhere on a plan row resolve to "Settling a bill" (`month.plan-row`),
+    // the same pattern `LoanRow` uses for `loan.card`.
+    <div data-doc="month.plan-row">
+      <LedgerRow
+        to={`/commitments/${instanceId}`}
+        leading={
+          completed ? (
+            <CheckCircle2 size={18} strokeWidth={1.5} className="shrink-0 text-positive" aria-hidden />
+          ) : (
+            (leading ?? <DomainRule domain="commit" />)
+          )
+        }
+        primary={primary}
+        secondary={secondary}
+        meta={meta}
+        amount={amount}
+        action={actions}
+        reserveAction
+        // Room for the pencil beside Settle / Estimate.
+        actionWidth="7.5rem"
+        muted={completed}
+      />
+    </div>
   );
 }

@@ -1,23 +1,14 @@
 import { ArrowRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/Button';
+import { byId } from '@/features/help/content';
+import { termsOf, qaOf, elsewhereOf, fullTopicHref } from '@/features/help/retrofit';
 
-/** The words the page uses, each in one plain sentence. */
-const TERMS: { name: string; means: string }[] = [
-  {
-    name: 'Commitment',
-    means: 'Anything with a known date each month (or just once): rent, an EMI, a SIP, a bill, family support - and your salary coming in.',
-  },
-  { name: 'Free until salary', means: 'What’s left in your accounts after every commitment still due before your next salary.' },
-  { name: 'Settle', means: 'Mark one as paid. It records the payment in your Ledger. For income it’s “Received”.' },
-  {
-    name: 'Amount unknown',
-    means: 'One that changes each month, like electricity, with no number yet. Until it has one, “Free until salary” shows “—” rather than a guess.',
-  },
-  { name: 'Estimate', means: 'Give an “amount unknown” one a rough number. Nothing is marked paid.' },
-];
-
-/** What each field of "Add a commitment" asks, in the order the form asks it. */
+/** What each field of "Add a commitment" asks, in the order the form asks it. Kept local
+ *  (rather than read from the manual) because it's a condensed reference table, not a
+ *  restatement of anything - the full field docs live in the manual's
+ *  `monthly-plan.adding-a-commitment` topic, one click away via "Read the full guide". */
 const FIELDS: { name: string; means: string }[] = [
   {
     name: 'Type',
@@ -36,51 +27,6 @@ const FIELDS: { name: string; means: string }[] = [
   { name: 'Must pay?', means: 'Yes if missing it costs you (a fee, a penalty). No if you could skip it in a tight month.' },
 ];
 
-/** The questions the page actually raises, answered in one or two sentences each. */
-const CASES: { question: string; answer: string }[] = [
-  {
-    question: 'Why does a month run 28 Sep to 27 Oct?',
-    answer:
-      'Months here run from one salary to the next, not 1st to 31st - so a month is exactly the money one salary has to cover. It’s named for the month it ends in.',
-  },
-  {
-    question: 'Can I plan next month?',
-    answer:
-      'Yes. Use the arrow beside the month name to move ahead, then add a commitment - its first payment is set to the month you’re looking at.',
-  },
-  {
-    question: 'I added one after its due date had passed',
-    answer:
-      'It still counts this month, under “Due date passed”. If you already paid it and the payment is in your Ledger, Settle it and choose “Already in the Ledger” - don’t record it again, or it’s counted twice.',
-  },
-  {
-    question: 'Its amount is different just this once',
-    answer:
-      'For one that changes each month, click the pencil and set “This time” - only that month changes. To change it for every month, edit its Amount instead.',
-  },
-  {
-    question: '“₹350 more than planned”',
-    answer: 'It was settled for more than expected. Just information, not a warning.',
-  },
-  {
-    question: 'Why is there no budget?',
-    answer:
-      'A number picked on a good day is easy to miss and then give up on. After a few months, your spending is compared with your own usual instead.',
-  },
-];
-
-const ELSEWHERE: { thing: string; where: string }[] = [
-  { thing: 'What you can spend today', where: 'Today' },
-  { thing: 'Every payment behind these totals', where: 'Ledger' },
-  { thing: 'Account balances', where: 'Accounts' },
-  { thing: 'Loans and what’s left on them', where: 'Debts' },
-];
-
-interface MonthGuideSheetProps {
-  open: boolean;
-  onClose: () => void;
-}
-
 function Table({ rows }: { rows: { name: string; means: string }[] }) {
   return (
     <div className="rounded-lg border border-line">
@@ -96,10 +42,17 @@ function Table({ rows }: { rows: { name: string; means: string }[] }) {
 
 /**
  * "How Months works" - what the page is for, the words it uses, what adding a commitment
- * asks, and the questions people actually hit. Kept to what's on screen today: a guide that
- * names a field the form no longer has is worse than no guide.
+ * asks, and the questions people actually hit.
+ *
+ * <p><strong>Retrofitted</strong> (IN_APP_MANUAL.md §1, §8): "Words you'll see", the
+ * cases and "Elsewhere" come from the manual's `months.how-months-works` topic.
  */
-export function MonthGuideSheet({ open, onClose }: MonthGuideSheetProps) {
+export function MonthGuideSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const topic = byId['months.how-months-works']!;
+  const terms = termsOf(topic);
+  const cases = qaOf(topic);
+  const elsewhere = elsewhereOf(topic);
+
   return (
     <Modal
       open={open}
@@ -121,7 +74,7 @@ export function MonthGuideSheet({ open, onClose }: MonthGuideSheetProps) {
 
         <div>
           <p className="mb-space-3 text-label font-medium text-ink">Words you’ll see</p>
-          <Table rows={TERMS} />
+          <Table rows={terms.map((t) => ({ name: t.term, means: t.means }))} />
         </div>
 
         <div>
@@ -133,7 +86,7 @@ export function MonthGuideSheet({ open, onClose }: MonthGuideSheetProps) {
         <div>
           <p className="mb-space-3 text-label font-medium text-ink">If you’re wondering…</p>
           <div className="rounded-lg border border-line">
-            {CASES.map((c) => (
+            {cases.map((c) => (
               <div key={c.question} className="border-b border-line px-space-4 py-space-3 last:border-b-0">
                 <p className="text-label text-ink">{c.question}</p>
                 <p className="mt-space-1 text-caption text-ink-muted">{c.answer}</p>
@@ -145,7 +98,7 @@ export function MonthGuideSheet({ open, onClose }: MonthGuideSheetProps) {
         <div>
           <p className="mb-space-3 text-label font-medium text-ink">Elsewhere</p>
           <div className="flex flex-col gap-space-2">
-            {ELSEWHERE.map((e) => (
+            {elsewhere.map((e) => (
               <div key={e.thing} className="flex items-start gap-space-2 text-caption">
                 <ArrowRight size={14} strokeWidth={2} className="mt-0.5 shrink-0 text-ink-muted" aria-hidden />
                 <span className="text-ink-soft">
@@ -155,6 +108,14 @@ export function MonthGuideSheet({ open, onClose }: MonthGuideSheetProps) {
             ))}
           </div>
         </div>
+
+        <Link
+          to={fullTopicHref(topic)}
+          onClick={onClose}
+          className="text-caption text-accent underline-offset-2 hover:underline"
+        >
+          Read the full guide in the manual
+        </Link>
       </div>
     </Modal>
   );

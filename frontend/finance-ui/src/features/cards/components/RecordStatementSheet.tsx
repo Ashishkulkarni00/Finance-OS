@@ -106,7 +106,7 @@ export function RecordStatementSheet({ card, open, onClose }: RecordStatementShe
         </Button>
       }
     >
-      <form id="record-statement" onSubmit={handleSubmit(onSubmit)} onKeyDown={handleEnterAdvance} autoComplete="off" className="flex flex-col gap-space-6">
+      <form id="record-statement" data-doc="card.statement-form" onSubmit={handleSubmit(onSubmit)} onKeyDown={handleEnterAdvance} autoComplete="off" className="flex flex-col gap-space-6">
         <div className="rounded-lg border border-line">
           <FormRow label="Statement" error={errors.statementDate?.message} hint="The statement or billing date printed on the statement.">
             <input type="date" {...register('statementDate')} max={today} className={FORM_ROW_CONTROL + ' cursor-pointer'} />

@@ -18,6 +18,7 @@ import { useSelectedCycle } from '@/features/month/useSelectedCycle';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { ErrorState } from '@/components/ErrorState';
+import { useDocAnchor } from '@/features/help/useDocAnchor';
 
 /** A full-width hairline above each section after the overview. */
 function Divided({ children }: { children: ReactNode }) {
@@ -50,6 +51,7 @@ export default function MonthPage() {
   const [guideOpen, setGuideOpen] = useState(false);
   const selected = useSelectedCycle();
   const { cycle, isCurrent, isFuture } = selected;
+  const closeDoc = useDocAnchor('month.close');
 
   const { data: position, isLoading: positionLoading } = useGetPositionQuery();
   const {
@@ -152,7 +154,7 @@ export default function MonthPage() {
           <MonthBriefing cycle={cycle} mode={mode} progress={planProgress} />
 
           {canClose && cycle && !cycle.closed && (
-            <Card className="flex items-center justify-between">
+            <Card className="flex items-center justify-between" {...closeDoc}>
               <div>
                 <p className="text-body text-ink">This cycle has ended.</p>
                 <p className="text-caption text-ink-muted">Close it with understanding, not just a tap.</p>
