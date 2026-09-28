@@ -89,10 +89,24 @@ export function cycleMonthName(endDate: string): string {
 
 /** The raw numbers behind the cycle - shared by everything that needs "where in the
  *  cycle is today" (the band, the crux verdict, the progress rule) so they can't drift. */
+/**
+ * A `YYYY-MM-DD` from the API as **local** midnight.
+ *
+ * <p>`new Date("2026-09-27")` is UTC midnight, not local - so in any zone ahead of
+ * Greenwich it is already in the past by breakfast, and a same-day comparison against
+ * `Date.now()` reads true for the whole of that day. That is what made Months offer a
+ * "Close cycle" button on the cycle's final day which the API then refused with
+ * `CYCLE_NOT_YET_ENDED`. Every comparison here is between two local midnights, so a
+ * calendar day is a calendar day and the clock time never enters into it.
+ */
+function localMidnight(iso: string): Date {
+  return new Date(`${iso.slice(0, 10)}T00:00:00`);
+}
+
 export function cycleProgress(startDate: string, endDate: string): CycleProgress {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  const today = new Date();
+  const start = localMidnight(startDate);
+  const end = localMidnight(endDate);
+  const today = localMidnight(todayLocalIso());
 
   const totalDays = Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1;
   const rawDay = Math.round((today.getTime() - start.getTime()) / 86_400_000) + 1;
@@ -105,6 +119,8 @@ export function cycleProgress(startDate: string, endDate: string): CycleProgress
     dayOfCycle,
     daysRemaining,
     fraction,
+    // Strictly after the last day, matching the server's `endDate.isBefore(today)` - the
+    // final day is still part of the cycle, and is the day the salary arrives.
     ended: today.getTime() > end.getTime(),
     upcoming: today.getTime() < start.getTime(),
   };

@@ -55,6 +55,37 @@ cannot fire truthfully on their data — tell them that first, do not silently s
 
 ---
 
+## Readiness check, 2026-09-27 — the day before real use
+
+Swept before the user's first real day. **The code is ready; what is left is theirs to click.**
+
+| | |
+|---|---|
+| **Branches** | Everything is merged into `uat-release` (PR #14 carried the manual in). `bugs/27-09-2026` is cut from it and carries **3 uncommitted files** — the cycle-ended timezone fix. Merge before tomorrow or the Close button stays a day early |
+| **Endpoints** | All 12 checked return 200: health · cycles/current · position · financial-state · insights/all · forecast · accounts · commitments · goals · loans · investments · cycles/3/shape |
+| **Screens** | All 16 render clean in headless Chrome. The only console error is the known nested `<button>` on `/needs-you` (`FIX_BACKLOG` 4.7) — invalid HTML, clicks work |
+| **October's plan** | `state: COMPLETE`, **0 unknown amounts**, 18 instances all `PENDING`. In ₹57,700 − committed ₹41,616 − set aside ₹12,500 = **free ₹3,584**. The arithmetic was re-summed by hand from the 18 rows and agrees |
+| **Insights** | 3 live, all `OPPORTUNITY`. Nothing urgent going into the month |
+
+**Anthropic has been un-archived** — it is in October's plan at ₹2,373 on 7 Oct. Still spelled
+"Antropic".
+
+### Expect a large negative on the morning of the 28th — it is not a bug
+
+The moment cycle 3 becomes current, `committed` jumps from ₹0 (September carries no bills) to
+the whole month's ₹41,616, while `held` is still about ₹8,000 because **expected income is
+never counted until it arrives**. Real Balance will read roughly **−₹33,600** until the salary
+is recorded, and the shortfall rule will probably fire.
+
+That is the model working: it is what the user would be short if the salary never came. It
+resolves the instant the *Salary credit* instance is settled as received. **Tell the user to
+record the salary first, before reading anything else on the screen** - otherwise the first
+thing the product ever says to them on a real day is a false alarm.
+
+Worth considering afterwards, but **not** worth changing the day before: whether day 1 of a
+cycle should phrase this differently, given expected income is sitting right there in the
+plan. Changing what Real Balance means is not a thing to do the night before first use.
+
 ## Fresh start on 28 September (prepared 2026-09-26)
 
 The user asked for the app to carry nothing from September. **The code side is done** (the
