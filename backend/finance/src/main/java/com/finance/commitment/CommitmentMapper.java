@@ -4,6 +4,7 @@ import com.finance.account.AccountMapper;
 import com.finance.category.CategoryMapper;
 import com.finance.commitment.domain.AttentionTier;
 import com.finance.commitment.domain.Commitment;
+import com.finance.commitment.domain.CommitmentAmountType;
 import com.finance.commitment.domain.CommitmentInstance;
 import com.finance.commitment.dto.CommitmentInstanceDetailResponse;
 import com.finance.commitment.dto.CommitmentInstanceHistoryEntry;
@@ -82,6 +83,10 @@ public class CommitmentMapper {
                 instance.getDueDate(), instance.getExpectedAmount(), instance.getStatus(),
                 instance.getConfirmedAmount(), instance.outstanding(), instance.getConfirmedAt(), view.settledOn(),
                 instance.getLinkedTransactionId(), commitment.isMandatory(), commitment.getIfSkipped(),
+                instance.isAmountOverridden(),
+                // Only a FIXED bill has a "usual" to have diverged from; a varying one has
+                // nothing to compare against, and null says that rather than implying zero.
+                commitment.getAmountType() == CommitmentAmountType.FIXED ? commitment.getFixedAmount() : null,
                 accountMapper.toSummary(view.account()), categoryMapper.toSummary(view.category()),
                 commitment.getSourceType(), commitment.getSourceId(), commitment.getSettleAs(), commitment.getToAccountId(),
                 AttentionTier.of(instance, commitment, LocalDate.now(clock)), instance.variance(),

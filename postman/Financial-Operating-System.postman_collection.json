@@ -1847,7 +1847,9 @@
 									"pm.test('200 OK', () => pm.response.to.have.status(200));",
 									"const b = pm.response.json();",
 									"pm.test('amount recorded as a string, to the paisa', () => pm.expect(b.expectedAmount).to.eql('1200.00'));",
-									"pm.test('an unpaid bill now has a known outstanding', () => pm.expect(b.outstanding).to.not.be.null);"
+									"pm.test('an unpaid bill now has a known outstanding', () => pm.expect(b.outstanding).to.not.be.null);",
+									"pm.test('setting one month marks it overridden - this is what stops the bill overwriting it (V22)', () => pm.expect(b.amountOverridden, 'FIX_BACKLOG 2.9').to.eql(true));",
+									"pm.test('ruleAmount says what it differs from, or null for a bill that varies', () => { if (b.ruleAmount !== null) pm.expect(b.ruleAmount).to.be.a('string'); });"
 								]
 							}
 						}
@@ -1913,6 +1915,40 @@
 							"body": "{\n  \"id\": 31,\n  \"commitmentId\": 1,\n  \"commitmentName\": \"Electricity\",\n  \"cycleId\": 2,\n  \"dueDate\": \"2026-10-02\",\n  \"expectedAmount\": \"1200.00\",\n  \"status\": \"PENDING\",\n  \"outstanding\": \"1200.00\",\n  \"mandatory\": true,\n  \"ifSkipped\": \"Disconnection\",\n  \"attentionTier\": \"WORTH_KNOWING\"\n}"
 						}
 					]
+				},
+				{
+					"name": "Use the bill's amount (undo a one-month change)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200 OK', () => pm.response.to.have.status(200));",
+									"const b = pm.response.json();",
+									"pm.test('no longer overridden - the month follows the bill again', () => pm.expect(b.amountOverridden).to.eql(false));",
+									"pm.test('a fixed bill is back on its own amount', () => { if (b.ruleAmount !== null) pm.expect(b.expectedAmount).to.eql(b.ruleAmount); });"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/commitment-instances/{{commitmentInstanceId}}/use-bill-amount",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"commitment-instances",
+								"{{commitmentInstanceId}}",
+								"use-bill-amount"
+							]
+						},
+						"description": "Undoes a \"just this month\" amount — the occurrence follows its bill again (V22, FIX_BACKLOG 2.9).\n\n**Why the override exists at all:** an occurrence copies its amount from its rule when generated, and `reconcileWithRule` re-copies it on every read so an edited bill reaches the months already generated. That is right, and it is also why changing a single month silently reverted — the user's figure was overwritten on the next load. `amount_overridden` stops that for the one month the user set by hand.\n\n**Why this endpoint is needed:** without it the override is a one-way door. Typing the usual figure back in leaves the flag set, so the month quietly stops following the bill from then on.\n\nA POST, not a DELETE: nothing is removed. The month keeps its row and its amount and simply follows the bill again — a state change like settle or skip, and every one of those on this resource is a POST.\n\nRefuses a settled occurrence with `INSTANCE_ALREADY_SETTLED`: a paid month's amount is what was actually paid."
+					},
+					"response": []
 				},
 				{
 					"name": "400 — set amount of zero",

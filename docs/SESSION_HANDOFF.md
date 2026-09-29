@@ -41,9 +41,11 @@ Rewritten from scratch 2026-09-17; stack, feature map and data snapshot refreshe
 ## 2. Stack and commands
 - **Backend:** `webapp/backend/finance`
   - Spring Boot 4.1.1, Hibernate 7, Jackson 3 (`tools.jackson.*`), Flyway, MySQL 8.
-  - The latest migration is **V21** (`insight_state` dismissal columns). V18 plan revisions ·
-    V19 insurance policies · V20 notification state · V21 dismiss/snooze — each asked for
-    explicitly; the freeze is back on.
+  - The latest migration is **V22** (`commitment_instances.amount_overridden`). V18 plan
+    revisions · V19 insurance policies · V20 notification state · V21 dismiss/snooze ·
+    V22 one-month amount override — each asked for explicitly; the freeze is back on.
+  - Flyway applies a new migration **on the devtools restart**, so a `mvnw compile` is
+    usually enough; no manual step was needed for V22.
   - Tests: `JAVA_HOME=C:/Users/DELL/.jdks/corretto-21.0.4 MAVEN_OPTS="-Xmx512m" ./mvnw.cmd -B -o test`. Last known **125/125**, but **frozen since 2026-09-17** and not run since; Phase 1.1-1.4 added none. Treat that number as history, not as a current pass. Use `test-compile` — compiling is not running.
   - Dev server: `:8080` with devtools; it reloads on compile.
     - A test build can trigger a restart. Wait with an until-loop on `/api/v1/health`, not `sleep`.
@@ -145,7 +147,7 @@ Rewritten from scratch 2026-09-17; stack, feature map and data snapshot refreshe
 - **2.2:** No must-pay total or suggested EF target.
 - **2.6:** Month close counts an early salary by date.
 - **2.8:** A prepayment doesn't update the loan.
-- **2.9:** A one-month amount change on a fixed bill doesn't stick (deferred SQL).
+- ~~**2.9:** A one-month amount change on a fixed bill doesn't stick~~ — **fixed 2026-09-28 (V22)**. Changing an amount on a fixed bill now asks *Just this month* / *From now on*; an overridden month shows what it differs from and offers a way back.
 - **2.11:** An expense bill from a non-spendable bank still reduces Free.
 - **3.2:** Card bills are missing from Needs you.
 - **3.3:** A manual card-bill plan item would double count.

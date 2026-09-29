@@ -50,4 +50,7 @@ public interface CommitmentInstanceService {
     /** Gives an unpaid occurrence an expected amount (an estimate is fine), so a variable
      *  mandatory bill stops holding Real Balance at INCOMPLETE until it's paid. */
     CommitmentInstanceView setExpectedAmount(Long id, java.math.BigDecimal expectedAmount);
+
+    /** Puts one month back on its rule's amount, undoing a "just this month" change. */
+    CommitmentInstanceView clearAmountOverride(Long id);
 }
