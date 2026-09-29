@@ -73,7 +73,10 @@ export function WorklistRow({ instanceId, primary, secondary, meta, amount, acti
         amount={amount}
         action={actions}
         reserveAction
-        // Room for the pencil beside Settle / Estimate.
+        // Room for the pencil beside Settle / Estimate. A third control does not fit: adding
+        // one briefly (V22's "Amount" button) overflowed left and printed across the figure
+        // as "₹10,000Amount", the same collision InvestmentRow hit with Edit + Value. If a
+        // row ever needs a third, this has to grow with it.
         actionWidth="7.5rem"
         muted={completed}
       />

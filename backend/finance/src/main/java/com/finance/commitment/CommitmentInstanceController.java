@@ -92,6 +92,18 @@ public class CommitmentInstanceController {
         return reported(() -> service.setExpectedAmount(id, request.expectedAmount()));
     }
 
+    /**
+     * Puts one month back on its bill's amount, undoing a "just this month" change.
+     *
+     * <p>A POST rather than a DELETE: nothing is being removed. The month keeps its row and
+     * its amount - it simply follows the bill again, which is a state change like settling
+     * or skipping, and every one of those on this resource is a POST.
+     */
+    @PostMapping("/api/v1/commitment-instances/{id}/use-bill-amount")
+    public CommitmentInstanceResponse clearAmountOverride(@PathVariable Long id) {
+        return reported(() -> service.clearAmountOverride(id));
+    }
+
     @PostMapping("/api/v1/commitment-instances/{id}/skip")
     public CommitmentInstanceResponse skip(@PathVariable Long id) {
         return reported(() -> service.skip(id));

@@ -57,10 +57,35 @@ fix) or move it to **Done** with the date.
 - **Fix.** Step 8 (loan intelligence): offer "Update the loan" after a recorded prepayment,
   with the new outstanding pre-filled.
 
-### 2.9 A one-month amount change on a fixed bill doesn't stick
-- Changing one month's amount on a fixed bill is reset to the rule's amount the next time
-  the month loads (`reconcileWithRule`). Extras are planned as one-off items instead.
-- **Fix.** An "overridden" flag on the row → **Deferred SQL** (CONTINUE_HERE).
+### 2.9 A one-month amount change on a fixed bill doesn't stick — ✅ **fixed 2026-09-28 (V22)**
+- Changing one month's amount on a fixed bill was reset to the rule's amount the next time
+  the month loaded (`reconcileWithRule`). It saved, appeared to work, then undid itself.
+- **Fixed by** `commitment_instances.amount_overridden` (V22). `setExpectedAmount` sets it;
+  `reconcileWithRule` skips the amount sync when it is set. The due date still follows the
+  rule — an override is about the figure only.
+- **`POST /commitment-instances/{id}/use-bill-amount`** is the way back. Without it the
+  override is a one-way door: typing the usual figure back in leaves the flag set, and the
+  month silently stops following the bill from then on.
+- **The UI change is the point, not the flag.** The real defect was that changing one month
+  looked identical to changing the bill and behaved like neither. It lives in **Edit**, behind
+  the pencil that already means "change this": a fixed bill now shows **How much** *(every
+  month, until you change it)* and **This time** *(just the one due 1 Oct — leave it blank and
+  this month uses the amount above)* one above the other. Two labelled fields, adjacent, both
+  visible. The row shows `this month · usually ₹10,000`, and Edit offers *Use the usual amount
+  for this month too*.
+- **A first attempt was built and thrown away, and the reason is worth keeping.** It put a
+  *Just this month / From now on* radio behind a new **Amount** button on the plan row. The
+  user's verdict, and it was right: *"User will not be able to guess the amount is clickable
+  and doing it what will happen."* A button labelled with a noun says nothing about what it
+  does, the choice was invisible until pressed, and it made a third control compete on a row
+  that already had two — which also broke the layout (`₹10,000Amount` printed across the
+  figure, the same collision `InvestmentRow` hit; the column had to go `7.5rem → 11rem` to
+  hold it, and is now back at `7.5rem`). **Two labelled fields side by side beat a hidden
+  choice.**
+- `instanceAmountEligible` in `EditCommitmentSheet` no longer requires `VARIABLE` — that gate
+  was what made the new field render and do nothing. Still excluded for a terms-locked bill: a
+  loan's EMI is the loan's to say. Unchanged means not sent, so saving a bill without touching
+  *This time* never marks the month overridden.
 
 ## 3. Cards follow-ups
 

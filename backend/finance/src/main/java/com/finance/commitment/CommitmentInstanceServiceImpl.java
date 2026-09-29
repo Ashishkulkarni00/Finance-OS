@@ -610,9 +610,44 @@ public class CommitmentInstanceServiceImpl implements CommitmentInstanceService 
                     "This is already settled, so its amount is what was actually paid.");
         }
         instance.setExpectedAmount(expectedAmount);
+        // This month, by hand - so stop taking the rule's figure (FIX_BACKLOG 2.9, V22).
+        // Set for VARIABLE bills too, though nothing overwrites them today: it records that
+        // the figure is the user's, which is true either way, and means the flag never has
+        // to be reasoned about per amount type.
+        instance.setAmountOverridden(true);
         CommitmentInstance saved = repository.save(instance);
         // Never the amount itself - ADR-0010.
         log.info("Commitment instance expected amount set id={}", saved.getId());
+        return toView(saved);
+    }
+
+    /**
+     * Puts one month back on its rule's amount - the way out of an override.
+     *
+     * <p>Without this, "just this month" would be a one-way door: the figure would be stuck
+     * at whatever was typed, and the only escape would be typing the usual amount back in,
+     * which leaves the override in place and diverging again the next time the rule changes.
+     *
+     * <p>Clearing the flag is enough on its own - the amount is re-copied by
+     * {@link #reconcileWithRule} on the next read, so there is one place that knows what a
+     * rule's amount means. Doing it here as well would be a second copy of that rule.
+     */
+    @Override
+    @Transactional
+    public CommitmentInstanceView clearAmountOverride(Long id) {
+        CommitmentInstance instance = requireOwned(id);
+        if (instance.getStatus() == CommitmentInstanceStatus.PAID
+                || instance.getStatus() == CommitmentInstanceStatus.SETTLED_EARLIER) {
+            throw new BusinessRuleException(ErrorCode.INSTANCE_ALREADY_SETTLED,
+                    "This is already settled, so its amount is what was actually paid.");
+        }
+        Commitment rule = requireCommitment(instance.getCommitmentId());
+        instance.setAmountOverridden(false);
+        if (rule.getAmountType() == com.finance.commitment.domain.CommitmentAmountType.FIXED) {
+            instance.setExpectedAmount(rule.getFixedAmount());
+        }
+        CommitmentInstance saved = repository.save(instance);
+        log.info("Commitment instance amount override cleared id={}", saved.getId());
         return toView(saved);
     }
 
@@ -639,7 +674,12 @@ public class CommitmentInstanceServiceImpl implements CommitmentInstanceService 
             changed = true;
         }
 
-        if (rule.getAmountType() == com.finance.commitment.domain.CommitmentAmountType.FIXED
+        // An amount the user set for this month alone is theirs and is not re-copied
+        // (FIX_BACKLOG 2.9). Everything else here still applies - the due date moves with
+        // the rule either way, because a date is the rule's to decide and an override is
+        // about the figure only.
+        if (!occurrence.isAmountOverridden()
+                && rule.getAmountType() == com.finance.commitment.domain.CommitmentAmountType.FIXED
                 && !com.finance.common.money.MoneyScale.equal(rule.getFixedAmount(), occurrence.getExpectedAmount())) {
             occurrence.setExpectedAmount(rule.getFixedAmount());
             changed = true;

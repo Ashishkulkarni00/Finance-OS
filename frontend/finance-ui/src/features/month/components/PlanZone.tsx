@@ -106,7 +106,16 @@ function UnsettledRow({ instance, onEdit }: { instance: CommitmentInstanceRespon
           unknownAmount ? (
             <span className="text-caption text-attention">Amount unknown</span>
           ) : (
-            <Amount value={instance.outstanding} role="row" className="text-ink" />
+            <span className="flex flex-col items-end">
+              <Amount value={instance.outstanding} role="row" className="text-ink" />
+              {/* Says what it differs *from*, not just that it differs - "changed" alone
+                  raises the question it is meant to answer (FIX_BACKLOG 2.9). */}
+              {instance.amountOverridden && instance.ruleAmount != null && (
+                <span className="text-micro text-ink-muted">
+                  this month · usually <span className="num">{formatMoney(instance.ruleAmount)}</span>
+                </span>
+              )}
+            </span>
           )
         }
         action={
@@ -598,6 +607,7 @@ export function PlanZone({ cycle, instances: allInstances, progress, isLoading, 
         instanceId={editing?.id ?? null}
         instanceAmount={editing?.expectedAmount ?? null}
         instanceDueDate={editing?.dueDate ?? null}
+        instanceOverridden={editing?.amountOverridden ?? false}
         onClose={() => setEditing(null)}
       />
       <ManageCategoriesSheet open={managingCategories} onClose={() => setManagingCategories(false)} />

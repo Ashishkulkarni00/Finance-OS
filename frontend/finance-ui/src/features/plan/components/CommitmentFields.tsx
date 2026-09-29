@@ -167,12 +167,22 @@ export function CommitmentFields({
           {amountType === 'VARIABLE' && amountSlot}
 
           {amountType === 'FIXED' && (
-            <FormRow label="How much" error={errors.fixedAmount?.message}>
-              <span className="flex items-center gap-space-1">
-                <span className="num text-ink-muted">₹</span>
-                <input {...register('fixedAmount')} inputMode="decimal" placeholder="0" className={FORM_ROW_CONTROL + ' num'} />
-              </span>
-            </FormRow>
+            <>
+              <FormRow label="How much" error={errors.fixedAmount?.message} hint="Every month, until you change it.">
+                <span className="flex items-center gap-space-1">
+                  <span className="num text-ink-muted">₹</span>
+                  <input {...register('fixedAmount')} inputMode="decimal" placeholder="0" className={FORM_ROW_CONTROL + ' num'} />
+                </span>
+              </FormRow>
+              {/* A fixed bill can now differ for one month (V22, FIX_BACKLOG 2.9), so it
+                  gets the same slot a varying one always had. Two labelled fields one above
+                  the other - "How much / every month" then "This time / this month only" -
+                  say which is which by sitting next to each other. An earlier attempt put a
+                  "Just this month / From now on" radio behind an "Amount" button on the row
+                  instead; the button gave no clue what it did, and the choice was invisible
+                  until you pressed it. */}
+              {amountSlot}
+            </>
           )}
 
           <FormRow label="How often">

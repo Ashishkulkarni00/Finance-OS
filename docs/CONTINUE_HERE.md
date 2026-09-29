@@ -55,6 +55,71 @@ cannot fire truthfully on their data — tell them that first, do not silently s
 
 ---
 
+## 2026-09-28 — first real day, and two fixes on `bugs/27-09-2026`
+
+**The user is now live on real data.** October's cycle is current, salary is settled, the EF
+contribution is settled, and a ₹3,226 reservation funds the Bangalore goal.
+
+### The cycle-ended timezone bug
+
+`new Date("2026-09-27")` is **UTC midnight**, so anywhere east of Greenwich it is already in
+the past by breakfast. Three places compared it against `Date.now()`: both `canClose` checks
+(duplicated on `MonthPage` and `MonthClosePage`) and — the real root — **`cycleProgress()` in
+`lib/dates.ts`**, which feeds the cycle band, `MonthCrux` and the day counter. On the final
+day of *every* cycle the app claimed the month had ended while the server correctly refused
+with `CYCLE_NOT_YET_ENDED`.
+
+`cycleProgress` now compares local midnights, and both `canClose` sites read
+`cycleProgress().ended` — **one definition of "ended" in the whole frontend.** Verified: the
+Close button is gone on a cycle ending today, the direct URL is guarded, and a genuinely
+ended cycle still offers it.
+
+**~14 other `new Date(isoString)` calls remain**, all display-only. Correct in IST, wrong in
+any negative-offset zone. Left alone deliberately — smallest correct change.
+
+### FIX_BACKLOG 2.9 — a one-month amount now sticks (V22)
+
+`amount_overridden` on `commitment_instances`; `reconcileWithRule` skips the amount sync when
+set; `POST /commitment-instances/{id}/use-bill-amount` is the way back. **Flyway applied V22
+itself on the devtools restart** — no manual step was needed.
+
+**The flag is not the fix, and the first UI for it was wrong.** It shipped as a *Just this
+month / From now on* radio behind a new **Amount** button on the plan row. The user rejected
+it immediately and correctly: *"User will not be able to guess the amount is clickable and
+doing it what will happen. We need to have intuition. we can have it under pencil click only
+right?"*
+
+**They were right, and the rebuilt version is simpler.** It lives in **Edit**, behind the
+pencil that already means "change this". A fixed bill now shows two adjacent labelled fields:
+
+| | |
+|---|---|
+| **How much** | Every month, until you change it |
+| **This time** | Just the one due 1 Oct, if it differs. Leave it blank and this month uses the amount above |
+
+No hidden choice, no third control on the row, nothing to guess — the two labels sitting next
+to each other *are* the explanation. Edit also offers *Use the usual amount for this month
+too* once a month is overridden, because clearing the field cannot mean "put it back" (blank
+already means "leave it as it is").
+
+**Generalise this:** a button labelled with a noun (*Amount*) says nothing about what it does.
+Two labelled fields beat a choice you have to open something to discover.
+
+**Two real bugs found while reworking it:**
+- `instanceAmountEligible` still required `VARIABLE`, so the new field rendered on fixed bills
+  and silently did nothing on save.
+- The row's third control overflowed and printed across the figure (`₹10,000Amount`) — the
+  same collision `InvestmentRow` hit. Gone now the button is gone; `WorklistRow` is back at
+  `7.5rem`, with a comment saying a third control will not fit.
+
+**Terms-locked bills are excluded automatically** — `amountSlot` is already gated on
+`!termsLocked`, so a loan's EMI offers no per-month override. That resolves the worry the
+first version raised.
+
+**Not verified by a write.** The sandbox blocks POSTs and these would touch real data, so an
+override has never actually been set. Ask the user to change one month's amount in Edit and
+confirm it survives a **reload** — that reload is the whole bug.
+
 ## Readiness check, 2026-09-27 — the day before real use
 
 Swept before the user's first real day. **The code is ready; what is left is theirs to click.**
