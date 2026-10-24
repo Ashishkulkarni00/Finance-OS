@@ -17,6 +17,9 @@ export interface LedgerQuery {
   categoryId?: number;
   type?: TransactionType;
   cycleId?: number;
+  /** Drops entries that already settle a bill. The Settle sheet's candidate list uses it:
+   *  offering one is a dead end, since the server refuses it and the row gives no reason. */
+  unlinkedOnly?: boolean;
   dateFrom?: string;
   dateTo?: string;
   q?: string;

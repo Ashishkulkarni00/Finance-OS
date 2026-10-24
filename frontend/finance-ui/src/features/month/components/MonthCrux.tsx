@@ -48,7 +48,7 @@ export function MonthCrux({ position, cycle, isLoading }: MonthCruxProps) {
     );
   }
 
-  const { dayOfCycle, daysRemaining, ended } = cycleProgress(cycle.startDate, cycle.endDate);
+  const { dayOfCycle, daysToSalary, ended } = cycleProgress(cycle.startDate, cycle.endDate);
   // A comparison for tone, not arithmetic on money.
   const negative = Number(position.realBalance) < 0;
 
@@ -60,7 +60,9 @@ export function MonthCrux({ position, cycle, isLoading }: MonthCruxProps) {
   } else if (negative) {
     verdict = "Tight — you're projected short before the cycle ends unless something changes.";
   } else {
-    verdict = `On track for the next ${daysRemaining} ${daysRemaining === 1 ? 'day' : 'days'}.`;
+    // Counting today, so it agrees with Today's "a day from here" and with the figure the
+    // server divides by. `ended` is handled above, so this is never zero or negative.
+    verdict = `On track for the next ${daysToSalary} ${daysToSalary === 1 ? 'day' : 'days'}.`;
   }
 
   return (

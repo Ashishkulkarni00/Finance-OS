@@ -19,7 +19,7 @@ export function CycleBand({ cycle, isLoading }: CycleBandProps) {
     return <Skeleton className="h-10 w-full" />;
   }
 
-  const { fraction, daysRemaining, dayOfCycle, totalDays, ended, upcoming } = cycleProgress(cycle.startDate, cycle.endDate);
+  const { fraction, daysRemaining, daysToSalary, dayOfCycle, totalDays, ended, upcoming } = cycleProgress(cycle.startDate, cycle.endDate);
   // A planned month: count down to its start rather than claiming "day 1 of 30" for a
   // cycle that hasn't begun.
   const untilStart = daysBetween(cycle.startDate);
@@ -27,9 +27,12 @@ export function CycleBand({ cycle, isLoading }: CycleBandProps) {
     ? `Starts in ${untilStart} ${untilStart === 1 ? 'day' : 'days'}`
     : ended
     ? 'This cycle has ended'
+    // `daysToSalary`, not `daysRemaining`: the label says "to salary" and salary lands the
+    // day after the cycle's last day. The tone still turns on `daysRemaining` so it starts
+    // warning on exactly the day it always did.
     : daysRemaining <= 3
-      ? `${daysRemaining} ${daysRemaining === 1 ? 'day' : 'days'} to salary`
-      : `day ${dayOfCycle} of ${totalDays} · ${daysRemaining} days to salary`;
+      ? `${daysToSalary} ${daysToSalary === 1 ? 'day' : 'days'} to salary`
+      : `day ${dayOfCycle} of ${totalDays} · ${daysToSalary} days to salary`;
 
   return (
     <div className="flex flex-col gap-space-2" role="img" aria-label={`Cycle from ${cycle.startDate} to ${cycle.endDate}, ${caption}`}>

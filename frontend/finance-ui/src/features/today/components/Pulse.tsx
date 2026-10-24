@@ -1,18 +1,15 @@
-import { useState, type CSSProperties, type ReactNode } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { ChevronDown } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import { Amount } from '@/components/Amount';
-import { Statement, StatementRow } from '@/components/Statement';
 import { Skeleton } from '@/components/Skeleton';
 import { UnknownState } from '@/components/UnknownState';
 import { PositionBlockers } from '@/features/commitments/components/PositionBlockers';
 import { AnimatedCollapse } from '@/components/AnimatedCollapse';
 import { PositionStatement } from './PositionStatement';
-import { BasisPanel } from './BasisPanel';
+import { PulseMetrics } from './PulseMetrics';
 import { useAnimatedMoney } from '@/lib/useAnimatedMoney';
 import { cn } from '@/lib/cn';
-import { formatMoney, formatPercent } from '@/lib/money';
-import { formatDayMonthYear, formatSalaryDate, shiftIsoDays } from '@/lib/dates';
+import { formatSalaryDate, shiftIsoDays } from '@/lib/dates';
 import { useGetCycleForDateQuery } from '@/services/cycleService';
 import { useGetCycleStandingQuery } from '@/services/commitmentInstanceService';
 import { useDocAnchor } from '@/features/help/useDocAnchor';
@@ -56,10 +53,6 @@ export function Pulse({ state, isLoading }: { state: FinancialStateResponse | un
   const position = state?.position;
   const animated = useAnimatedMoney(position?.state === 'OK' ? position.realBalance : null);
   const realBalanceDoc = useDocAnchor('position.real-balance');
-  const roomDoc = useDocAnchor('position.room');
-  const freeThisMonthDoc = useDocAnchor('today.free-this-month');
-  const netWorthRowDoc = useDocAnchor('today.net-worth-row');
-  const needsYouCountDoc = useDocAnchor('today.needs-you-count');
 
   // The salary that lands at the end of this cycle, shown but never added in until it
   // arrives - the one piece of context the old hero carried that no other line does.
@@ -79,7 +72,6 @@ export function Pulse({ state, isLoading }: { state: FinancialStateResponse | un
     return <UnknownState reason="We couldn't reach the server, so this may be out of date." />;
   }
 
-  const { shape, netWorth, runway, debt, baseline } = state;
   const complete = position.state === 'OK';
   const negative = complete && Number(position.realBalance) < 0;
   const salaryOn = formatSalaryDate(state.cycle.endDate);
@@ -109,22 +101,13 @@ export function Pulse({ state, isLoading }: { state: FinancialStateResponse | un
         ) : (
           <UnknownState reason="Held back until every bill this month has an amount — a guess here would be worse than a gap." />
         )}
-        {complete && (
+        {complete && negative && (
           <p
-            className="reveal num max-w-[34rem] text-body text-ink-soft"
+            className="reveal max-w-[34rem] text-body text-ink-soft"
             style={{ '--reveal-delay': '140ms' } as CSSProperties}
           >
-            {negative ? (
-              'More is planned to leave before salary than you hold. Needs you shows where it runs short.'
-            ) : (
-              <>
-                <span {...roomDoc}>
-                  <Amount value={position.roomToday} role="body" className="text-ink" /> a day for {state.daysToSalary}{' '}
-                  {state.daysToSalary === 1 ? 'day' : 'days'}
-                </span>{' '}
-                · <Amount value={position.roomLeft} role="body" className="text-ink" /> left today
-              </>
-            )}
+            More is planned to leave before your next salary on {salaryOn} than you hold. Needs you shows where it runs
+            short.
           </p>
         )}
 
@@ -164,144 +147,19 @@ export function Pulse({ state, isLoading }: { state: FinancialStateResponse | un
         </div>
       </div>
 
-      {/* Lines 2-6. The heavy rule is the statement's own top edge, and it is what separates
-          the hero from the ledger beneath it. */}
-      <Statement notes leaders className="border-t-2 border-ink">
-        {/* 2 — the month in one line, the same figures Months leads with. */}
-        <StatementRow
-          label={<span {...freeThisMonthDoc}>Free this month</span>}
-          revealDelay={300}
-          value={shape.flexible}
-          note={
-            shape.flexible == null
-              ? `${shape.unknownAmountCount} ${shape.unknownAmountCount === 1 ? 'bill has' : 'bills have'} no amount yet.`
-              : Number(shape.committed) === 0 && Number(shape.plannedSavings) === 0
-                ? // Without this, a month with no plan shows a large "free" figure directly
-                  // under a much smaller "free until salary" and reads as a contradiction.
-                  // It is not one - nothing is planned in this month, which is worth saying.
-                  'Nothing planned this month'
-                : `${formatMoney(shape.expectedIn)} in · ${formatMoney(shape.committed)} committed · ${formatMoney(shape.plannedSavings)} set aside`
-          }
+      {/* Lines 2-6, grouped into three tiers by how often they are needed and what can be
+          done about them - see `PulseMetrics`. The heavy rule is what separates the hero
+          from the figures beneath it. */}
+      <div className="border-t-2 border-ink pt-space-1">
+        <PulseMetrics
+          state={state}
+          position={position}
+          negative={negative}
+          why={why}
+          onWhy={setWhy}
         />
-
-        {/* 3 — safety. Deliberately not comparable to line 1: this counts the emergency
-            fund, which Free until salary excludes by design. */}
-        <StatementRow
-          label={<WhyLabel text="If income stopped" docKey="today.runway" open={why === 'runway'} onClick={() => setWhy(why === 'runway' ? null : 'runway')} />}
-          revealDelay={355}
-          valueNode={
-            runway.months == null ? (
-              <span className="text-row text-ink-muted">—</span>
-            ) : (
-              <span className="inline-flex items-baseline gap-[0.3em]">
-                {runway.upperBound && <span className="text-caption text-ink-muted">at most</span>}
-                <span className="num text-row text-ink">{runway.months}</span>
-                <span className="text-caption text-ink-muted">{runway.months === 1 ? 'month' : 'months'}</span>
-              </span>
-            )
-          }
-          note={
-            runway.months == null
-              ? runway.unknownReason
-              : `${formatMoney(runway.liquidTotal)} reachable · ${formatMoney(runway.monthlyEssentials)} must-pay a month · day-to-day on top${
-                  runway.unknownBillCount > 0 ? ` · ${runway.unknownBillCount} unpriced` : ''
-                }`
-          }
-        />
-
-        {why === 'runway' && runway.basis && <BasisSpan><BasisPanel basis={runway.basis} /></BasisSpan>}
-
-        {/* 4 — debt as one position rather than five loans. */}
-        <StatementRow
-          label={<WhyLabel text="Owed" docKey="today.owed" open={why === 'debt'} onClick={() => setWhy(why === 'debt' ? null : 'debt')} />}
-          revealDelay={410}
-          value={debt.totalOutstanding}
-          note={
-            <>
-              {debt.emiShareOfIncome != null && `${formatPercent(debt.emiShareOfIncome)} of income to EMIs`}
-              {debt.emiShareOfIncome != null && debt.debtFreeDate && ' · '}
-              {/* formatDayMonthYear, not formatSalaryDate: that one takes a cycle *end* and adds
-                  a day to find payday, and it drops the year - on a date three years out the
-                  year is the whole point. */}
-              {debt.debtFreeDate && `clear ${formatDayMonthYear(debt.debtFreeDate)}`}
-              {debt.loansWithoutTerms > 0 &&
-                ` · ${debt.loansWithoutTerms} without terms`}
-            </>
-          }
-        />
-
-        {why === 'debt' && debt.basis && <BasisSpan><BasisPanel basis={debt.basis} /></BasisSpan>}
-
-        {/* 5 — the long view, stated once and not dwelt on. */}
-        <StatementRow
-          label={<span {...netWorthRowDoc}>Net worth</span>}
-          revealDelay={465}
-          value={netWorth.netWorth}
-          emphasiseNegative
-          note={`${formatMoney(netWorth.totalAssets)} held · ${formatMoney(netWorth.totalLiabilities)} owed`}
-        />
-
-        {/* 6 — the only line that asks for anything. */}
-        <StatementRow
-          variant="subtotal"
-          label={<span {...needsYouCountDoc}>Needs you</span>}
-          revealDelay={520}
-          valueNode={
-            <Link to="/needs-you" className="num text-row text-ink underline-offset-4 hover:underline">
-              {state.attentionCount}
-            </Link>
-          }
-          note={
-            state.attentionCount === 0
-              ? 'Nothing waiting on a decision'
-              : baseline.perCycle == null
-                ? `${state.attentionCount === 1 ? 'One thing' : `${state.attentionCount} things`} to look at`
-                : `${state.attentionCount === 1 ? 'One thing' : `${state.attentionCount} things`} to look at · you usually spend ${formatMoney(baseline.perCycle)} a month`
-          }
-        />
-      </Statement>
+      </div>
 
     </section>
   );
-}
-
-/** A label that offers its own derivation. Underlined on hover only - a statement peppered
- *  with permanent links reads as a web page, not a ledger. */
-function WhyLabel({
-  text,
-  open,
-  onClick,
-  docKey,
-}: {
-  text: string;
-  open: boolean;
-  onClick: () => void;
-  /** A `data-doc` key for this row, so right-clicking the label opens what it means -
-   *  distinct from clicking it, which opens the worked breakdown itself. */
-  docKey?: string;
-}) {
-  const doc = useDocAnchor(docKey ?? '');
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-expanded={open}
-      {...(docKey ? doc : {})}
-      className="inline-flex items-center gap-space-1 text-left underline-offset-4 hover:underline"
-    >
-      {text}
-      <ChevronDown
-        size={12}
-        strokeWidth={1.75}
-        aria-hidden
-        className={cn('shrink-0 text-ink-muted transition-transform duration-150', open && 'rotate-180')}
-      />
-    </button>
-  );
-}
-
-/** The derivation belongs under its row and across every column - the grid is
- *  `display: contents` rows, so a full-width panel has to say so explicitly. */
-function BasisSpan({ children }: { children: ReactNode }) {
-  return <div style={{ gridColumn: '1 / -1' }}>{children}</div>;
 }

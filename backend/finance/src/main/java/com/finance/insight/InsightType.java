@@ -27,5 +27,7 @@ public enum InsightType {
     /** A goal is funded by a bill with no set amount, so its pace cannot be judged at all. */
     GOAL_FUNDING_UNCLEAR,
     /** Money is set aside while debt costing more than it can earn is still running. */
-    RATE_MISMATCH
+    RATE_MISMATCH,
+    /** Money was taken back out of a goal this cycle, and no plan asked for it. */
+    GOAL_RAIDED
 }

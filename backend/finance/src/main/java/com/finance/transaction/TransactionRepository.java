@@ -39,8 +39,32 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     Optional<Transaction> findFirstByUserIdAndTypeAndDescriptionIgnoreCaseAndDeletedAtIsNullOrderByDateDescIdDesc(
             Long userId, com.finance.transaction.domain.TransactionType type, String description);
 
+    /**
+     * Transfers in a date range that touch any of these accounts and that <strong>no bill
+     * paid for</strong> - the raw material for "money taken back out of a goal"
+     * ({@code GoalWithdrawalCalculator}).
+     *
+     * <p>The {@code not exists} is the whole point: a bill planned to be settled from a
+     * goal's account is the plan running, and counting it as a withdrawal would fire on the
+     * plan working. V23's payments table is what makes that answerable.
+     */
     @Query("""
-            select t.id as id, t.date as date from Transaction t
+            select t from Transaction t
+            where t.userId = :userId
+              and t.deletedAt is null
+              and t.type = com.finance.transaction.domain.TransactionType.TRANSFER
+              and t.date between :from and :to
+              and (t.accountId in :accountIds or t.toAccountId in :accountIds)
+              and not exists (select p.id from CommitmentInstancePayment p where p.transactionId = t.id)
+            order by t.date asc, t.id asc
+            """)
+    List<Transaction> findUnplannedTransfersTouching(@Param("userId") Long userId,
+                                                     @Param("accountIds") Collection<Long> accountIds,
+                                                     @Param("from") LocalDate from,
+                                                     @Param("to") LocalDate to);
+
+    @Query("""
+            select t.id as id, t.date as date, t.accountId as accountId from Transaction t
             where t.id in :ids
               and t.userId = :userId
               and t.deletedAt is null
@@ -66,6 +90,8 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
               and (:dateFrom is null or t.date >= :dateFrom)
               and (:dateTo is null or t.date <= :dateTo)
               and (:q is null or lower(t.description) like :q or lower(t.merchant) like :q)
+              and (:unlinkedOnly = false
+                   or not exists (select p.id from CommitmentInstancePayment p where p.transactionId = t.id))
             order by t.date desc, t.id desc
             """)
     Page<Transaction> search(@Param("userId") Long userId,
@@ -75,6 +101,10 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
                              @Param("dateFrom") LocalDate dateFrom,
                              @Param("dateTo") LocalDate dateTo,
                              @Param("q") String q,
+                             /** True drops entries that already settle a bill - the Settle
+                              *  sheet's candidate list, where offering one is a dead end:
+                              *  the server refuses it and the user cannot see why. */
+                             @Param("unlinkedOnly") boolean unlinkedOnly,
                              Pageable pageable);
 
     /**
@@ -166,7 +196,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
               and t.accountId = :accountId
               and (:toAccountId is null or t.toAccountId = :toAccountId)
               and t.date between :from and :to
-              and not exists (select ci.id from CommitmentInstance ci where ci.linkedTransactionId = t.id)
+              and not exists (select p.id from CommitmentInstancePayment p where p.transactionId = t.id)
             order by t.date asc
             """)
     List<Transaction> findUnlinkedForMatch(@Param("userId") Long userId,
@@ -197,6 +227,37 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
                                                 @Param("type") TransactionType type,
                                                 @Param("from") LocalDate from,
                                                 @Param("to") LocalDate to);
+
+    /**
+     * The same total, minus anything that settled a planned commitment - what "spent today"
+     * has to mean for Room.
+     *
+     * <p>Room is a fair share of what is <em>left</em> after the plan: Real Balance already
+     * has every open commitment subtracted before it is divided by the days remaining. So a
+     * bill paid today must not also be charged against today's allowance - it was accounted
+     * for the moment it was planned, and counting it twice makes a day on which nothing went
+     * wrong read as a disaster. Paying a ₹8,000 bill turned "₹462 a day" into
+     * "−₹7,800 left today" on real data (2026-09-29).
+     *
+     * <p><strong>Excluded by the link, not by category.</strong> Filtering to
+     * {@code FLEXIBLE} categories - which is how Months defines day-to-day spending - would
+     * also drop a fixed-category expense that no commitment covers, and that one really does
+     * come out of the day's room. The transactions to exclude are exactly the ones already
+     * inside {@code committed}, and the link is what says so.
+     */
+    @Query("""
+            select coalesce(sum(t.amount), 0.00) from Transaction t
+            where t.userId = :userId and t.deletedAt is null
+              and t.type = :type and t.date between :from and :to
+              and t.id not in (
+                  select ci.linkedTransactionId from CommitmentInstance ci
+                  where ci.userId = :userId and ci.linkedTransactionId is not null
+              )
+            """)
+    java.math.BigDecimal sumUnplannedByTypeInRange(@Param("userId") Long userId,
+                                                   @Param("type") TransactionType type,
+                                                   @Param("from") LocalDate from,
+                                                   @Param("to") LocalDate to);
 
     /** Expense total per category within a date range, largest first - "where the money
      *  went this cycle". Categoryless expenses (there shouldn't be any - EXPENSE requires

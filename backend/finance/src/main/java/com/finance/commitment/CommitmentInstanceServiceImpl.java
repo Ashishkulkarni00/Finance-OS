@@ -8,6 +8,7 @@ import com.finance.category.domain.Category;
 import com.finance.commitment.domain.AttentionTier;
 import com.finance.commitment.domain.Commitment;
 import com.finance.commitment.domain.CommitmentInstance;
+import com.finance.commitment.domain.CommitmentInstancePayment;
 import com.finance.commitment.domain.CommitmentInstanceStatus;
 import com.finance.commitment.dto.SettleCommitmentInstanceRequest;
 import com.finance.common.exception.BusinessRuleException;
@@ -18,6 +19,7 @@ import com.finance.cycle.CycleService;
 import com.finance.commitment.domain.CommitmentSource;
 import com.finance.loan.LoanPaymentRecorder;
 import com.finance.cycle.domain.Cycle;
+import com.finance.transaction.TransactionDateProjection;
 import com.finance.transaction.TransactionService;
 import com.finance.transaction.TransactionView;
 import com.finance.transaction.domain.TransactionType;
@@ -43,6 +45,7 @@ public class CommitmentInstanceServiceImpl implements CommitmentInstanceService 
     private static final Logger log = LoggerFactory.getLogger(CommitmentInstanceServiceImpl.class);
 
     private final CommitmentInstanceRepository repository;
+    private final CommitmentInstancePaymentRepository payments;
     private final CommitmentRepository commitmentRepository;
     private final CommitmentInstanceGenerator generator;
     private final CommitmentSettlementCalculator calculator;
@@ -58,6 +61,7 @@ public class CommitmentInstanceServiceImpl implements CommitmentInstanceService 
     private final LoanPaymentRecorder loanPayments;
 
     public CommitmentInstanceServiceImpl(CommitmentInstanceRepository repository,
+                                         CommitmentInstancePaymentRepository payments,
                                          CommitmentRepository commitmentRepository,
                                          CommitmentInstanceGenerator generator,
                                          CommitmentSettlementCalculator calculator,
@@ -71,6 +75,7 @@ public class CommitmentInstanceServiceImpl implements CommitmentInstanceService 
                                          CommitmentBucketClassifier bucketClassifier,
                                          LoanPaymentRecorder loanPayments) {
         this.repository = repository;
+        this.payments = payments;
         this.commitmentRepository = commitmentRepository;
         this.generator = generator;
         this.calculator = calculator;
@@ -158,12 +163,12 @@ public class CommitmentInstanceServiceImpl implements CommitmentInstanceService 
             }
         }
         // One lookup for the whole list rather than four per settled row.
-        Map<Long, LocalDate> transactionDates = transactionService.datesByIds(
+        Map<Long, TransactionDateProjection> transactionFacts = transactionService.settlementFactsByIds(
                 instances.stream()
                         .map(CommitmentInstance::getLinkedTransactionId)
                         .filter(Objects::nonNull)
                         .toList());
-        return instances.stream().map(instance -> toView(instance, transactionDates)).toList();
+        return instances.stream().map(instance -> toView(instance, transactionFacts)).toList();
     }
 
     @Override
@@ -481,10 +486,21 @@ public class CommitmentInstanceServiceImpl implements CommitmentInstanceService 
         Commitment commitment = requireCommitment(instance.getCommitmentId());
 
         TransactionView transaction = transactionService.getById(request.transactionId());
-        // One payment pays one bill. Linking an entry that already settles another
-        // occurrence would count that money against two bills (rule 4) - and the Settle
-        // sheet now offers existing Ledger entries to link, so this can actually be asked.
-        if (repository.existsByLinkedTransactionIdAndIdNot(request.transactionId(), id)) {
+        // One payment pays one bill, **including this one**. The guard below only ever asked
+        // "does this entry pay a *different* bill", so an entry already linked to the
+        // instance being settled sailed through and its amount was added a second time -
+        // ₹9,500 against a ₹15,000 bill became ₹19,000 (FIX_BACKLOG 1.7, found in use
+        // 2026-10-02). Rule 4, and the one the Settle sheet made reachable in a single tap
+        // by listing it as a candidate.
+        // Asked of every payment this bill has taken, not just its most recent (V23). The
+        // single `linkedTransactionId` could only answer for the last one, which is exactly
+        // the value a second settle overwrites - so the earlier payment became re-usable.
+        if (payments.existsByCommitmentInstanceIdAndTransactionId(id, request.transactionId())) {
+            throw new BusinessRuleException(ErrorCode.TRANSACTION_ALREADY_LINKED,
+                    "That entry is already counted against this bill. Pick a different one, or record a new payment.",
+                    "transactionId");
+        }
+        if (payments.existsByTransactionIdAndCommitmentInstanceIdNot(request.transactionId(), id)) {
             throw new BusinessRuleException(ErrorCode.TRANSACTION_ALREADY_LINKED,
                     "That entry already pays another bill. Pick a different one, or record a new payment.",
                     "transactionId");
@@ -495,10 +511,21 @@ public class CommitmentInstanceServiceImpl implements CommitmentInstanceService 
                             .formatted(article(commitment.getSettleAs()), article(transaction.transaction().getType())),
                     "transactionId");
         }
-        // From the bill's account - and, for a transfer or investment, into the bill's destination.
-        boolean accountMatches = transaction.transaction().getAccountId().equals(commitment.getAccountId())
-                && (commitment.getToAccountId() == null
-                    || commitment.getToAccountId().equals(transaction.transaction().getToAccountId()));
+        // **Where it went still has to match; where it came from no longer does.**
+        //
+        // "Paid from" is a plan, not a rule - the projection uses it to work out which
+        // account will run short, which is its real job. It was also gating settlement, so
+        // paying a bill from another account flagged it NEEDS_REVIEW, and the only way to
+        // record the payment was to edit the bill first. That is the product asking the user
+        // to rewrite the plan to get past a warning (USAGE_ISSUES U3, in their words: "from
+        // anywhere I should be able to pay").
+        //
+        // The destination is different and stays strict: money that arrived somewhere else
+        // did not pay this bill, whatever the user intended. Auto-matching also keeps both
+        // checks - see `CommitmentAutoMatcher`, where a loose match is a silent wrong answer
+        // rather than a deliberate choice.
+        boolean accountMatches = commitment.getToAccountId() == null
+                || commitment.getToAccountId().equals(transaction.transaction().getToAccountId());
 
         CommitmentSettlementCalculator.Result result = calculator.settle(
                 instance, commitment, accountMatches, request.amount());
@@ -509,9 +536,18 @@ public class CommitmentInstanceServiceImpl implements CommitmentInstanceService 
             instance.setExpectedAmount(result.confirmedAmountTotal());
         }
         instance.setConfirmedAt(Instant.now());
+        // Still the *most recent* payment - `settledOn` and `settledFromAccount` want that.
+        // The complete record is the payments table beside it.
         instance.setLinkedTransactionId(request.transactionId());
 
         CommitmentInstance saved = repository.save(instance);
+        payments.save(CommitmentInstancePayment.builder()
+                .userId(saved.getUserId())
+                .commitmentInstanceId(saved.getId())
+                .transactionId(request.transactionId())
+                .amount(request.amount())
+                .recordedAt(Instant.now(clock))
+                .build());
         log.info("Commitment instance settled id={} status={}", saved.getId(), saved.getStatus());
 
         // A settled loan EMI is the evidence the loan's balance moves on (ROADMAP 1.2).
@@ -521,11 +557,11 @@ public class CommitmentInstanceServiceImpl implements CommitmentInstanceService 
                 && saved.getStatus() == CommitmentInstanceStatus.PAID) {
             loanPayments.record(commitment.getSourceId(), saved.getUserId(), saved.getDueDate(), request.transactionId());
         }
-        Map<Long, LocalDate> dates = saved.getLinkedTransactionId() == null
-                ? Map.of() : transactionService.datesByIds(List.of(saved.getLinkedTransactionId()));
+        Map<Long, TransactionDateProjection> facts = saved.getLinkedTransactionId() == null
+                ? Map.of() : transactionService.settlementFactsByIds(List.of(saved.getLinkedTransactionId()));
         return new CommitmentInstanceView(saved, commitment,
-                accountService.getByIdIncludingDeleted(commitment.getAccountId()), settledOn(saved, dates),
-                categoryOf(commitment));
+                accountService.getByIdIncludingDeleted(commitment.getAccountId()), settledOn(saved, facts),
+                categoryOf(commitment), settledFrom(saved, commitment, facts));
     }
 
     @Override
@@ -693,15 +729,35 @@ public class CommitmentInstanceServiceImpl implements CommitmentInstanceService 
 
     private CommitmentInstanceView toView(CommitmentInstance instance) {
         Long linked = instance.getLinkedTransactionId();
-        Map<Long, LocalDate> dates = linked == null ? Map.of() : transactionService.datesByIds(List.of(linked));
-        return toView(instance, dates);
+        Map<Long, TransactionDateProjection> facts =
+                linked == null ? Map.of() : transactionService.settlementFactsByIds(List.of(linked));
+        return toView(instance, facts);
     }
 
-    private CommitmentInstanceView toView(CommitmentInstance instance, Map<Long, LocalDate> transactionDates) {
+    private CommitmentInstanceView toView(CommitmentInstance instance, Map<Long, TransactionDateProjection> facts) {
         Commitment commitment = requireCommitment(instance.getCommitmentId());
         return new CommitmentInstanceView(instance, commitment,
                 accountService.getByIdIncludingDeleted(commitment.getAccountId()),
-                settledOn(instance, transactionDates), categoryOf(commitment));
+                settledOn(instance, facts), categoryOf(commitment), settledFrom(instance, commitment, facts));
+    }
+
+    /**
+     * The account the money actually left, when it is not the one the bill plans on.
+     *
+     * <p>Null when they agree, so a row only mentions it when there is something to say. A
+     * settled row used to print the *commitment's* account under "Paid from" whatever the
+     * payment said, which quietly misreported every bill paid from somewhere else - and
+     * since a bill can now be settled from any account (USAGE_ISSUES U3), that is no longer
+     * a rare case.
+     */
+    private Account settledFrom(CommitmentInstance instance, Commitment commitment,
+                                Map<Long, TransactionDateProjection> facts) {
+        Long linked = instance.getLinkedTransactionId();
+        TransactionDateProjection fact = linked == null ? null : facts.get(linked);
+        if (fact == null || fact.getAccountId() == null || fact.getAccountId().equals(commitment.getAccountId())) {
+            return null;
+        }
+        return accountService.getByIdIncludingDeleted(fact.getAccountId());
     }
 
     private Category categoryOf(Commitment commitment) {
@@ -715,14 +771,15 @@ public class CommitmentInstanceServiceImpl implements CommitmentInstanceService 
      * back to it when nothing is linked, and stays null while the instance is unsettled -
      * an unpaid item has no payment date, and a due date is not a substitute for one.
      */
-    private LocalDate settledOn(CommitmentInstance instance, Map<Long, LocalDate> transactionDates) {
+    private LocalDate settledOn(CommitmentInstance instance, Map<Long, TransactionDateProjection> facts) {
         // Guarded, not left to Map#get: `datesByIds` returns an immutable Map.of() when no
         // instance in the list is linked, and immutable maps throw on a null key rather
         // than returning null. Every unpaid instance has a null link, so without this one
         // unsettled bill made GET /cycles/{id}/commitment-instances (and plan-progress,
         // which calls it) a 500 - Today's and Month's Needs You could never show anything.
         Long linked = instance.getLinkedTransactionId();
-        LocalDate fromTransaction = linked == null ? null : transactionDates.get(linked);
+        TransactionDateProjection fact = linked == null ? null : facts.get(linked);
+        LocalDate fromTransaction = fact == null ? null : fact.getDate();
         if (fromTransaction != null) {
             return fromTransaction;
         }

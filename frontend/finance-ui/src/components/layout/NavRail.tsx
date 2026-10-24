@@ -12,10 +12,13 @@ import { ADD_LABEL, addTargetFor } from './addTarget';
  */
 const NAV_ITEMS = [
   { to: '/today', label: 'Today', icon: Compass, owns: ['/today', '/needs-you'] },
-  { to: '/month', label: 'Months', icon: Calendar, owns: ['/month', '/commitments', '/commitment-rules'] },
-  { to: '/ahead', label: 'Ahead', icon: Target, owns: ['/ahead', '/goals'] },
-  { to: '/money', label: 'Money', icon: Wallet, owns: ['/money', '/accounts', '/cards', '/loans'] },
   { to: '/ledger', label: 'Ledger', icon: Receipt, owns: ['/ledger'] },
+  { to: '/month', label: 'Months', icon: Calendar, owns: ['/month', '/commitments', '/commitment-rules'] },
+  { to: '/money', label: 'Money', icon: Wallet, owns: ['/money', '/accounts', '/cards', '/loans'] },
+  // Route stays `/ahead`: `/goals/:id` is a goal's own detail page, so `/goals` cannot also
+  // be the section's index without the two fighting. `/goals` already redirects here, so a
+  // typed or bookmarked URL still lands in the right place.
+  { to: '/ahead', label: 'Goals', icon: Target, owns: ['/ahead', '/goals'] },
 ] as const;
 
 const isOwned = (pathname: string, owns: readonly string[]) =>

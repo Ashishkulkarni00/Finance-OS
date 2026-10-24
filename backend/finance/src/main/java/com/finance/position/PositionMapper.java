@@ -31,7 +31,8 @@ public class PositionMapper {
         PositionBreakdown breakdown = new PositionBreakdown(result.held(), result.reserved(), result.committed(),
                 result.optionalCommitted(), result.cardDues(), accounts, commitments, cards);
 
-        return PositionResponse.ok(result.realBalance(), result.roomToday(), result.roomLeft(), result.spentToday(), breakdown);
+        return PositionResponse.ok(result.realBalance(), result.roomToday(), result.roomLeft(), result.perDay(),
+                result.spentToday(), breakdown);
     }
 
     public CashPositionResponse toResponse(CashPosition result) {

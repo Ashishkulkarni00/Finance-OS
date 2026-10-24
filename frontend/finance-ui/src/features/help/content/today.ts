@@ -169,19 +169,18 @@ export const TODAY_TOPICS: DocTopic[] = [
           {
             kind: 'terms',
             items: [
-              { term: 'A day', means: 'Free until salary, spread evenly over the days left until your next salary.' },
-              { term: 'Spent today', means: 'What has already left your accounts today, counted only against today’s share.' },
-              { term: 'Left today', means: 'Today’s share minus what you have spent today.' },
+              { term: 'A day from here', means: 'Free until salary, spread evenly over the days left until your next salary.' },
+              { term: 'Spent today', means: 'What has already left your accounts today, counted only against today’s share. The note beside it says how much of today’s share is left, or how far over it you are.' },
             ],
           },
           {
             kind: 'example',
             title: 'Six days to salary, ₹16,950 free',
             lines: [
-              { label: 'A day', value: '₹2,825' },
+              { label: 'A day from here', value: '₹2,825' },
               { label: 'Spent today', value: '₹640' },
-              { label: 'Left today', value: '₹2,185' },
             ],
+            note: '₹2,185 left of today’s ₹2,825 share.',
           },
         ],
       },
@@ -202,7 +201,7 @@ export const TODAY_TOPICS: DocTopic[] = [
             items: [
               {
                 question: 'I spent more than today’s share - what happens?',
-                answer: 'Nothing is stopped. The page says "today’s share used - tomorrow’s will be a little smaller", and it will be, because the same total is now spread over the remaining days.',
+                answer: 'Nothing is stopped. The note beside "Spent today" names how far over - for example "₹75 over today’s ₹187 share" - and tomorrow’s share will be a little smaller, because the same total is now spread over the remaining days.',
               },
               {
                 question: 'Does Room count credit card spending?',

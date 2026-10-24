@@ -11,8 +11,29 @@ import java.util.List;
 public record PositionResult(
         boolean complete,
         BigDecimal realBalance,
+        /**
+         * Today's share, fixed for the day: today's spending is added back before dividing,
+         * so buying a coffee does not visibly shrink the allowance you are measuring
+         * yourself against. It is a <em>benchmark for today</em>, and deliberately not a
+         * rate you could sustain - see {@code perDay}.
+         */
         BigDecimal roomToday,
         BigDecimal roomLeft,
+        /**
+         * What is actually left, per remaining day - {@code realBalance / daysRemaining}.
+         *
+         * <p>The honest answer to "what can I spend a day from here", and the figure a
+         * screen may safely put next to "for N days", because it multiplies back to exactly
+         * what is held. {@code roomToday} does not: it adds today's spending back, so
+         * "₹187 a day for 29 days" promised ₹5,411 against ₹5,149 held - overstated by
+         * precisely the day's spending, which is a confident wrong number on the main screen
+         * (rule 3). Found by the user 2026-09-29.
+         *
+         * <p>Both are kept because they answer different questions. One is "how am I doing
+         * today", which must not move while the day is in progress; the other is "what can I
+         * afford from here", which must move the moment money leaves.
+         */
+        BigDecimal perDay,
         BigDecimal spentToday,
         BigDecimal held,
         BigDecimal reserved,

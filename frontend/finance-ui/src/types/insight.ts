@@ -17,7 +17,9 @@ export type InsightType =
   /** A goal funded by a bill with no set amount — its pace cannot be judged at all. */
   | 'GOAL_FUNDING_UNCLEAR'
   /** Money set aside while debt costing more than it can earn is still running. */
-  | 'RATE_MISMATCH';
+  | 'RATE_MISMATCH'
+  /** Money taken back out of a goal this cycle, with no plan asking for it. */
+  | 'GOAL_RAIDED';
 
 /** CRITICAL = money is lost if nothing happens. Shown in attention tone, never red. */
 export type InsightSeverity = 'CRITICAL' | 'ATTENTION' | 'OPPORTUNITY' | 'INFO';

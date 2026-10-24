@@ -5,6 +5,7 @@ import com.finance.card.CreditCardView;
 import com.finance.commitment.CommitmentInstanceView;
 import com.finance.cycle.domain.Cycle;
 import com.finance.goal.GoalView;
+import com.finance.goal.GoalWithdrawal;
 import com.finance.loan.LoanView;
 import com.finance.projection.ProjectionResult;
 
@@ -19,6 +20,8 @@ import java.util.List;
  * @param accounts    every active account, spendable or not - {@code projections} covers only
  *                    the spending ones, so a rule reasoning about money that is deliberately
  *                    <em>not</em> spendable (a fund, a wallet) has nowhere else to read it
+ * @param goalWithdrawals money taken back out of a goal this cycle that no bill asked for -
+ *                    computed here rather than in the rule, because rules never query
  */
 public record FinancialContext(
         LocalDate today,
@@ -28,7 +31,8 @@ public record FinancialContext(
         List<CreditCardView> cards,
         List<GoalView> goals,
         List<LoanView> loans,
-        List<Account> accounts
+        List<Account> accounts,
+        List<GoalWithdrawal> goalWithdrawals
 ) {
     public record AccountProjection(Account account, ProjectionResult projection) {
     }

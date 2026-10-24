@@ -23,12 +23,12 @@ public interface TransactionService {
     TransactionView getById(Long id);
 
     /**
-     * The dates of several transactions at once, for callers that need only "when did
-     * this money move" and not the whole view. One query instead of N - a commitment
-     * list asking {@code getById} per settled row would fan out into four lookups each.
-     * Ids that are missing or not the caller's are simply absent from the map.
+     * When several transactions moved and which account they left, for callers that need
+     * those facts and not the whole view. One query instead of N - a commitment list asking
+     * {@code getById} per settled row would fan out into four lookups each. Ids that are
+     * missing or not the caller's are simply absent from the map.
      */
-    Map<Long, LocalDate> datesByIds(Collection<Long> ids);
+    Map<Long, TransactionDateProjection> settlementFactsByIds(Collection<Long> ids);
 
     Page<TransactionView> search(Long accountId, Long categoryId, TransactionType type,
                                  LocalDate dateFrom, LocalDate dateTo, Pageable pageable);
@@ -42,7 +42,7 @@ public interface TransactionService {
      */
     Page<TransactionView> search(Long accountId, Long categoryId, TransactionType type,
                                  Long cycleId, LocalDate dateFrom, LocalDate dateTo, String q,
-                                 Pageable pageable);
+                                 boolean unlinkedOnly, Pageable pageable);
 
     /** Same filters as the search above, collapsed to one total - see {@link TransactionViewSummary}. */
     TransactionViewSummary viewSummary(Long accountId, Long categoryId, TransactionType type,

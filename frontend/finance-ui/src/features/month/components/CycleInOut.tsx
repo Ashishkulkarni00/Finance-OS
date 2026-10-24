@@ -54,7 +54,7 @@ export function CycleInOut({ cycle }: { cycle: CycleResponse | undefined }) {
             <StatementRow variant="subtotal" label="Left over" value={data.net} emphasiseNegative />
             {data.savingsRate != null && (
               <StatementRow
-                label="Kept"
+                label="Saved"
                 valueNode={<span className="num text-row text-ink">{formatPercent(data.savingsRate)}</span>}
               />
             )}

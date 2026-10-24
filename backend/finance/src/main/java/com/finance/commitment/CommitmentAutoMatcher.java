@@ -138,6 +138,12 @@ public class CommitmentAutoMatcher {
         }
 
         boolean income = commitment.getSettleAs() == TransactionType.INCOME;
+        // **Plan, deliberately** (M1 register, ADR-0020). Both accounts here are the
+        // commitment's own, and unlike every other reader this one should keep it that way:
+        // auto-matching links a bill without being asked, so a loose match is a silent wrong
+        // answer rather than a choice someone made. Narrowing to the planned accounts is what
+        // keeps it from guessing. A payment from somewhere else is still linkable - the user
+        // does it on the Settle sheet, where they can see what they are agreeing to.
         List<Transaction> matches = transactionRepository.findUnlinkedForMatch(
                         instance.getUserId(), commitment.getSettleAs(), commitment.getAccountId(),
                         commitment.getToAccountId(),

@@ -21,7 +21,8 @@ readable as a record of how we got here, and must not be cited as current truth.
 | `DOC_INDEX.md` | This file |
 | `CONTINUE_HERE.md` | Live session handoff — next action, waiting-on, don't-do |
 | `SESSION_HANDOFF.md` | How to work with the user; stack; data snapshot |
-| `product/FIX_BACKLOG.md` | Known defects and gaps, with a Done log |
+| `product/FIX_BACKLOG.md` | Known **defects and missing capability**, by technical area, with a Done log |
+| `product/USAGE_ISSUES.md` | **Problems hit in real use** — where the product was correct but the experience was wrong. Collected, not fixed in passing; solved as one pass |
 | `architecture/decisions/` (ADRs) | Binding technical decisions |
 | `architecture/BACKEND_CONVENTIONS.md`, `FRONTEND_CONVENTIONS.md`, `TECHNICAL_ARCHITECTURE.md` | How code is written here |
 | `design/DESIGN_SYSTEM.md`, `design/UI_UX_PRINCIPLES.md` | Visual and interaction language |

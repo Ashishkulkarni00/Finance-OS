@@ -6,6 +6,7 @@ import com.finance.account.domain.Account;
 import com.finance.account.domain.AccountType;
 import com.finance.commitment.CommitmentInstanceRepository;
 import com.finance.commitment.CommitmentRepository;
+import com.finance.commitment.CommitmentSourceResolver;
 import com.finance.commitment.domain.Commitment;
 import com.finance.commitment.domain.CommitmentInstance;
 import com.finance.common.money.MoneyScale;
@@ -34,8 +35,8 @@ import java.util.stream.Collectors;
 /**
  * Real Balance, Room, and Net Worth - the product's reason to exist.
  *
- * <p><strong>Dependency note:</strong> this reads {@code CommitmentInstanceRepository}/
- * {@code CommitmentRepository} directly, and resolves the current cycle via
+ * <p><strong>Dependency note:</strong> this reads {@code CommitmentInstanceRepository},
+ * {@code CommitmentRepository} and {@code CommitmentSourceResolver} directly, and resolves the current cycle via
  * {@code CurrentCycleResolver} rather than {@code CycleService} - those services (or
  * things they depend on) would eventually loop back here (e.g. {@code CycleServiceImpl.close}
  * already calls this service), so going through them would be a circular bean
@@ -51,6 +52,7 @@ public class PositionServiceImpl implements PositionService {
     private final ReservationRepository reservationRepository;
     private final CurrentCycleResolver cycleResolver;
     private final CommitmentInstanceRepository instanceRepository;
+    private final CommitmentSourceResolver sourceResolver;
     private final CommitmentRepository commitmentRepository;
     private final TransactionRepository transactionRepository;
     private final CurrentUserProvider currentUser;
@@ -61,6 +63,7 @@ public class PositionServiceImpl implements PositionService {
                                ReservationRepository reservationRepository,
                                CurrentCycleResolver cycleResolver,
                                CommitmentInstanceRepository instanceRepository,
+                               CommitmentSourceResolver sourceResolver,
                                CommitmentRepository commitmentRepository,
                                TransactionRepository transactionRepository,
                                CurrentUserProvider currentUser,
@@ -70,6 +73,7 @@ public class PositionServiceImpl implements PositionService {
         this.reservationRepository = reservationRepository;
         this.cycleResolver = cycleResolver;
         this.instanceRepository = instanceRepository;
+        this.sourceResolver = sourceResolver;
         this.commitmentRepository = commitmentRepository;
         this.transactionRepository = transactionRepository;
         this.currentUser = currentUser;
@@ -80,19 +84,33 @@ public class PositionServiceImpl implements PositionService {
      * Whether paying this bill takes money out of what's counted as held. Expected income
      * brings money in, and a transfer between two spendable accounts only moves it -
      * neither is spoken-for. A transfer to savings, an investment or an expense is.
+     *
+     * <p><strong>{@code sourceAccountId} is where the money actually comes from, which is
+     * not always the bill's "Paid from" (ADR-0020).</strong> This used to read
+     * {@code commitment.getAccountId()}, and that was wrong from the moment settling stopped
+     * requiring the planned account (USAGE_ISSUES U3): the emergency-fund top-up was planned
+     * from a non-spendable cash wallet, so its whole amount stayed out of {@code committed} -
+     * yet ₹1,000 of it was paid from the salary account, left spending money, and was never
+     * spoken for. Real Balance announced that money as free and then it wasn't.
+     *
+     * <p>The destination is still read from the plan, and that is not the same compromise:
+     * {@code settle} enforces it (money that arrived elsewhere did not pay this bill), so
+     * the planned destination is a rule the data has to obey. Only the source is a guess.
      */
-    private static boolean leavesHeldMoney(Commitment commitment, java.util.Set<Long> spendableIds, java.util.Set<Long> cardIds) {
+    private static boolean leavesHeldMoney(Commitment commitment, Long sourceAccountId,
+                                           java.util.Set<Long> spendableIds, java.util.Set<Long> cardIds) {
+        boolean fromSpendable = sourceAccountId != null && spendableIds.contains(sourceAccountId);
         return switch (commitment.getSettleAs()) {
             case INCOME, REFUND -> false;
             // Moving or investing money only reduces what's free when it leaves spending
             // money - a deposit from cash kept aside for the emergency fund doesn't.
-            case TRANSFER -> spendableIds.contains(commitment.getAccountId())
+            case TRANSFER -> fromSpendable
                     && (commitment.getToAccountId() == null || !spendableIds.contains(commitment.getToAccountId()));
-            case INVESTMENT -> spendableIds.contains(commitment.getAccountId());
+            case INVESTMENT -> fromSpendable;
             // Spent from spending money, or on a card (owed, so it leaves held money when the
             // bill is paid). Spent from savings - a trip booking paid from the trip's own
             // account - was already taken out when it was moved there (FIX_BACKLOG 2.11).
-            case EXPENSE -> spendableIds.contains(commitment.getAccountId()) || cardIds.contains(commitment.getAccountId());
+            case EXPENSE -> fromSpendable || (sourceAccountId != null && cardIds.contains(sourceAccountId));
         };
     }
 
@@ -154,9 +172,17 @@ public class PositionServiceImpl implements PositionService {
                 .filter(a -> a.getType() == AccountType.CREDIT_CARD)
                 .map(Account::getId)
                 .collect(Collectors.toSet());
+        // Where each bill's money has actually been leaving from (ADR-0020). One query for
+        // the whole cycle, through the resolver the projection shares - "where does this bill's
+        // money come from" has one implementation, not one per figure that asks.
+        Map<Long, Long> actualSourceByInstance = sourceResolver.actualSourceByInstance(
+                open.stream().map(CommitmentInstance::getId).toList(), userId);
+
         for (CommitmentInstance instance : open) {
             Commitment commitment = commitmentsById.get(instance.getCommitmentId());
-            if (commitment != null && !leavesHeldMoney(commitment, spendableIds, cardIds)) {
+            // Evidence first, plan second - see CommitmentSourceResolver.
+            Long sourceAccountId = sourceResolver.effectiveSource(instance, commitment, actualSourceByInstance);
+            if (commitment != null && !leavesHeldMoney(commitment, sourceAccountId, spendableIds, cardIds)) {
                 continue;
             }
             String name = commitment == null ? "A commitment" : commitment.getName();
@@ -190,7 +216,7 @@ public class PositionServiceImpl implements PositionService {
             String reason = blockers.size() == 1
                     ? blockers.get(0).name() + " doesn't have an amount yet."
                     : blockers.size() + " mandatory commitments don't have an amount yet.";
-            return new PositionResult(false, null, null, null, null, null, null, null, null, null,
+            return new PositionResult(false, null, null, null, null, null, null, null, null, null, null,
                     accountAmounts, null, null, reason, blockers);
         }
 
@@ -201,8 +227,11 @@ public class PositionServiceImpl implements PositionService {
         BigDecimal roomToday = realBalance.add(spentToday)
                 .divide(BigDecimal.valueOf(Math.max(daysRemaining, 1)), 2, RoundingMode.HALF_UP);
         BigDecimal roomLeft = roomToday.subtract(spentToday);
+        // What is left over the days left - the only one of the two that multiplies back to
+        // what is actually held, and so the only one a screen may print beside "for N days".
+        BigDecimal perDay = realBalance.divide(BigDecimal.valueOf(Math.max(daysRemaining, 1)), 2, RoundingMode.HALF_UP);
 
-        return new PositionResult(true, realBalance, roomToday, roomLeft, MoneyScale.normalise(spentToday),
+        return new PositionResult(true, realBalance, roomToday, roomLeft, perDay, MoneyScale.normalise(spentToday),
                 MoneyScale.normalise(held), MoneyScale.normalise(reserved), MoneyScale.normalise(committed),
                 MoneyScale.normalise(optionalCommitted),
                 MoneyScale.normalise(cardDues), accountAmounts, cardAmounts, commitmentAmounts, null, null);
@@ -260,9 +289,22 @@ public class PositionServiceImpl implements PositionService {
                 count);
     }
 
+    /**
+     * What today has taken out of the day's own room - <strong>unplanned</strong> spending
+     * only.
+     *
+     * <p>Room divides Real Balance, which already has every open commitment subtracted, by
+     * the days left. Charging a settled bill against the day as well counts the same rupees
+     * twice: once when they were planned, once when they were paid. Found on real data
+     * 2026-09-29, when settling an ₹8,000 commitment turned "₹462 a day" into "−₹7,800 left
+     * today" on a day whose only discretionary spending was ₹262.
+     *
+     * <p>Refunds are netted the same way and for the same reason - a refund against a bill
+     * belongs to the bill, not to the day.
+     */
     private BigDecimal spentOn(Long userId, LocalDate date) {
-        BigDecimal expense = transactionRepository.sumAmountByTypeInRange(userId, TransactionType.EXPENSE, date, date);
-        BigDecimal refund = transactionRepository.sumAmountByTypeInRange(userId, TransactionType.REFUND, date, date);
+        BigDecimal expense = transactionRepository.sumUnplannedByTypeInRange(userId, TransactionType.EXPENSE, date, date);
+        BigDecimal refund = transactionRepository.sumUnplannedByTypeInRange(userId, TransactionType.REFUND, date, date);
         return expense.subtract(refund);
     }
 }

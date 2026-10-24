@@ -46,6 +46,9 @@ export interface CommitmentInstanceResponse {
   ruleAmount: Money | null;
   /** The account this leaves from - shown inline on the row, not behind a click. */
   account: AccountSummary;
+  /** Where the money actually left from, when that is not the bill's own account. Null when
+   *  they agree. A bill can be settled from anywhere - "Paid from" is the plan, not a gate. */
+  settledFromAccount: AccountSummary | null;
   /** The bill's category - Months groups its plan by it. Null when none is set. */
   category: CategorySummary | null;
   /** MANUAL, or the loan (etc.) this bill follows. */

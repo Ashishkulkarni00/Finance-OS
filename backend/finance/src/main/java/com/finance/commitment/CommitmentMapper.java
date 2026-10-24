@@ -65,7 +65,8 @@ public class CommitmentMapper {
         return new CommitmentResponse(
                 c.getId(), c.getName(), c.getAmountType(), c.getFixedAmount(),
                 c.getFrequency(), c.getDueDay(),
-                accountMapper.toSummary(view.account()), categoryMapper.toSummary(view.category()),
+                accountMapper.toSummary(view.account()),
+                categoryMapper.toSummary(view.category()),
                 c.getSourceType(), c.getSourceId(), c.getSettleAs(), c.getToAccountId(),
                 c.isMandatory(), c.isRequiresVerification(),
                 c.getActiveFrom(), c.getActiveTo(),
@@ -87,7 +88,9 @@ public class CommitmentMapper {
                 // Only a FIXED bill has a "usual" to have diverged from; a varying one has
                 // nothing to compare against, and null says that rather than implying zero.
                 commitment.getAmountType() == CommitmentAmountType.FIXED ? commitment.getFixedAmount() : null,
-                accountMapper.toSummary(view.account()), categoryMapper.toSummary(view.category()),
+                accountMapper.toSummary(view.account()),
+                view.settledFromAccount() == null ? null : accountMapper.toSummary(view.settledFromAccount()),
+                categoryMapper.toSummary(view.category()),
                 commitment.getSourceType(), commitment.getSourceId(), commitment.getSettleAs(), commitment.getToAccountId(),
                 AttentionTier.of(instance, commitment, LocalDate.now(clock)), instance.variance(),
                 // Reads report no effect; a write attaches its own (ADR-0017).
@@ -133,7 +136,8 @@ public class CommitmentMapper {
                 commitment.getId(), commitment.getName(), commitment.getWhy(), commitment.getIfSkipped(),
                 commitment.getAmountType(), commitment.getFixedAmount(), commitment.getFrequency(), commitment.getDueDay(),
                 commitment.isMandatory(), commitment.isRequiresVerification(),
-                accountMapper.toSummary(view.account()), categoryMapper.toSummary(view.category()),
+                accountMapper.toSummary(view.account()),
+                categoryMapper.toSummary(view.category()),
                 commitment.getSourceType(), commitment.getSourceId(), commitment.getSettleAs(), commitment.getToAccountId(),
                 linkedTransaction == null ? null : transactionMapper.toResponse(
                         linkedTransaction.transaction(), linkedTransaction.account(),

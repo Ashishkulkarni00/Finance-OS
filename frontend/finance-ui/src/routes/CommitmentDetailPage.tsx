@@ -10,7 +10,7 @@ import { Statement, StatementRow } from '@/components/Statement';
 import { Amount } from '@/components/Amount';
 import { Skeleton } from '@/components/Skeleton';
 import { ErrorState } from '@/components/ErrorState';
-import { formatShortDate, formatFullDate } from '@/lib/dates';
+import { formatShortDate, formatFullDate, ordinalDay } from '@/lib/dates';
 import { useAppDispatch } from '@/store/hooks';
 import { openSettleSheet } from '@/store/slices/uiSlice';
 import {
@@ -45,12 +45,6 @@ const STATUS_LABEL: Record<CommitmentInstanceStatus, string> = {
 
 const FREQUENCY_LABEL: Record<string, string> = { MONTHLY: 'Monthly', QUARTERLY: 'Quarterly', ANNUAL: 'Annual' };
 
-function ordinal(n: number): string {
-  if (n % 10 === 1 && n !== 11) return `${n}st`;
-  if (n % 10 === 2 && n !== 12) return `${n}nd`;
-  if (n % 10 === 3 && n !== 13) return `${n}rd`;
-  return `${n}th`;
-}
 
 /**
  * "Why is this number what it is?" for a single commitment - the detail layer the
@@ -164,7 +158,7 @@ export default function CommitmentDetailPage() {
       <section>
         <SectionHeader>How it recurs</SectionHeader>
         <div className="flex flex-col">
-          <Row primary="Frequency" secondary={undefined} trailing={<span className="text-row text-ink">{FREQUENCY_LABEL[data.frequency] ?? data.frequency} · due the {ordinal(data.dueDay)}</span>} />
+          <Row primary="Frequency" secondary={undefined} trailing={<span className="text-row text-ink">{FREQUENCY_LABEL[data.frequency] ?? data.frequency} · due the {ordinalDay(data.dueDay)}</span>} />
           <Row primary="Account" secondary={undefined} trailing={<span className="text-row text-ink">{data.account.name}</span>} />
           {data.category && <Row primary="Category" secondary={undefined} trailing={<span className="text-row text-ink">{data.category.name}</span>} />}
           {!isIncome && <Row primary="Mandatory" secondary={undefined} trailing={<span className="text-row text-ink">{data.mandatory ? 'Yes' : 'No - optional'}</span>} />}

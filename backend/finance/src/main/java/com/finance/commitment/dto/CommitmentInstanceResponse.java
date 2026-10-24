@@ -56,6 +56,15 @@ public record CommitmentInstanceResponse(
         /** The account this leaves from - shown inline on the row, not behind a click. */
         AccountSummary account,
 
+        /**
+         * Where the money actually left from, when that is not the bill's own account.
+         *
+         * <p>Null when they agree. A bill may be settled from any account - "Paid from" is
+         * the plan, not a gate (USAGE_ISSUES U3) - so a settled row cannot report the
+         * commitment's account and call it the truth.
+         */
+        AccountSummary settledFromAccount,
+
         /** The bill's category - This Month groups its plan by it. Null when none is set. */
         CategorySummary category,
 
@@ -84,7 +93,7 @@ public record CommitmentInstanceResponse(
     public CommitmentInstanceResponse withEffect(WriteEffectResponse effect) {
         return new CommitmentInstanceResponse(id, commitmentId, commitmentName, cycleId, dueDate, expectedAmount,
                 status, confirmedAmount, outstanding, confirmedAt, settledOn, linkedTransactionId, mandatory,
-                ifSkipped, amountOverridden, ruleAmount, account, category, sourceType, sourceId, settleAs,
-                toAccountId, attentionTier, variance, effect);
+                ifSkipped, amountOverridden, ruleAmount, account, settledFromAccount, category, sourceType, sourceId,
+                settleAs, toAccountId, attentionTier, variance, effect);
     }
 }

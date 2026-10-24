@@ -9,7 +9,7 @@ import { Statement, StatementRow } from '@/components/Statement';
 import { SectionHeader } from '@/components/SectionHeader';
 import { Skeleton } from '@/components/Skeleton';
 import { ErrorState } from '@/components/ErrorState';
-import { formatShortDate } from '@/lib/dates';
+import { formatShortDate, ordinalDay } from '@/lib/dates';
 import {
   useArchiveCommitmentRuleMutation,
   useGetCommitmentRuleQuery,
@@ -42,12 +42,6 @@ const STATUS_LABEL: Record<CommitmentInstanceStatus, string> = {
   SKIPPED: 'Skipped this month',
 };
 
-function ordinal(n: number): string {
-  if (n % 10 === 1 && n !== 11) return `${n}st`;
-  if (n % 10 === 2 && n !== 12) return `${n}nd`;
-  if (n % 10 === 3 && n !== 13) return `${n}rd`;
-  return `${n}th`;
-}
 
 /**
  * "Commitment rules - not sure how it's working" (user feedback, earlier this
@@ -156,7 +150,7 @@ export default function CommitmentRuleDetailPage() {
           variant="subtotal"
           label="Recurs"
           valueNode={<span className="text-row text-ink">{FREQUENCY_LABEL[rule.frequency] ?? rule.frequency}</span>}
-          note={`Due the ${ordinal(rule.dueDay)} · ${rule.account.name}`}
+          note={`Due the ${ordinalDay(rule.dueDay)} · ${rule.account.name}`}
         />
       </Statement>
 

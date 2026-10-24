@@ -11,8 +11,21 @@ function shortDate(iso: string): string {
 export interface CycleProgress {
   totalDays: number;
   dayOfCycle: number;
-  /** 0 before the cycle starts is impossible by construction; can be negative once ended. */
+  /** 0 before the cycle starts is impossible by construction; can be negative once ended.
+   *  Days left **in the cycle** - the last day is `endDate`, not payday. */
   daysRemaining: number;
+  /**
+   * Days the money still has to cover, **counting today** - `daysRemaining + 1`, because
+   * salary lands the day after the cycle's last day.
+   *
+   * <p>This is the server's `daysToSalary` and the divisor behind "a day from here"
+   * (`perDay = realBalance / daysToSalary`). It exists because two screens said "days to
+   * salary" and meant different things: the cycle band counted to `endDate` and read
+   * "24 days to salary" while Today, using the server's figure, said 25 - on 3 Oct with
+   * salary on the 28th, which is 25 days away. Found alongside the `daysBetween` bug,
+   * 2026-10-03.
+   */
+  daysToSalary: number;
   /** 0 to 1, clamped - how far through the cycle "today" sits. */
   fraction: number;
   ended: boolean;
@@ -118,6 +131,7 @@ export function cycleProgress(startDate: string, endDate: string): CycleProgress
     totalDays,
     dayOfCycle,
     daysRemaining,
+    daysToSalary: daysRemaining + 1,
     fraction,
     // Strictly after the last day, matching the server's `endDate.isBefore(today)` - the
     // final day is still part of the cycle, and is the day the salary arrives.
@@ -193,10 +207,36 @@ export function isYesterday(iso: string): boolean {
   return iso.slice(0, 10) === localIsoDay(d);
 }
 
-/** "Overdue by 2 days" / "Due in 3 days" / "Due today" - a day-count is not money, so
- *  this arithmetic is fine (see the file header). */
-export function daysBetween(fromIso: string, toIso: string = new Date().toISOString()): number {
-  const from = new Date(fromIso);
-  const to = new Date(toIso);
-  return Math.round((from.getTime() - to.getTime()) / 86_400_000);
+/** Local midnight for either shape this file deals in.
+ *
+ *  <p>A bare `YYYY-MM-DD` is already a calendar day and is taken literally - parsing it with
+ *  `new Date(iso)` would read it as **UTC** midnight, which is a different instant. A full
+ *  timestamp names an instant instead, so it resolves to whatever calendar day that instant
+ *  falls on **for the viewer**. */
+function localDayStart(value: string): number {
+  const day = value.length > 10 ? localIsoDay(new Date(value)) : value.slice(0, 10);
+  const [y, m, d] = day.split('-').map(Number) as [number, number, number];
+  return new Date(y, m - 1, d).getTime();
+}
+
+/**
+ * "Overdue by 2 days" / "Due in 3 days" / "Due today" - whole **calendar days** between two
+ * dates, in the viewer's own timezone. A day-count is not money, so this arithmetic is fine
+ * (see the file header).
+ *
+ * <p><strong>Both sides are flattened to local midnight, and that is the whole point.</strong>
+ * This used to compare a date against an *instant*: `new Date('2026-10-05')` is UTC midnight,
+ * the default `toIso` was `new Date().toISOString()` - a wall-clock time - and the fractional
+ * difference was then rounded. So the answer drifted with the time of day, and in IST
+ * (UTC+5:30) every relative date in the app jumped a day forward at **17:30 local**: at 21:23
+ * on Sat 3 Oct, Mon 5 Oct was labelled "Tomorrow", Sun 4 Oct was "Today", and a bill due that
+ * very day read as one day late. Found by the user, 2026-10-03.
+ *
+ * <p>Comparing midnights makes the result an exact whole number of days, so the `round` is
+ * only there for a timezone that shifts (India has none; a viewer elsewhere might).
+ */
+export function daysBetween(fromIso: string, toIso?: string): number {
+  const from = localDayStart(fromIso);
+  const to = toIso === undefined ? localDayStart(todayLocalIso()) : localDayStart(toIso);
+  return Math.round((from - to) / 86_400_000);
 }
