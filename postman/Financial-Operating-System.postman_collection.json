@@ -2340,6 +2340,244 @@
 			]
 		},
 		{
+			"name": "Summary (review)",
+			"description": "The consolidated view behind the **Summary** screen: salary months set beside each other, and every loan walked forward.\n\nBoth are **reads only**, and neither is a new source of truth. Each month's figures are the same repository sums `CycleService.previewSummary` uses; the committed/flexible split is the same `sumUnplannedByTypeInRange` that Room is built on; the commitment counts are the same `PlanAdherence` the snapshot is written with; the debt curve is the same `AmortisationCalculator` the Debts register reads. A figure here that disagreed with the screen it came from would make the whole page worthless.\n\n**Nothing is read from `CycleSnapshot`.** A closed cycle's snapshot stays the historical record (ADR-0011), but no cycle has ever been closed in this data, so a snapshot-backed series would be permanently empty. These recompute live, which is what lets the month in progress appear at all.\n\n**Reading this creates no cycle rows.** `CurrentCycleResolver` finds-or-creates, which is right for a month the user is working in and wrong for a report.",
+			"item": [
+				{
+					"name": "Months consolidated",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200 OK', () => pm.response.to.have.status(200));",
+									"const body = pm.response.json();",
+									"",
+									"pm.test('oldest first, so a chart reads left to right', () => {",
+									"  const starts = body.months.map((m) => m.startDate);",
+									"  pm.expect(starts).to.deep.equal([...starts].sort());",
+									"});",
+									"",
+									"pm.test('no month starts in the future', () => {",
+									"  body.months.forEach((m) => pm.expect(m.startDate <= body.asOf).to.be.true);",
+									"});",
+									"",
+									"pm.test('at most one month is the current one', () => {",
+									"  pm.expect(body.months.filter((m) => m.current).length).to.be.at.most(1);",
+									"});",
+									"",
+									"// Rule 3 / ADR-0006: a month with nothing recorded reports null, never zero.",
+									"pm.test('an unrecorded month carries no figures at all', () => {",
+									"  body.months.filter((m) => !m.recorded).forEach((m) => {",
+									"    ['income', 'spend', 'committed', 'flexible', 'invested', 'net', 'leftOver']",
+									"      .forEach((field) => pm.expect(m[field], `${m.label}.${field}`).to.be.oneOf([null, undefined]));",
+									"  });",
+									"});",
+									"",
+									"pm.test('money is a string, never a number', () => {",
+									"  body.months.filter((m) => m.recorded).forEach((m) => {",
+									"    pm.expect(m.income).to.be.a('string');",
+									"    pm.expect(m.spend).to.be.a('string');",
+									"  });",
+									"});",
+									"",
+									"// committed + flexible = spend, exactly. The split is by the commitment link,",
+									"// so a rounding gap here would mean the two queries disagree about a transaction.",
+									"pm.test('the committed/flexible split adds back to spend', () => {",
+									"  body.months.filter((m) => m.recorded).forEach((m) => {",
+									"    const sum = (Number(m.committed) + Number(m.flexible)).toFixed(2);",
+									"    pm.expect(sum, m.label).to.equal(Number(m.spend).toFixed(2));",
+									"  });",
+									"});",
+									"",
+									"pm.test('a rate over no income is null, not zero', () => {",
+									"  body.months.filter((m) => m.recorded && Number(m.income) === 0).forEach((m) => {",
+									"    pm.expect(m.savingsRate).to.be.oneOf([null, undefined]);",
+									"    pm.expect(m.committedShare).to.be.oneOf([null, undefined]);",
+									"  });",
+									"});",
+									"",
+									"pm.test('commitments kept never exceeds commitments planned', () => {",
+									"  body.months.forEach((m) => pm.expect(m.commitmentsKept).to.be.at.most(m.commitmentsPlanned));",
+									"});",
+									"",
+									"// The comparison is cut to the same day of the previous cycle - never its full total.",
+									"pm.test('the same-point comparison is cut, not whole', () => {",
+									"  if (!body.samePoint) { pm.expect(body.monthsRecorded).to.be.at.most(1); return; }",
+									"  const previous = body.months.find((m) => m.cycleId === body.samePoint.previousCycleId);",
+									"  pm.expect(body.samePoint.cutOff).to.be.at.most(previous.endDate);",
+									"  pm.expect(Number(body.samePoint.previousSpend)).to.be.at.most(Number(previous.spend));",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/review/months?months=12",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"review",
+								"months"
+							],
+							"query": [
+								{
+									"key": "months",
+									"value": "12",
+									"description": "How many salary months back to go. Defaults to 12, clamped to 1-24 \u2014 past two years a comparison stops being a comparison."
+								}
+							]
+						},
+						"description": "The salary months that **already exist and have started**, oldest first, including the one in progress.\n\n### What each figure means\n\n| Field | Meaning |\n|---|---|\n| `spend` | expenses net of refunds \u2014 the same figure the month's own summary shows |\n| `committed` | the part of `spend` that settled a planned commitment, decided by the **link**, not by category group. A fixed-category expense that no bill covers really is day-to-day money |\n| `flexible` | the rest. `committed + flexible = spend`, exactly |\n| `net` | `income \u2212 spend`. Investing is not consuming, so it is **not** subtracted |\n| `leftOver` | `income \u2212 spend \u2212 invested` \u2014 what stayed liquid |\n| `committedShare` | `committed \u00f7 income` \u2014 the one figure here that measures progress rather than activity |\n| `commitmentsKept` | paid, or settled in an earlier cycle \u2014 the North Star, per month |\n| `elapsedShare` | how much of the month has passed, 0\u20111. Present **only** on the current month |\n\n### `recorded: false` means every money field is `null`\n\nNot zero. A salary month with no transactions in it is a month we know nothing about, and printing \u20b90 for it would put a flat line through four charts and read as a fact (rule 3, ADR-0006). The commitment counts are still populated \u2014 a bill falling due is a plan fact that does not depend on anything having been recorded.\n\n### `samePoint` compares at the same point in the month\n\nThe obvious comparison \u2014 this month's spend against last month's total \u2014 is a lie for twenty-seven days out of twenty-eight, and it always flatters. So the previous cycle is cut off at the same number of days in (`cutOff`, clamped to that cycle's end) and only then compared. `null` when there is no previous **recorded** month: the first month a person uses the product has nothing behind it, and an invented baseline is worse than none.\n\nRates (`savingsRate`, `committedShare`, `elapsedShare`) are plain JSON numbers; money is strings (ADR-0001)."
+					},
+					"response": [
+						{
+							"name": "200 - two recorded months and one with nothing in it",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+									"url": {
+										"raw": "{{baseUrl}}/review/months?months=12",
+										"host": [
+											"{{baseUrl}}"
+										],
+										"path": [
+											"review",
+											"months"
+										],
+										"query": [
+											{
+												"key": "months",
+												"value": "12"
+											}
+										]
+									}
+							},
+							"status": "OK",
+							"code": 200,
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"body": "{\n    \"asOf\": \"2026-10-24\",\n    \"months\": [\n        {\n            \"cycleId\": 6,\n            \"startDate\": \"2026-07-28\",\n            \"endDate\": \"2026-08-27\",\n            \"label\": \"28 Jul \u2013 27 Aug\",\n            \"current\": false,\n            \"closed\": false,\n            \"recorded\": false,\n            \"planTracked\": false,\n            \"commitmentsPlanned\": 0,\n            \"commitmentsKept\": 0,\n            \"plannedCommittedTotal\": \"0.00\",\n            \"actualCommittedTotal\": \"0.00\"\n        },\n        {\n            \"cycleId\": 1,\n            \"startDate\": \"2026-08-28\",\n            \"endDate\": \"2026-09-27\",\n            \"label\": \"28 Aug \u2013 27 Sept\",\n            \"current\": false,\n            \"closed\": false,\n            \"recorded\": true,\n            \"planTracked\": false,\n            \"income\": \"57700.00\",\n            \"spend\": \"47755.00\",\n            \"invested\": \"0.00\",\n            \"net\": \"9945.00\",\n            \"leftOver\": \"9945.00\",\n            \"savingsRate\": 0.1724,\n            \"commitmentsPlanned\": 0,\n            \"commitmentsKept\": 0,\n            \"plannedCommittedTotal\": \"0.00\",\n            \"actualCommittedTotal\": \"0.00\"\n        },\n        {\n            \"cycleId\": 3,\n            \"startDate\": \"2026-09-28\",\n            \"endDate\": \"2026-10-27\",\n            \"label\": \"28 Sept \u2013 27 Oct\",\n            \"current\": true,\n            \"closed\": false,\n            \"recorded\": true,\n            \"planTracked\": true,\n            \"elapsedShare\": 0.9,\n            \"income\": \"59200.00\",\n            \"spend\": \"65386.00\",\n            \"committed\": \"36939.00\",\n            \"flexible\": \"28447.00\",\n            \"invested\": \"2500.00\",\n            \"net\": \"-6186.00\",\n            \"leftOver\": \"-8686.00\",\n            \"savingsRate\": -0.1045,\n            \"committedShare\": 0.624,\n            \"commitmentsPlanned\": 16,\n            \"commitmentsKept\": 15,\n            \"plannedCommittedTotal\": \"67022.00\",\n            \"actualCommittedTotal\": \"65742.00\"\n        }\n    ],\n    \"monthsRecorded\": 2,\n    \"samePoint\": {\n        \"previousCycleId\": 1,\n        \"previousLabel\": \"28 Aug \u2013 27 Sept\",\n        \"daysIn\": 27,\n        \"cutOff\": \"2026-09-23\",\n        \"previousSpend\": \"47755.00\",\n        \"spendChange\": \"17631.00\",\n        \"previousIncome\": \"57700.00\",\n        \"incomeChange\": \"1500.00\"\n    }\n}"
+						}
+					]
+				},
+				{
+					"name": "Debt walked forward",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200 OK', () => pm.response.to.have.status(200));",
+									"const body = pm.response.json();",
+									"",
+									"pm.test('the curve starts where the register says it does', () => {",
+									"  if (body.points.length === 0) return;",
+									"  pm.expect(body.points[0].outstanding).to.equal(body.outstandingNow);",
+									"});",
+									"",
+									"pm.test('one point per calendar month, in order', () => {",
+									"  const months = body.points.map((p) => p.month);",
+									"  pm.expect(months).to.deep.equal([...months].sort());",
+									"  body.points.forEach((p) => pm.expect(p.month.slice(8)).to.equal('01'));",
+									"});",
+									"",
+									"// A balance that is being paid down never rises. If this fails, an EMI does not",
+									"// cover its own interest, which the loan screen reports separately.",
+									"pm.test('the balance never rises', () => {",
+									"  body.points.forEach((p, i) => {",
+									"    if (i === 0) return;",
+									"    pm.expect(Number(p.outstanding), p.month).to.be.at.most(Number(body.points[i - 1].outstanding));",
+									"  });",
+									"});",
+									"",
+									"pm.test('the last point clears the debt', () => {",
+									"  if (body.points.length === 0 || body.excludedLoanCount > 0) return;",
+									"  pm.expect(Number(body.points[body.points.length - 1].outstanding)).to.equal(0);",
+									"});",
+									"",
+									"// A debt-free date that quietly omitted a loan would be the most encouraging",
+									"// possible lie - so it is withheld entirely while any loan is out of the curve.",
+									"pm.test('no debt-free date while a loan is excluded', () => {",
+									"  if (body.excludedLoanCount > 0) {",
+									"    pm.expect(body.debtFreeDate).to.be.oneOf([null, undefined]);",
+									"    pm.expect(body.monthsToDebtFree).to.be.oneOf([null, undefined]);",
+									"  }",
+									"});",
+									"",
+									"pm.test('an excluded loan is named and has no payoff date', () => {",
+									"  const out = body.loans.filter((l) => !l.inCurve);",
+									"  pm.expect(out.length).to.equal(body.excludedLoanCount);",
+									"  out.forEach((l) => pm.expect(l.payoffDate).to.be.oneOf([null, undefined]));",
+									"});",
+									"",
+									"pm.test('every loan in the curve clears on or before the debt-free date', () => {",
+									"  if (!body.debtFreeDate) return;",
+									"  body.loans.filter((l) => l.inCurve).forEach((l) => {",
+									"    pm.expect(l.payoffDate, l.name).to.be.at.most(body.debtFreeDate);",
+									"  });",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/review/debt-trajectory",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"review",
+								"debt-trajectory"
+							]
+						},
+						"description": "Every loan's balance walked forward to the month the last one clears \u2014 one point per calendar month, from this one.\n\nDerived from each loan's own `AmortisationCalculator.schedule`, not from history, so it is **complete on the first day the product is used**. The month-by-month series above needs months to accumulate; this does not.\n\n### What it assumes, said out loud\n\n- **That the EMIs get paid.** `unrecordedEmis` is how many have already fallen due with nothing recorded against them. The curve walks past them anyway, because the alternative is to assume a missed payment, and neither assumption is a fact (ADR-0018). The figure is published so the screen can say so rather than imply it.\n- **That a loan without a rate cannot be projected at all.** `schedule` returns empty without one rather than inventing a rate, so the loan drops out: it is counted in `excludedLoanCount`, its balance in `excludedOutstanding`, and its row carries `inCurve: false`. The curve then understates what is owed, and the screen says which loans are missing.\n- **That `debtFreeDate` is null whenever `excludedLoanCount > 0`.** Not a quirk \u2014 the date is only true if every loan is in the curve, and a date that omits one is the most encouraging possible lie (`DebtPosition` says the same about its own).\n\n### `interestAhead`\n\nWhat the remaining EMIs still cost on top of the principal. The number that makes paying early mean something, and the reason this endpoint exists rather than the screen reading `GET /loans` and adding up.\n\nThe first point is **today's outstanding**, from the payments recorded against each loan \u2014 not the schedule's first closing balance, so the line starts where the Debts register says it is."
+					},
+					"response": [
+						{
+							"name": "200 - five loans, clear by 5 Oct 2029",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+									"url": {
+										"raw": "{{baseUrl}}/review/debt-trajectory",
+										"host": [
+											"{{baseUrl}}"
+										],
+										"path": [
+											"review",
+											"debt-trajectory"
+										]
+									}
+							},
+							"status": "OK",
+							"code": 200,
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"body": "{\n    \"asOf\": \"2026-10-24\",\n    \"outstandingNow\": \"334441.70\",\n    \"debtFreeDate\": \"2029-10-05\",\n    \"monthsToDebtFree\": 36,\n    \"interestAhead\": \"62057.53\",\n    \"unrecordedEmis\": 3,\n    \"points\": [\n        {\n            \"month\": \"2026-10-01\",\n            \"outstanding\": \"334441.70\"\n        },\n        {\n            \"month\": \"2026-11-01\",\n            \"outstanding\": \"307070.91\",\n            \"principalDue\": \"16629.25\",\n            \"interestDue\": \"4561.75\"\n        },\n        {\n            \"month\": \"2026-12-01\",\n            \"outstanding\": \"290200.60\",\n            \"principalDue\": \"16870.31\",\n            \"interestDue\": \"4320.69\"\n        },\n        {\n            \"month\": \"2027-01-01\",\n            \"outstanding\": \"273085.51\",\n            \"principalDue\": \"17115.09\",\n            \"interestDue\": \"4075.91\"\n        },\n        {\n            \"month\": \"2027-02-01\",\n            \"outstanding\": \"255724.00\",\n            \"principalDue\": \"17361.51\",\n            \"interestDue\": \"3827.39\"\n        },\n        {\n            \"month\": \"2027-03-01\",\n            \"outstanding\": \"240756.06\",\n            \"principalDue\": \"14967.94\",\n            \"interestDue\": \"3575.06\"\n        },\n        {\n            \"month\": \"2027-04-01\",\n            \"outstanding\": \"225576.00\",\n            \"principalDue\": \"15180.06\",\n            \"interestDue\": \"3362.94\"\n        },\n        {\n            \"month\": \"2027-05-01\",\n            \"outstanding\": \"210180.61\",\n            \"principalDue\": \"15395.39\",\n            \"interestDue\": \"3147.61\"\n        },\n        {\n            \"month\": \"2027-06-01\",\n            \"outstanding\": \"194566.63\",\n            \"principalDue\": \"15613.98\",\n            \"interestDue\": \"2929.02\"\n        },\n        {\n            \"month\": \"2027-07-01\",\n            \"outstanding\": \"178730.74\",\n            \"principalDue\": \"15835.89\",\n            \"interestDue\": \"2707.11\"\n        },\n        {\n            \"month\": \"2027-08-01\",\n            \"outstanding\": \"162669.58\",\n            \"principalDue\": \"16061.16\",\n            \"interestDue\": \"2481.84\"\n        },\n        {\n            \"month\": \"2027-09-01\",\n            \"outstanding\": \"146376.84\",\n            \"principalDue\": \"16292.74\",\n            \"interestDue\": \"2253.16\"\n        },\n        {\n            \"month\": \"2027-10-01\",\n            \"outstanding\": \"133852.77\",\n            \"principalDue\": \"12524.07\",\n            \"interestDue\": \"2020.93\"\n        },\n        {\n            \"month\": \"2027-11-01\",\n            \"outstanding\": \"124494.08\",\n            \"principalDue\": \"9358.69\",\n            \"interestDue\": \"1858.79\"\n        },\n        {\n            \"month\": \"2027-12-01\",\n            \"outstanding\": \"115979.06\",\n            \"principalDue\": \"8515.02\",\n            \"interestDue\": \"1720.35\"\n        },\n        {\n            \"month\": \"2028-01-01\",\n            \"outstanding\": \"111428.77\",\n            \"principalDue\": \"4550.29\",\n            \"interestDue\": \"1594.71\"\n        },\n        {\n            \"month\": \"2028-02-01\",\n            \"outstanding\": \"106815.92\",\n            \"principalDue\": \"4612.85\",\n            \"interestDue\": \"1532.15\"\n        },\n        {\n            \"month\": \"2028-03-01\",\n            \"outstanding\": \"102139.64\",\n            \"principalDue\": \"4676.28\",\n            \"interestDue\": \"1468.72\"\n        },\n        {\n            \"month\": \"2028-04-01\",\n            \"outstanding\": \"97399.06\",\n            \"principalDue\": \"4740.58\",\n            \"interestDue\": \"1404.42\"\n        },\n        {\n            \"month\": \"2028-05-01\",\n            \"outstanding\": \"92593.30\",\n            \"principalDue\": \"4805.76\",\n            \"interestDue\": \"1339.24\"\n        },\n        {\n            \"month\": \"2028-06-01\",\n            \"outstanding\": \"87721.46\",\n            \"principalDue\": \"4871.84\",\n            \"interestDue\": \"1273.16\"\n        },\n        {\n            \"month\": \"2028-07-01\",\n            \"outstanding\": \"82782.63\",\n            \"principalDue\": \"4938.83\",\n            \"interestDue\": \"1206.17\"\n        },\n        {\n            \"month\": \"2028-08-01\",\n            \"outstanding\": \"77775.89\",\n            \"principalDue\": \"5006.74\",\n            \"interestDue\": \"1138.26\"\n        },\n        {\n            \"month\": \"2028-09-01\",\n            \"outstanding\": \"72700.31\",\n            \"principalDue\": \"5075.58\",\n            \"interestDue\": \"1069.42\"\n        },\n        {\n            \"month\": \"2028-10-01\",\n            \"outstanding\": \"67554.94\",\n            \"principalDue\": \"5145.37\",\n            \"interestDue\": \"999.63\"\n        },\n        {\n            \"month\": \"2028-11-01\",\n            \"outstanding\": \"62338.82\",\n            \"principalDue\": \"5216.12\",\n            \"interestDue\": \"928.88\"\n        },\n        {\n            \"month\": \"2028-12-01\",\n            \"outstanding\": \"57050.98\",\n            \"principalDue\": \"5287.84\",\n            \"interestDue\": \"857.16\"\n        },\n        {\n            \"month\": \"2029-01-01\",\n            \"outstanding\": \"51690.43\",\n            \"principalDue\": \"5360.55\",\n            \"interestDue\": \"784.45\"\n        },\n        {\n            \"month\": \"2029-02-01\",\n            \"outstanding\": \"46256.17\",\n            \"principalDue\": \"5434.26\",\n            \"interestDue\": \"710.74\"\n        },\n        {\n            \"month\": \"2029-03-01\",\n            \"outstanding\": \"40747.19\",\n            \"principalDue\": \"5508.98\",\n            \"interestDue\": \"636.02\"\n        },\n        {\n            \"month\": \"2029-04-01\",\n            \"outstanding\": \"35162.46\",\n            \"principalDue\": \"5584.73\",\n            \"interestDue\": \"560.27\"\n        },\n        {\n            \"month\": \"2029-05-01\",\n            \"outstanding\": \"29500.94\",\n            \"principalDue\": \"5661.52\",\n            \"interestDue\": \"483.48\"\n        },\n        {\n            \"month\": \"2029-06-01\",\n            \"outstanding\": \"23761.58\",\n            \"principalDue\": \"5739.36\",\n            \"interestDue\": \"405.64\"\n        },\n        {\n            \"month\": \"2029-07-01\",\n            \"outstanding\": \"17943.30\",\n            \"principalDue\": \"5818.28\",\n            \"interestDue\": \"326.72\"\n        },\n        {\n            \"month\": \"2029-08-01\",\n            \"outstanding\": \"12045.02\",\n            \"principalDue\": \"5898.28\",\n            \"interestDue\": \"246.72\"\n        },\n        {\n            \"month\": \"2029-09-01\",\n            \"outstanding\": \"6065.64\",\n            \"principalDue\": \"5979.38\",\n            \"interestDue\": \"165.62\"\n        },\n        {\n            \"month\": \"2029-10-01\",\n            \"outstanding\": \"0.00\",\n            \"principalDue\": \"6065.64\",\n            \"interestDue\": \"83.40\"\n        }\n    ],\n    \"loans\": [\n        {\n            \"loanId\": 1,\n            \"name\": \"Bike loan\",\n            \"outstanding\": \"177276.00\",\n            \"emi\": \"6145.00\",\n            \"payoffDate\": \"2029-10-05\",\n            \"inCurve\": true\n        },\n        {\n            \"loanId\": 2,\n            \"name\": \"Education loan\",\n            \"outstanding\": \"42170.00\",\n            \"emi\": \"3417.00\",\n            \"payoffDate\": \"2027-11-05\",\n            \"inCurve\": true\n        },\n        {\n            \"loanId\": 5,\n            \"name\": \"Coding ninjas\",\n            \"outstanding\": \"65344.00\",\n            \"emi\": \"4983.00\",\n            \"payoffDate\": \"2027-12-05\",\n            \"inCurve\": true\n        },\n        {\n            \"loanId\": 6,\n            \"name\": \"Mobile Mom\",\n            \"outstanding\": \"10163.00\",\n            \"emi\": \"2648.00\",\n            \"payoffDate\": \"2027-02-07\",\n            \"inCurve\": true\n        },\n        {\n            \"loanId\": 7,\n            \"name\": \"Health Insurance\",\n            \"outstanding\": \"39488.70\",\n            \"emi\": \"3998.00\",\n            \"payoffDate\": \"2027-09-07\",\n            \"inCurve\": true\n        }\n    ],\n    \"excludedLoanCount\": 0,\n    \"excludedOutstanding\": \"0.00\"\n}"
+						}
+					]
+				}
+			]
+		},
+		{
 			"name": "Error contract",
 			"description": "Every error is RFC 7807 `application/problem+json` with our extensions:\n\n| Field | Meaning |\n|---|---|\n| `code` | Stable machine identifier. **Switch on this.** |\n| `detail` | User-facing sentence, safe to display verbatim |\n| `field` | Which request field the error belongs to |\n| `fix` | A route the user can follow, when one exists |\n| `errors[]` | Per-field messages on validation failures |\n\nStack traces and internal messages are never returned.",
 			"item": [

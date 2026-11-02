@@ -38,11 +38,12 @@ export function TodayGuideSheet({ open, onClose }: { open: boolean; onClose: () 
       <div className="flex flex-col gap-space-8">
         <p className="text-body text-ink-soft">
           Today answers one question: <strong className="font-medium text-ink">what can I spend today</strong> without
-          touching money that’s already spoken for - and warns you before anything goes wrong.
+          touching money that’s already spoken for - and warns you before anything goes wrong. The big figure is
+          what’s left of today’s share; the three ruled lines under it are where it came from.
         </p>
 
         <div>
-          <p className="mb-space-3 text-label font-medium text-ink">Where “Free until salary” comes from</p>
+          <p className="mb-space-3 text-label font-medium text-ink">Where the day’s share comes from</p>
           <div className="rounded-lg border border-line">
             {chain.map((c) => (
               <div
@@ -57,8 +58,9 @@ export function TodayGuideSheet({ open, onClose }: { open: boolean; onClose: () 
             ))}
           </div>
           <p className="mt-space-2 text-caption text-ink-muted">
-            What you’ve spent today comes off today’s share - that’s “left today”. Credit cards, loans and
-            investments are never counted as spending money.
+            What you’ve spent today comes off today’s share, and the remainder is the big figure. Spending more than
+            a day’s share isn’t blocked or marked as a failure - tomorrow’s share is simply a little smaller. Credit
+            cards, loans and investments are never counted as spending money.
           </p>
         </div>
 

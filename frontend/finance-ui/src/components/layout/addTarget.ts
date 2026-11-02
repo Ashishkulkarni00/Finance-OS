@@ -19,7 +19,11 @@ export const ADD_LABEL: Record<AddTarget['kind'], string> = {
 /**
  * Add means "add one of what I'm looking at". A page that lists bills adds a bill; a
  * page for one account or card adds an entry on it. Pages with no list of their own
- * (Today, the Ledger, Month close) add a transaction, the everyday case.
+ * (Today, the Ledger, Month close, Summary) add a transaction, the everyday case.
+ *
+ * <p>Summary takes that default rather than a case of its own: it is a report and owns
+ * nothing to add, and hiding the rail's Add on one screen would be a worse surprise than
+ * offering the everyday action.
  */
 export function addTargetFor(pathname: string, search: string): AddTarget {
   const [, section, id] = pathname.split('/');

@@ -16,6 +16,67 @@ real use and solved as one pass. Cross-reference between the two; never copy an 
 
 ## 1. Correctness: numbers the user sees are wrong
 
+### 1.17 "Free this month" shows an income figure the user will not recognise
+
+Found 2026-11-01 while rebuilding Today. The note under "Free this month" reads
+*"₹1,05,733 in · ₹50,391 committed · ₹42,500 set aside"*, and the first figure is not
+anything the user thinks of as their income. It is `CycleShape.expectedIn`, which sums
+**every** INCOME transaction in the cycle: salary ₹57,700 + Diwali bonus ₹46,000 + a
+₹1,736 withdrawal from an NJE-wealth SIP + ₹297 recorded as "Unexplained part of the
+credit".
+
+The arithmetic is right (105,733 − 50,391 − 42,500 = 12,842) and so is counting a bonus
+as income. Two things are not:
+
+- **A SIP withdrawal is not income.** Moving money out of a holding into a bank account is
+  a transfer between two things the user already owns; recorded as INCOME it inflates both
+  "what came in" and "free this month", and double-counts against the investment's own
+  fall in value. Worth checking whether the *transaction* is miscategorised or whether the
+  shape calculator should exclude income whose counterparty is the user's own holding.
+- **A single unlabelled total cannot be checked.** Four sources behind one number with no
+  way to see them is exactly the thing the Pulse was rebuilt to stop doing. It wants the
+  same `Provenance` treatment `runway` and `debt` already have, so the row can show its
+  own working.
+
+**Cost:** low and contained while it sits inside Today's collapsed *Standing* section, which
+is where it moved on 2026-11-01. It is the lead figure on **Months**, though, where the same
+note is unexplained and far more prominent.
+
+---
+
+### 1.15 `PlanAdherence` counts income as a commitment — and writes it into every snapshot
+
+- **Found 2026-10-24**, building Summary, on the real October cycle. `GET /review/months`
+  first reported **16 of 17 commitments kept** and a "planned cost" of **₹1,24,722** against
+  an income of ₹59,200.
+- **Cause:** `PlanAdherence.from` walks *every* `CommitmentInstance` in the cycle and skips
+  only `SKIPPED` ones. An income commitment has occurrences like any other, so the salary
+  (₹57,700) and the Diwali bonus are counted among "commitments planned", counted again as
+  "kept" when they arrive, and their amounts added into `plannedCommittedTotal`.
+  ₹1,24,722 = committed ₹39,522 + set aside ₹27,500 + income ₹57,700, exactly.
+- **What it costs:** the North Star — *commitments kept* — is inflated by the one thing that
+  was never a promise the user makes. A salary arriving is not an act of discipline.
+- **Where it leaks:** `CycleServiceImpl.close` writes both figures into `CycleSnapshot`,
+  which is **immutable by design** (ADR-0011's one exception). Every month closed before this
+  is fixed records the wrong count permanently.
+- **Not fixed here, deliberately.** Summary filters income occurrences out for itself
+  (`ReviewServiceImpl.billsOnly`, on `settleAs == INCOME` alone, so it needs no account lookup
+  and stays clear of 1.11's open question). Changing what `close` *stores* is a decision about
+  a historical row, not a side effect of building a report.
+- **Fix when taken:** filter in `PlanAdherence.from` itself and delete `billsOnly`. No cycle
+  has been closed yet, so there is nothing to restate — **this window does not stay open.**
+
+### 1.16 `formatPercent` prints a hyphen, not a true minus
+
+- **Found 2026-10-24** on Summary: a negative savings rate renders **`-10%`** with
+  `U+002D`, beside figures that correctly use `U+2212` (`Amount` via `splitMoney`).
+  `DESIGN_SYSTEM.md` §3 "Number craft" requires the true minus.
+- `Intl.NumberFormat`'s percent style emits the hyphen; `formatMoney` already replaces it
+  and `formatPercent` does not.
+- **One line in `lib/money.ts`**, but it changes output on six existing call sites
+  (Investments ×3, Months ×2, Summary), so it is logged rather than slipped into an
+  unrelated change.
+
 ### 1.14 A settled card bill kept nagging in Needs you — ✅ **fixed 2026-10-08**
 - **Found by the user**, 2026-10-08: *"from months I have already settled the credit card bill
   or emi's of it but on months under needs you it appears again"*. They were right, and the
@@ -418,6 +479,20 @@ real use and solved as one pass. Cross-reference between the two; never copy an 
 ---
 
 ## 4. Rough edges
+
+### 4.9 `/needs-you` nests a button inside a button
+
+- **Found 2026-11-01** while checking other screens after the Today rebuild. React logs
+  *"In HTML, <button> cannot be a descendant of <button>. This will cause a hydration
+  error."* on `/needs-you` and nowhere else.
+- **Cause:** `InsightRow`'s `navigable` branch wraps the whole card in a `<button>` so the
+  row is a way in, and that card already contains the action button and "I know". Only the
+  dedicated page passes `navigable`, which is why no other screen shows it.
+- **Not caused by the Today work** - that code path was not touched. `LedgerRow` already
+  solved exactly this with `div[role=button]` plus a real sibling that stops propagation,
+  and its class comment says so; `InsightRow` should follow it.
+- Cosmetic in the console today, but nested interactive elements are genuinely ambiguous to
+  keyboard and screen-reader users: the inner button's activation is swallowed by the outer.
 
 ### 4.8 The sidebar never collapses, so the app is unusable below ~700px
 - **Found 2026-10-03** while checking the rebuilt Today block at a narrow viewport. At 430px

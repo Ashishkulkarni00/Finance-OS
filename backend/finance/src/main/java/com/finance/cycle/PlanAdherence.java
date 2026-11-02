@@ -21,7 +21,12 @@ import java.util.List;
  */
 public record PlanAdherence(BigDecimal plannedTotal, BigDecimal actualTotal, int planned, int kept) {
 
-    static PlanAdherence from(List<CommitmentInstance> instances) {
+    /**
+     * Public rather than package-private since Summary reads it too ({@code ReviewServiceImpl}):
+     * "how did the plan go" has to be the same arithmetic live as it is at close, or the
+     * consolidated view and the snapshot would disagree about the North Star.
+     */
+    public static PlanAdherence from(List<CommitmentInstance> instances) {
         BigDecimal plannedTotal = BigDecimal.ZERO;
         BigDecimal actualTotal = BigDecimal.ZERO;
         boolean plannedKnown = true;

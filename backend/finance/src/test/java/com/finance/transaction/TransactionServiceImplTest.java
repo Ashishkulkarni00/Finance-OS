@@ -90,7 +90,8 @@ class TransactionServiceImplTest {
 
         service = new TransactionServiceImpl(repository, postingRepository, new PostingFactory(), mapper,
                 accountService, categoryService, idempotencyService,
-                mock(com.finance.commitment.CommitmentAutoMatcher.class), currentUser,
+                mock(com.finance.commitment.CommitmentAutoMatcher.class),
+                mock(com.finance.commitment.CommitmentSettlementReleaser.class), currentUser,
                 mock(com.finance.cycle.CycleService.class));
     }
 

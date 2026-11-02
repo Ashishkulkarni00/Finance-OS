@@ -15,4 +15,16 @@ public interface CycleRepository extends JpaRepository<Cycle, Long> {
     Optional<Cycle> findByUserIdAndStartDate(Long userId, LocalDate startDate);
 
     Page<Cycle> findByUserIdOrderByStartDateDesc(Long userId, Pageable pageable);
+
+    /**
+     * Cycles that have already started, newest first - the months there is anything to say
+     * about.
+     *
+     * <p>Summary needs the run of months behind today without creating any, which is what
+     * separates it from {@code CurrentCycleResolver}: that one finds-or-creates, because a
+     * month the user is working in has to exist. A report must not leave rows behind, and
+     * cycles well into the future exist here only because a bill was once planned into one.
+     */
+    Page<Cycle> findByUserIdAndStartDateLessThanEqualOrderByStartDateDesc(
+            Long userId, LocalDate startDate, Pageable pageable);
 }
