@@ -16,6 +16,7 @@ const GoalDetailPage = lazy(() => import('./routes/GoalDetailPage'));
 const CommitmentRuleDetailPage = lazy(() => import('./routes/CommitmentRuleDetailPage'));
 const OnboardingPage = lazy(() => import('./routes/OnboardingPage'));
 const LedgerPage = lazy(() => import('./routes/LedgerPage'));
+const SummaryPage = lazy(() => import('./routes/SummaryPage'));
 const DebtsPage = lazy(() => import('./routes/DebtsPage'));
 const InvestmentsPage = lazy(() => import('./routes/InvestmentsPage'));
 const CoverPage = lazy(() => import('./routes/CoverPage'));
@@ -72,6 +73,10 @@ export function App() {
             <Route path="/goals" element={<Navigate to="/ahead" replace />} />
             <Route path="/plan" element={<Navigate to="/ahead" replace />} />
             <Route path="/ledger" element={<LedgerPage />} />
+            {/* Summary: the months consolidated. Sits below Goals in the rail - the only
+                screen that compares months rather than reporting one. */}
+            <Route path="/summary" element={<SummaryPage />} />
+            <Route path="/review" element={<Navigate to="/summary" replace />} />
             <Route path="/ledger/import" element={<ImportPage />} />
             <Route path="/debts" element={<Navigate to="/money/debts" replace />} />
             <Route path="/investments" element={<Navigate to="/money/investments" replace />} />

@@ -1,14 +1,20 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { Compass, Calendar, Wallet, Target, Receipt, Plus, HelpCircle } from 'lucide-react';
+import { Compass, Calendar, Wallet, Target, Receipt, ChartColumn, Plus, HelpCircle } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useAppDispatch } from '@/store/hooks';
 import { openAddSheet, openPageAdd } from '@/store/slices/uiSlice';
 import { ADD_LABEL, addTargetFor } from './addTarget';
 
 /**
- * Five places, by what people come to do (STRATEGY_DEEP_DIVE §D, decision S2) - not one per
+ * Places, by what people come to do (STRATEGY_DEEP_DIVE §D, decision S2) - not one per
  * database entity. `owns` lists the path prefixes that belong to each, so a detail page
  * (one card, one loan, one bill) keeps its section lit.
+ *
+ * <p>There were five for a long time, and the rule behind the number still holds: a new
+ * entry has to be a *job*, not a table. Summary is the sixth because none of the five
+ * answers "am I getting anywhere" - each of them reports the present, and that question
+ * needs the months set beside each other. It sits last, under Goals, because it is the one
+ * a person comes to least often and never urgently.
  */
 const NAV_ITEMS = [
   { to: '/today', label: 'Today', icon: Compass, owns: ['/today', '/needs-you'] },
@@ -19,6 +25,7 @@ const NAV_ITEMS = [
   // be the section's index without the two fighting. `/goals` already redirects here, so a
   // typed or bookmarked URL still lands in the right place.
   { to: '/ahead', label: 'Goals', icon: Target, owns: ['/ahead', '/goals'] },
+  { to: '/summary', label: 'Summary', icon: ChartColumn, owns: ['/summary', '/review'] },
 ] as const;
 
 const isOwned = (pathname: string, owns: readonly string[]) =>

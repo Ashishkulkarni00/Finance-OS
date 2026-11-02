@@ -276,4 +276,39 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
                                                                   @Param("type") TransactionType type,
                                                                   @Param("from") LocalDate from,
                                                                   @Param("to") LocalDate to);
+
+    /**
+     * The same per-category total, minus anything that settled a planned commitment - the
+     * per-category form of {@link #sumUnplannedByTypeInRange}, and excluded by exactly the
+     * same subquery so the two can never disagree about a transaction.
+     *
+     * <p>Summary's category breakdown needs the committed/day-to-day split <em>within</em>
+     * each category, not just in total. Subtracting this from
+     * {@link #sumByCategoryInRange} gives the committed part, so the breakdown adds back to
+     * the month's spend exactly - which is the only reason it can be shown beside the chart
+     * without the two contradicting each other.
+     *
+     * <p>Note this is a different question from the Month screen's "flexible spending",
+     * which filters to the FLEXIBLE <em>category group</em>. A fixed-category expense that
+     * no commitment covers is day-to-day money by the link and fixed by its group; the link
+     * is what Real Balance is built on, so the link is what this follows.
+     */
+    @Query("""
+            select t.categoryId as categoryId, coalesce(sum(t.amount), 0.00) as total
+            from Transaction t
+            where t.userId = :userId and t.deletedAt is null
+              and t.type = :type
+              and t.categoryId is not null
+              and t.date between :from and :to
+              and t.id not in (
+                  select ci.linkedTransactionId from CommitmentInstance ci
+                  where ci.userId = :userId and ci.linkedTransactionId is not null
+              )
+            group by t.categoryId
+            order by sum(t.amount) desc
+            """)
+    java.util.List<CategorySpendProjection> sumUnplannedByCategoryInRange(@Param("userId") Long userId,
+                                                                          @Param("type") TransactionType type,
+                                                                          @Param("from") LocalDate from,
+                                                                          @Param("to") LocalDate to);
 }

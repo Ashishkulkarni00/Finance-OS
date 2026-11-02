@@ -49,6 +49,8 @@ public class CommitmentInstanceServiceImpl implements CommitmentInstanceService 
     private final CommitmentRepository commitmentRepository;
     private final CommitmentInstanceGenerator generator;
     private final CommitmentSettlementCalculator calculator;
+    /** Undoes a settlement - the other half of `settle`, see its own note. */
+    private final CommitmentSettlementReleaser releaser;
     private final CycleService cycleService;
     private final TransactionService transactionService;
     private final AccountService accountService;
@@ -65,6 +67,7 @@ public class CommitmentInstanceServiceImpl implements CommitmentInstanceService 
                                          CommitmentRepository commitmentRepository,
                                          CommitmentInstanceGenerator generator,
                                          CommitmentSettlementCalculator calculator,
+                                         CommitmentSettlementReleaser releaser,
                                          CycleService cycleService,
                                          TransactionService transactionService,
                                          AccountService accountService,
@@ -79,6 +82,7 @@ public class CommitmentInstanceServiceImpl implements CommitmentInstanceService 
         this.commitmentRepository = commitmentRepository;
         this.generator = generator;
         this.calculator = calculator;
+        this.releaser = releaser;
         this.cycleService = cycleService;
         this.transactionService = transactionService;
         this.accountService = accountService;
@@ -562,6 +566,20 @@ public class CommitmentInstanceServiceImpl implements CommitmentInstanceService 
         return new CommitmentInstanceView(saved, commitment,
                 accountService.getByIdIncludingDeleted(commitment.getAccountId()), settledOn(saved, facts),
                 categoryOf(commitment), settledFrom(saved, commitment, facts));
+    }
+
+    @Override
+    @Transactional
+    public CommitmentInstanceView unsettle(Long id) {
+        CommitmentInstance instance = requireOwned(id);
+        if (instance.getStatus() != CommitmentInstanceStatus.PAID
+                && instance.getStatus() != CommitmentInstanceStatus.PART_PAID
+                && instance.getStatus() != CommitmentInstanceStatus.SETTLED_EARLIER
+                && instance.getLinkedTransactionId() == null) {
+            throw new BusinessRuleException(ErrorCode.INSTANCE_NOT_SETTLED,
+                    "Nothing is recorded against this bill yet, so there's nothing to undo.");
+        }
+        return toView(releaser.release(instance));
     }
 
     @Override

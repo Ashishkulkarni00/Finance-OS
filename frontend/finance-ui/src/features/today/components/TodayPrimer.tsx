@@ -8,12 +8,12 @@ export function TodayPrimer({ onOpenGuide }: { onOpenGuide: () => void }) {
   return (
     <PagePrimer
       storageKey="kosh.today.primer.dismissed"
-      headline="What you can spend today without touching money that’s already spoken for."
+      headline="What’s left of today’s share, and what stands between you and payday."
       // "before salary" alone invites "which salary?" - and this strip sits *above* the hero,
-      // so the reader has not yet seen the "Free until salary · 28 Oct" header that would
-      // have answered it. The primer has no cycle data of its own; naming which salary is
-      // what it can do without plumbing a date through a static strip.
-      detail="Bills still due before your next salary are taken out first, so what’s left is genuinely yours."
+      // so the reader has not yet seen the salary date that would have answered it. The
+      // primer has no cycle data of its own; naming which salary is what it can do without
+      // plumbing a date through a static strip.
+      detail="Bills still due before your next salary are taken out first, then what’s left is spread over the days remaining."
       rules={rules}
       guideLabel="How it works"
       onOpenGuide={onOpenGuide}

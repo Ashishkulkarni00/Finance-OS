@@ -36,6 +36,33 @@
   --goal: #7c3aed;
   --debt: #9a3412;
   --invest: #1d4ed8;
+
+  /* ------------------------------------------------------------------------
+   * Chart fills - DESIGN_SYSTEM §8. Separate tokens from the domain hues above
+   * because those are tuned for 3px rules, icon tints and status dots, and a
+   * large fill needs different steps: `--commit`'s dark value (#a1a1aa) sits
+   * only ΔE 13 from `--invest`'s (#60a5fa) in normal vision, which is below the
+   * legibility floor for two fills the eye has to tell apart.
+   *
+   * Committed and flexible are two steps of ONE hue, not two hues, and that is a
+   * statement about the data: both are money going out, so they are magnitudes of
+   * one thing. Invested is a different hue because it is a different thing - money
+   * kept rather than spent. A 2px gap of page colour separates the bands, so the
+   * two grey steps never have to carry the separation on their own.
+   *
+   * Every pair here was run through the palette validator in both modes: CVD
+   * separation and normal-vision floor pass, and every fill clears 3:1 against its
+   * surface. The grey deliberately fails the validator's chroma floor - it is
+   * meant to read as neutral, and it is always directly labelled.
+   * ---------------------------------------------------------------------- */
+  --chart-committed: #3f3f46;
+  --chart-flexible: #71717a;
+  --chart-invest: #1d4ed8;
+  --chart-neutral: #78716c;
+  /* Income, drawn as a rule the stack can exceed - the one series in accent. */
+  --chart-income: #0f766e;
+  /* Debt is clay, never red: it is being worked down, not an emergency (§7). */
+  --chart-debt: #9a3412;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -61,6 +88,16 @@
     --goal: #a78bfa;
     --debt: #e07a4f;
     --invest: #60a5fa;
+
+    /* Chosen for the dark surface, not flipped from the light steps - see the note
+     * above. #3b82f6 rather than `--invest`'s #60a5fa so both fills sit inside one
+     * lightness band and neither shouts over the other. */
+    --chart-committed: #a1a1aa;
+    --chart-flexible: #7d7d86;
+    --chart-invest: #3b82f6;
+    --chart-neutral: #a8a29e;
+    --chart-income: #2dd4bf;
+    --chart-debt: #e07a4f;
   }
 }
 

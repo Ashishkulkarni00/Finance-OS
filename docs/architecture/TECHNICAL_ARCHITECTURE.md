@@ -13,7 +13,7 @@ Prototype-only decisions are marked **[P]**; anything unmarked should survive to
 | Styling | Tailwind + CSS variables for tokens | Tokens in CSS vars so theming is not a rewrite |
 | State | **Redux Toolkit + RTK Query** | Redux as specified. RTK Query removes ~40 lines of boilerplate per endpoint and makes the API slices *be* the service layer |
 | Routing | React Router | |
-| Charts | Recharts | Few charts; not worth D3 |
+| Charts | **Hand-built: HTML/CSS columns, inline SVG for curves** | **Recharts was never installed and is not adopted — ADR-0021.** Its defaults (gridlines, legend box, axis border) are what `DESIGN_SYSTEM` §8 forbids, so every chart would be a fight with them. No dependency added |
 | Backend | **Java 21 + Spring Boot 4.1.1** | As initialised. Spring Framework 7.0.9, Hibernate 7.4.5, Jackson 3.1.5. See ADR-0013 |
 | Persistence | Spring Data JPA / Hibernate | |
 | Database | **MySQL 8.0.39** | Verified running locally; schema `finance_planner` |

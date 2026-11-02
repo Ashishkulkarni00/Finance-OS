@@ -1,4 +1,4 @@
-# Continue here (rewritten 2026-10-03)
+# Continue here (rewritten 2026-10-24)
 
 **This top block — down to the `---` — is the whole handoff contract. A session started
 with the single word "continue" must be able to act on it with no other input.** Everything
@@ -29,43 +29,133 @@ This changes how much gets *printed*, never how much gets verified.
 
 ## NEXT ACTION
 
-Both servers are up (the user restarted the backend themselves on 2026-10-03, after Claude Code
-reaped it for low system memory). **Nothing is half-finished in the code** — everything below is
-either a decision for the user or a fresh slice.
+On branch **`feature/month-summary`**, off `uat-release`. Two pieces of finished work sit
+uncommitted: **Summary** (2026-10-24) and the **Today rebuild** (2026-11-01). Both are
+verified against real data in a headless browser, not merely compiled.
 
-### ⚠️ 1. Real money first: IDBI is short by **8 Oct**
+### 1. Nothing is half-done. Two things need committing
 
-**₹5,976 short.** ₹14,836 of bills are planned from IDBI Saving this cycle; it holds ₹8,860.
-The 5 Oct EMIs are covered — the user moved ₹8,400 across on 3 Oct (txn 95) — so **TV+WiFi
-Recharge on 8 Oct is the one that fails.** HDFC Salary holds ₹25,016, so the money exists, and
-moving it does not change Real Balance (both accounts are spendable). **Raise this first.**
+**Today, rebuilt 2026-11-01** on the user's own words: *"whatever is there on today page I
+dont like it how its aligned and everything ... what numbers its showing how it came nothing
+is making sense for me right now ... how much I am able to spend for today that should be
+there along with little relevant information. revamp it please"*. Full write-up below under
+*2026-11-01*.
 
-### 2. Commit — the pile is past 50 paths on `uat-release`
+**Summary, built 2026-10-24** on *"monthly summary section below Goals in left vertical ...
+via charts graphs etc"*. Five sections at `/summary`, a sixth rail entry under Goals. Full
+write-up below under *2026-10-24*.
 
-Which is not a feature branch. Eleven unrelated pieces of work in one heap, now including
-ADR-0020, the `PulseMetrics` rebuild and M1. The user has been reminded six times and declined a
-branch when one was offered. **Mention once, then drop it.**
+Frontend only, both of them. `npx tsc -b --noEmit && npx vite build` clean; no backend
+change, so nothing new is waiting on DDL.
 
-### 3. Open decisions — the user has not answered these; do not pick for them
+### 2. New: `webapp/mcp-server/` - Kosh's data, read-only, over MCP
+
+Built 2026-11-01 on the user's instruction: *"I want to begin new session in claude code via
+app, and give it access of data what our kosh has so that in the session I can ask claude to
+act as my personal CA"*. On the current branch, at their direction.
+
+- **`server.mjs`** - one file, zero dependencies, MCP over stdio (Node 22's `fetch` plus
+  newline-delimited JSON-RPC). 16 tools, each one GET.
+- **Read-only is structural.** `call()` is the only function that touches the network and
+  takes no HTTP method, so there is no code path that can POST, PATCH or DELETE. A session
+  cannot write because no tool *can*. `lastFour` is stripped from every account on the way
+  out; names are not, since an answer has to be able to say "IDBI Saving".
+- **`CA_BRIEF.md`** - the role, the reading rules that are easy to get wrong (the 28-27
+  salary month against the 1 Apr - 31 Mar financial year; transfers are not spending; null
+  is never zero), and the part that decides whether a tax answer is possible at all:
+  **what Kosh does not know** - gross salary, TDS, EPF, HRA, rent, regime choice. The brief
+  tells the session to ask for a payslip or Form 16 rather than compute from take-home.
+  What it *can* do from Kosh alone: **80E** (education loan interest, via
+  `kosh_loan_schedule` on loan 2 - `interestComponent` per row) and **80D** (health premium,
+  with the parent-policy limit noted as separate).
+- **Registered in both clients.** Claude Code reads `.mcp.json` at `G:\FinanceOS\`; Claude
+  Desktop reads `%LOCALAPPDATA%\Claude-Data\<account>\claude_desktop_config.json` - the newer
+  per-account layout, **not** the `%APPDATA%\Claude\` path the guides still give, and it had
+  no `mcpServers` key at all. Desktop's entry uses the **absolute path to `node.exe`**: the app
+  spawns servers without a login shell's `PATH`. The previous config was backed up beside it as
+  `claude_desktop_config.backup-2026-11-01.json`.
+- **The brief reaches a Desktop chat through MCP**, since a chat there cannot open a file: as a
+  *prompt* (`personal_ca`, listed under "+") and as the `kosh_ca_brief` *tool*, read from disk
+  per call so edits need no restart.
+- **`.mcp.json` lives at `G:\FinanceOS\`** - outside the repo, which is not a git work tree
+  at that level, so machine-local config stays untracked while the server itself is
+  versioned.
+
+**Verified** against the running backend: handshake, `tools/list` (16), live calls to
+accounts / loans / spending summary / loan schedule, `lastFour` absent from the payload,
+unknown-tool error, and the backend-down path returning a sentence that names the fix. One
+real bug found and fixed in the process: exiting on stdin close dropped in-flight requests,
+so the server now drains before exiting.
+
+### 3. What the Today rebuild did **not** fix, deliberately
+
+- **`FIX_BACKLOG` 1.17 - "Free this month" leads with an income figure the user will not
+  recognise.** The note reads *"₹1,05,733 in"*: salary ₹57,700 + Diwali bonus ₹46,000 + a
+  ₹1,736 withdrawal from an NJE-wealth SIP + ₹297 recorded as "Unexplained part of the
+  credit". A SIP withdrawal is a transfer between two things the user already owns and is
+  **not income**. The arithmetic is right; the input is not. Contained for now inside Today's
+  collapsed *Standing* section - but it is the **lead figure on Months**, where it is
+  prominent and unexplained. Needs a decision: is the transaction miscategorised, or should
+  the shape calculator exclude income whose counterparty is the user's own holding?
+- **A second shortfall account would keep its card.** `useDatedWarnings` fetches one
+  projection, for the first shortfall account, and anchors that warning to the exact payment
+  that breaks it. Hooks cannot be called in a loop; a second shortfall still shows in full in
+  Needs you, just not inline. Nothing is lost, only the placement.
+
+### 4. Defects still open from Summary, neither fixed
+
+- **`FIX_BACKLOG` 1.15 - `PlanAdherence` counts income as a commitment.** The October cycle
+  read "16 of 17 kept" with a planned cost of ₹1,24,722 against ₹59,200 of income, because the
+  salary and the Diwali bonus are occurrences like any other. Summary filters them out for
+  itself; `CycleServiceImpl.close` still writes the inflated figures into `CycleSnapshot`,
+  which is immutable. **No cycle has been closed yet, so there is nothing to restate - that
+  window shuts the first time a month is closed.** This is the one item with a deadline.
+- **`FIX_BACKLOG` 1.16 - `formatPercent` prints a hyphen, not a true minus.** One line, six
+  existing call sites, so not slipped into an unrelated change.
+
+### 5. Open decisions - the user has not answered these; do not pick for them
 
 - **May a closed cycle's figures change?** The only thing blocking `FIX_BACKLOG` **1.11**.
   `CommitmentBucketClassifier` reads the *planned* source, so an account's spendability checkbox
-  silently restates a month's shape — and it is shared with `CycleReview`, which **recomputes
+  silently restates a month's shape - and it is shared with `CycleReview`, which **recomputes
   live rather than reading `CycleSnapshot`**. If the answer is "no", `CycleReview` needs the
-  snapshot before the classifier can move. *Note: ₹27,500 is **arithmetically correct** — see the
+  snapshot before the classifier can move. *Note: ₹27,500 is **arithmetically correct** - see the
   correction in 1.11. The defect is that it moved retroactively, not that it is wrong.*
-- **Green on a positive "Free this month"** — asked for in the Today brief, deliberately not
-  built, offered back, unanswered. Two lines if they want it.
-- **Commitment 43** (₹30,000 EF top-up, 3 Nov) — **the user said "let it be" on 2026-10-03.**
+- **Commitment 43** (₹30,000 EF top-up, 3 Nov) - **the user said "let it be" on 2026-10-03.**
   Parked, not pending. Do not raise it again unprompted.
 
-### 4. If they say "carry on": the solutions pass, `USAGE_ISSUES` §"Solutions pass"
+*(The old "green on a positive Free this month" question is closed: that row left Today's
+hierarchy on 2026-11-01 and now sits inside Standing, where a colour would say nothing.)*
 
-Six proposals, none approved. **M3 is the one to build** — show the payment list on a bill's
+### 6. Real money: IDBI is short on **5 Nov** - and Today now says so on the row
+
+Checked 2026-11-01 against live data. `GET /accounts/4/projection`: IDBI Saving holds ₹4,389
+and is projected to **-₹10,111** by the cycle's end. It covers the Education loan EMI on 5 Nov
+(leaving ₹972) and then **cannot cover the Coding Ninjas EMI** the same day. ₹10,111 needs to
+move in by 5 Nov; ₹44,151 is sitting in HDFC Salary.
+
+This is the **same shape** as the 8 Oct warning raised on 2026-10-03 - the money lives in the
+wrong account each month. The warning is now attached to the payment it breaks in *Before
+payday*, with its own **Move money** button, rather than sitting in a card beside it.
+
+### 7. If they say "carry on": the solutions pass, `USAGE_ISSUES` section "Solutions pass"
+
+Six proposals, none approved. **M3 is the one to build** - show the payment list on a bill's
 detail page. It is the only item that hands the user the evidence instead of Claude fixing
 something on their behalf, and *"which entries made up this ₹10,500?"* has been answerable in
-the data since V23 and visible nowhere. **M2** (refuse an over-settle — the calculator still has
+the data since V23 and visible nowhere. **M2** (refuse an over-settle - the calculator still has
 no cap) is smaller and closes a live rule-4 hole.
+
+### Owed to Summary, small and deliberate
+
+- **No Help topic and no primer.** Every other screen has one; this has a takeaway sentence per
+  section and a plain-language footnote under each table instead, because it is a report with no
+  form to get wrong. If a Help topic is written, `SummaryPage` has nowhere to hang a guide sheet
+  yet.
+- **`Statement notes` collapses below ~900px** - its label column squeezes to nothing while the
+  22rem notes column holds its width. Pre-existing, affects Money; Today's own statements use
+  the two-column form and are unaffected. Related to `FIX_BACKLOG` 4.8 (the rail never
+  collapses).
 
 ### Where a problem found in real use goes
 
@@ -73,6 +163,199 @@ no cap) is smaller and closes a live rule-4 hole.
 `FIX_BACKLOG` is defects and missing capability. Cross-reference, never copy. **Do not fix
 `USAGE_ISSUES` entries piecemeal** — they are solved in one considered pass, at the user's own
 instruction.
+
+---
+
+## 2026-11-01 - Today rebuilt around the day's own figure
+
+**Asked for:** *"whatever is there on today page I dont like it how its aligned and everything.
+Everything above needs you and coming up needs revamping what numbers its showing how it came
+nothing is making sense for me right now. on todays page, how much I am able to spend for today
+that should be there along with little relevant information. revamp it please"*. Built on the
+current branch at the user's instruction (*"build on current branch only"*).
+
+### What was actually wrong - four structural faults, not cosmetics
+
+Diagnosed against live data (2026-11-01, cycle 28 Oct - 27 Nov) in a headless browser:
+
+1. **The page answered a different question from its own title.** The hero was Real Balance,
+   ₹3,650 - a 27-day figure. The day's own number, ₹135, was row one of a seven-row table in
+   caption type.
+2. **Nothing aligned.** The hero sat at the left margin; seven figures right-aligned ~850px
+   away. The eye zig-zagged, and a 1440px window left the right half of the hero block empty
+   while the bottom third of a 2400px page was blank.
+3. **Two figures both called "free", 3.5x apart, five rows apart.** *Free until salary*
+   ₹3,650 and *Free this month* ₹12,842. Both correct; they measure different things, which
+   is precisely why they could not sit unexplained beside each other.
+4. **The loudest number was the least actionable.** Net worth -₹2,02,316 in red was the
+   strongest thing on screen, on a page whose question is "can I spend?".
+
+### What was built
+
+- **`SpendToday`** replaces `Pulse`. Hero is **`roomLeft`** - the day's share less what has
+  already gone today - not `realBalance` and not `perDay`. Under it, the derivation **on the
+  page**: *Free until salary ₹3,650 / 27 days to Sat 28 Nov = ₹135 a day*, three ruled rows
+  with dotted leaders. `PositionStatement` stays behind "How is ₹3,650 worked out?" as the
+  next level down.
+- **`BeforePayday`** replaces `ComingUpList`. The window is the **cycle**, not 30 days: it runs
+  to the salary row and stops, salary last, in positive ink. Dates are **group headers**, so
+  the rows carry only what differs - and names are no longer truncated. Was 3 of 16 rows; is
+  now all 14 to payday.
+- **Shortfall warnings attach to the payment they break.** `useDatedWarnings` reads
+  `/accounts/{id}/projection` and matches the first `covered: false` deduction's
+  `commitmentInstanceId` to the timeline row's `sourceId` - the same payment `ShortfallRule`
+  named. **Account + date is not enough** and the first attempt got it wrong on real data:
+  three IDBI bills fall on 5 Nov and the account covers the first two. The warning carries its
+  own **Move money** button and is suppressed from Needs you (`InsightList hideKeys`), so it
+  is said once.
+- **`StandingPanel`** - *Free this month*, *You usually spend*, *If income stopped*, *Owed*,
+  *Net worth* - collapsed at the foot of the page. **Folded, not deleted:** "If income
+  stopped" exists nowhere else in the product, and Owed and runway keep their `BasisPanel`
+  derivations.
+- **Layout, settled on the second pass.** The rebuild first went to one column at a 44rem
+  measure. The user's verdict: *"two column view below the consolidated summary was actually
+  nice ... unnecessary white space is left towards right"* - correct on both counts, and the
+  fix was to adopt the house idiom rather than invent one. `MonthOverview` already splits a
+  block with `lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]` and a `lg:border-l` divider, and
+  the shell is a 1120px container (`--width-content`). Today now follows it:
+  - **Summary band, full width**, divided: the day's figure left, the derivation right.
+  - **Two columns below** at `xl`: *Before payday* in the 1fr track (four facts per row and
+    the longest list), the rail at 26rem.
+  - **The rail holds Needs you *and* Standing** - everything that is not the payment
+    timeline. Standing moved out of the page foot because the rail otherwise ran empty for
+    most of its height beside a fourteen-row list.
+  - **`PositionStatement` opens full width, below the band**, never inside the 28rem column
+    that holds its trigger: it renders `Statement notes`, whose third column is a fixed
+    22rem, and in a narrow track every row wraps one word per line.
+  - Checked at 1440 / 1280 / 1100 / 900px: no overflow, two columns above `xl` (1280),
+    stacked below it in reading order.
+- **`DayStatus` fills the space under the figure** (third pass, same session). The hero left
+  most of a 600px column empty next to the first thing the eye lands on. That slot now
+  carries **the highest-ranked warning not already shown elsewhere**, promoted out of the
+  rail by key - the same say-it-once rule the dated shortfalls follow. The rail is retitled
+  **"Also worth a look"** and takes `hideWhenEmpty`, so it omits itself rather than printing
+  a header over nothing.
+  - **The all-clear states a fact, it does not congratulate.** *"great job, everything's
+    sorted"* was the ask; the wording goes a step past it, deliberately. Praise for a quiet
+    day is hollow - most quiet days are the plan working - and a product that congratulates
+    on a schedule teaches you to discount it, which is nag fatigue in a friendlier coat.
+    So: a green tick, **"Nothing needs you today."**, and a line saying *why* - "Every
+    payment due before Sat, 28 Nov has an amount, and the account it leaves from covers it."
+    A reason outlasts a compliment, and it is still true on the day it stops being clear.
+    `whatMoved` (ROADMAP 3.3) prints under it when the server supplies it.
+  - **It cannot contradict the page.** It renders only when the insight list is empty, which
+    is the same list that feeds the inline shortfalls - so a green tick above a shortfall in
+    *Before payday* is impossible by construction, not by a check that could be forgotten.
+    Verified by stubbing `/insights` to an empty list over CDP (a response substitution on
+    the way into the browser; every non-GET stayed aborted and nothing was written).
+
+### Files
+
+New: `SpendToday.tsx`, `BeforePayday.tsx`, `StandingPanel.tsx`, `DayStatus.tsx`.
+Deleted: `Pulse.tsx`, `PulseMetrics.tsx`, `ComingUpList.tsx`.
+Changed: `TodayPage.tsx`, `InsightList.tsx` (exported `useInsightAction`, added `hideKeys`
+and `hideWhenEmpty`),
+`TodayPrimer.tsx`, `TodayGuideSheet.tsx`, `features/help/content/today.ts` (seven topics
+re-worded - the help described a page that no longer exists).
+
+**No backend change and no new endpoint**, so the Postman collection is unchanged;
+`/accounts/{id}/projection` already had a request.
+
+### Verified
+
+`npx tsc -b --noEmit` and `npx vite build` clean. Headless Chrome against the real dev data:
+no console errors, no horizontal scroll, the shortfall anchored to Coding Ninjas EMI (not
+Education loan EMI), Standing opens and reconciles against `/financial-state`.
+
+---
+
+## 2026-10-24 — Summary: the salary months, side by side
+
+**Branch `feature/month-summary`.** The user asked for a monthly summary below Goals in the
+rail, by charts, consolidating months, with the *content* left to judgement: *"you decide from
+finance growth perspective what needs to be known by the user"*.
+
+### What it says, and why those five things
+
+`DESIGN_SYSTEM` §8 already names the only four places a chart earns its place here — net worth,
+debt payoff, cycle comparison, category vs baseline — so the sections are those, ordered by
+growth rather than by chronology.
+
+| Section | Form | The question |
+|---|---|---|
+| Where you stand | **No chart.** A ruled statement | Net worth · still owed · interest ahead · committed share |
+| Month by month | Spend columns, income as a rule across each | Did spending fit inside what came in |
+| Where it went | The same columns, stacked | **Is the committed share falling** — the one number a decision can move |
+| Debt down | A clay curve to the last payoff | The only section full of data on day one |
+| Did the plan hold | **No chart.** Counts and a hairline | Commitments kept — the North Star |
+
+Two sections deliberately have no chart. "11 of 13" is the whole answer, and a bar of it is the
+same fact drawn larger.
+
+### The honest problem, stated on the page
+
+**One complete salary month exists.** August has nothing in it, September has no plan behind it,
+October is 90% through. The page says so in its opening paragraph rather than letting two bars
+imply a trend. Debt down is exempt and says so — it is derived from each loan's amortisation,
+not from history.
+
+### Two things the real data caught, which compiling never would have
+
+1. **September read as "0% committed".** Nothing in that month was linked to a bill because
+   there were no bills yet — true of the links, false about the person, and it would have drawn
+   the committed share collapsing to nothing, exactly backwards. Now `planTracked: false`, the
+   split is **withheld rather than zeroed**, and the column is drawn as one undivided band. This
+   is rule 3 somewhere it had not been needed before: *null means unknown* applies to a ratio as
+   much as to an amount.
+2. **"16 of 17 commitments kept", including the salary.** → `FIX_BACKLOG` 1.15 above.
+
+### Backend — two reads, no schema
+
+`com.finance.review`: `GET /review/months?months=12` and `GET /review/debt-trajectory`.
+**No new entity, no new column, nothing for DEFERRED SCHEMA** — the backend boots unchanged.
+Everything is recomputed from the engines that already own it: the same repository sums as
+`CycleServiceImpl.computeSummary`, the same `sumUnplannedByTypeInRange` Room is built on, the
+same `PlanAdherence`, the same `AmortisationCalculator`. A figure here that disagreed with the
+screen it came from would make the whole page worthless.
+
+**Nothing is read from `CycleSnapshot`,** because no cycle has ever been closed and a
+snapshot-backed series would be permanently empty. **Reading Summary creates no cycle rows** —
+it queries cycles that already exist instead of going through `CurrentCycleResolver`.
+
+Two additive repository finders (`CycleRepository`, `CommitmentRepository`) and
+`PlanAdherence.from` made public. That is the whole footprint on existing backend code.
+
+### The comparison that is not a lie
+
+`samePoint` cuts the previous cycle at **the same day of the month** before comparing. This
+month's spend against last month's *total* flatters for twenty-seven days out of twenty-eight.
+It reads "₹17,631 more than by day 27 of 28 Aug – 27 Sept", and is null when there is no
+previous recorded month rather than inventing a baseline.
+
+### Charts — ADR-0021
+
+- **`Number()` over money is confined to `components/charts/chartScale.ts`,** which can only
+  return fractions. Every figure a person reads is a server figure through `Amount`, so
+  `FRONTEND_CONVENTIONS` §4 rule 2 survives intact instead of quietly eroding.
+- **Recharts is not adopted** (it was never installed). Columns are HTML/CSS, the curve is
+  inline SVG. No dependency added. `TECHNICAL_ARCHITECTURE`'s charting row is corrected.
+- **New `--chart-*` tokens**, separate from the domain hues: `--commit`'s dark value sits ΔE 13
+  from `--invest`'s in normal vision, below the legibility floor for two fills. Committed and
+  flexible are **two steps of one hue** — both are money going out — with invested a different
+  hue because it is money kept. Validated in both modes.
+
+### Verified, not assumed
+
+Headless Chrome against the live app, non-GET blocked so real data was never touched. The rail
+shows six entries with Summary lit; five sections render; no console errors; no horizontal
+scroll at 1440px; `outstandingNow` ₹3,34,442 and debt-free 5 Oct 2029 both reconcile with
+`/financial-state`; the curve is monotonic and ends at ₹0. Three layout faults were found by
+**looking at a screenshot** and fixed: 340px-wide columns that read as blocks, an income rule
+whose halo assumed a white surface, and a 37-point axis truncating "Oct 26" to "O…".
+
+Postman: a **Summary (review)** folder with both requests, assertions on the rules that matter
+(an unrecorded month carries nulls; committed + flexible = spend; no debt-free date while a loan
+is excluded), and saved real response examples.
 
 ---
 

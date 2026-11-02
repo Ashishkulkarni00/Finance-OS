@@ -29,6 +29,9 @@ public interface CommitmentInstancePaymentRepository extends JpaRepository<Commi
      */
     boolean existsByCommitmentInstanceIdAndTransactionId(Long commitmentInstanceId, Long transactionId);
 
+    /** Every bill this entry has paid - what a deleted entry has to be let go from. */
+    List<CommitmentInstancePayment> findByUserIdAndTransactionId(Long userId, Long transactionId);
+
     /** Is this entry already counted against some *other* bill? One payment, one bill. */
     boolean existsByTransactionIdAndCommitmentInstanceIdNot(Long transactionId, Long commitmentInstanceId);
 

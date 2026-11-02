@@ -104,6 +104,15 @@ public class CommitmentInstanceController {
         return reported(() -> service.clearAmountOverride(id));
     }
 
+    /**
+     * "I linked the wrong entry" - the occurrence lets go of its payments and goes back to
+     * unpaid. The entries themselves are untouched; only the link between them is undone.
+     */
+    @PostMapping("/api/v1/commitment-instances/{id}/unsettle")
+    public CommitmentInstanceResponse unsettle(@PathVariable Long id) {
+        return mapper.toResponse(service.unsettle(id));
+    }
+
     @PostMapping("/api/v1/commitment-instances/{id}/skip")
     public CommitmentInstanceResponse skip(@PathVariable Long id) {
         return reported(() -> service.skip(id));
