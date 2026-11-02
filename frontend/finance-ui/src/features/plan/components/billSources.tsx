@@ -3,7 +3,7 @@ import { useGetLoansQuery } from '@/services/loanService';
 import { useGetInvestmentsQuery } from '@/services/investmentService';
 import { useGetGoalsQuery } from '@/services/goalService';
 import { formatMoney } from '@/lib/money';
-import { formatShortDate } from '@/lib/dates';
+import { formatShortDate, ordinalDay } from '@/lib/dates';
 import type { AccountResponse } from '@/types/api';
 import type { CommitmentSource } from '@/types/commitmentRule';
 import type { GoalResponse } from '@/types/goal';
@@ -95,7 +95,7 @@ export function LockedTerms({ loan, investment }: { loan?: LoanResponse; investm
     return (
       <span className="flex flex-col gap-space-1">
         <span className="num text-label text-ink">
-          Spent · {formatMoney(loan.emi)} every month{loan.emiDay ? ` on the ${Math.min(loan.emiDay, 28)}th` : ''} · from{' '}
+          Spent · {formatMoney(loan.emi)} every month{loan.emiDay ? ` on the ${ordinalDay(Math.min(loan.emiDay, 28))}` : ''} · from{' '}
           {loan.payFromAccount?.name ?? 'no account yet'}
           {loan.payoffDate ? ` · last ${formatShortDate(loan.payoffDate)}` : ''}
         </span>
@@ -111,7 +111,7 @@ export function LockedTerms({ loan, investment }: { loan?: LoanResponse; investm
       <span className="flex flex-col gap-space-1">
         <span className="num text-label text-ink">
           Invested · {formatMoney(investment.monthlyContribution)} every month
-          {investment.contributionDay ? ` on the ${Math.min(investment.contributionDay, 28)}th` : ''} · from{' '}
+          {investment.contributionDay ? ` on the ${ordinalDay(Math.min(investment.contributionDay, 28))}` : ''} · from{' '}
           {investment.payFromAccount?.name}
           {investment.account ? ` into ${investment.account.name}` : ''}
         </span>

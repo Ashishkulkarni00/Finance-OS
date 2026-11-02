@@ -29,6 +29,17 @@ public record PositionResponse(
         @JsonSerialize(using = MoneySerializer.class)
         BigDecimal roomLeft,
 
+        /**
+         * What is left, per remaining day - the rate that is actually affordable.
+         *
+         * <p>Use this, never {@code roomToday}, beside a phrase like "a day for N days".
+         * {@code roomToday} adds today's spending back so it stays still while the day runs,
+         * which means it multiplies out to more than is held: "₹187 a day for 29 days"
+         * promised ₹5,411 against ₹5,149. This one multiplies back exactly.
+         */
+        @JsonSerialize(using = MoneySerializer.class)
+        BigDecimal perDay,
+
         /** What's already gone out today - "of ₹512 today · ₹222 spent". SCREEN_SPECS S1. */
         @JsonSerialize(using = MoneySerializer.class)
         BigDecimal spentToday,
@@ -41,11 +52,11 @@ public record PositionResponse(
 ) {
 
     public static PositionResponse ok(BigDecimal realBalance, BigDecimal roomToday, BigDecimal roomLeft,
-                                      BigDecimal spentToday, PositionBreakdown breakdown) {
-        return new PositionResponse("OK", realBalance, roomToday, roomLeft, spentToday, breakdown, null, null);
+                                      BigDecimal perDay, BigDecimal spentToday, PositionBreakdown breakdown) {
+        return new PositionResponse("OK", realBalance, roomToday, roomLeft, perDay, spentToday, breakdown, null, null);
     }
 
     public static PositionResponse incomplete(String reason, List<Blocker> blockers) {
-        return new PositionResponse("INCOMPLETE", null, null, null, null, null, reason, blockers);
+        return new PositionResponse("INCOMPLETE", null, null, null, null, null, null, reason, blockers);
     }
 }

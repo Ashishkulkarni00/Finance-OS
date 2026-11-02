@@ -7,6 +7,8 @@ import com.finance.commitment.CommitmentInstanceService;
 import com.finance.cycle.CycleService;
 import com.finance.cycle.domain.Cycle;
 import com.finance.goal.GoalService;
+import com.finance.goal.GoalView;
+import com.finance.goal.GoalWithdrawalCalculator;
 import com.finance.loan.LoanService;
 import com.finance.projection.ProjectionService;
 import org.slf4j.Logger;
@@ -36,9 +38,16 @@ public class InsightService {
 
     private static final Logger log = LoggerFactory.getLogger(InsightService.class);
 
-    /** How many each surface shows before "and N more". */
+    /**
+     * How many each surface shows before "See all".
+     *
+     * <p>Three everywhere. Months used to show five, on the reasoning that it is the working
+     * screen and can carry more - but in use it just meant scrolling past a block of warnings
+     * to reach the plan, which is what you came for. Three is a glance; the rest are one
+     * click away on `/needs-you` and the count says how many there are.
+     */
     public static int limitFor(Insight.Surface surface) {
-        return surface == Insight.Surface.TODAY ? 3 : 5;
+        return 3;
     }
 
     private final List<InsightRule> rules;
@@ -48,6 +57,7 @@ public class InsightService {
     private final ProjectionService projectionService;
     private final CreditCardService creditCardService;
     private final GoalService goalService;
+    private final GoalWithdrawalCalculator goalWithdrawals;
     private final LoanService loanService;
     private final InsightSilencer silencer;
     private final Clock clock;
@@ -55,6 +65,7 @@ public class InsightService {
     public InsightService(List<InsightRule> rules, CycleService cycleService, CommitmentInstanceService instanceService,
                           AccountService accountService, ProjectionService projectionService,
                           CreditCardService creditCardService, GoalService goalService,
+                          GoalWithdrawalCalculator goalWithdrawals,
                           LoanService loanService, InsightSilencer silencer, Clock clock) {
         this.rules = rules;
         this.cycleService = cycleService;
@@ -63,6 +74,7 @@ public class InsightService {
         this.projectionService = projectionService;
         this.creditCardService = creditCardService;
         this.goalService = goalService;
+        this.goalWithdrawals = goalWithdrawals;
         this.loanService = loanService;
         this.silencer = silencer;
         this.clock = clock;
@@ -132,8 +144,10 @@ public class InsightService {
                 log.warn("Insight context: projection skipped accountId={} reason={}", account.getId(), e.getClass().getSimpleName());
             }
         }
+        List<GoalView> goals = goalService.list(false, Pageable.unpaged()).getContent();
         return new FinancialContext(today, cycle, instanceService.listForCycle(cycle.getId()), projections,
-                creditCardService.list().cards(), goalService.list(false, Pageable.unpaged()).getContent(),
-                loanService.list(Pageable.unpaged()).getContent(), accounts);
+                creditCardService.list().cards(), goals,
+                loanService.list(Pageable.unpaged()).getContent(), accounts,
+                goalWithdrawals.forCycle(goals, accounts, cycle, cycle.getUserId()));
     }
 }

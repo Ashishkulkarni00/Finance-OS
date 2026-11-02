@@ -10,6 +10,7 @@ import { ResolveStep } from '@/features/monthClose/components/ResolveStep';
 import { ReviewStep } from '@/features/monthClose/components/ReviewStep';
 import { WhatMovedStep } from '@/features/monthClose/components/WhatMovedStep';
 import { CloseStep } from '@/features/monthClose/components/CloseStep';
+import { cycleProgress } from '@/lib/dates';
 import type { CycleSnapshotResponse } from '@/types/cycle';
 import type { AppError } from '@/types/errors';
 
@@ -38,7 +39,9 @@ export default function MonthClosePage() {
   });
   const [closeCycle, { isLoading: isClosing }] = useCloseCycleMutation();
 
-  const canClose = cycle ? new Date(cycle.endDate).getTime() < Date.now() : false;
+  // The same `cycleProgress().ended` Months uses. This page is reachable by URL, so it is
+  // its own gate rather than a formality - but it must reach the same verdict.
+  const canClose = cycle ? cycleProgress(cycle.startDate, cycle.endDate).ended : false;
 
   const handleBack = () => (step === 0 ? navigate('/month') : setStep((s) => s - 1));
   const handleNext = () => setStep((s) => Math.min(s + 1, STEPS.length - 1));

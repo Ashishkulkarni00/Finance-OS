@@ -13,7 +13,7 @@ export const TODAY_TOPICS: DocTopic[] = [
     category: 'today',
     slug: 'the-today-screen',
     title: 'Reading the Today screen',
-    summary: 'One figure - what you can spend without touching money that already has a job - plus whatever needs your attention right now.',
+    summary: 'One figure - what is left of today’s share - with the arithmetic that produced it, what is still to leave before payday, and whatever needs you now.',
     startHereStep: 7,
     sections: [
       {
@@ -21,7 +21,7 @@ export const TODAY_TOPICS: DocTopic[] = [
         blocks: [
           {
             kind: 'prose',
-            text: 'Today answers one question: what can you spend today, without touching money that is already spoken for? Everything on the page supports that one figure - it never tries to be a second Months or a second Ledger.',
+            text: 'Today answers one question: what can you spend today, without touching money that is already spoken for? The big figure is what is left of today’s share; the three ruled lines under it are the whole derivation - Free until salary, divided by the days to payday, giving a day’s share. Everything else on the page supports that one figure, and it never tries to be a second Months or a second Ledger.',
           },
         ],
       },
@@ -30,15 +30,16 @@ export const TODAY_TOPICS: DocTopic[] = [
         blocks: [
           {
             kind: 'prose',
-            text: 'Below the hero figure, "Needs you" lists anything worth acting on now - an overdue bill, an account below zero, a card payment coming due. If nothing needs you, it says so plainly rather than showing nothing at all.',
+            text: 'Under the figure, "Before payday" lists everything still to leave between now and your next salary, grouped by date, with the salary itself as the last line. Where an account will not cover one of those payments, the warning sits on that payment rather than in a box of its own. "Needs you" then holds whatever is left - a goal behind, a bill with no amount.',
           },
           {
             kind: 'example',
             title: 'A Saturday, six days from salary',
             lines: [
+              { label: 'Spend today', value: '₹2,185' },
               { label: 'Free until salary', value: '₹16,950' },
-              { label: 'A day', value: '₹2,825' },
-              { label: 'Needs you', value: '1 item' },
+              { label: 'A day from here', value: '₹2,825' },
+              { label: 'Before payday', value: '4 payments' },
             ],
           },
         ],
@@ -49,7 +50,7 @@ export const TODAY_TOPICS: DocTopic[] = [
           {
             kind: 'callout',
             tone: 'note',
-            text: 'Today deliberately does not show every bill this month, or every transaction - those live on Months and the Ledger. Today is the next 24 hours.',
+            text: 'Today deliberately does not show every bill this month, or every transaction - those live on Months and the Ledger. It runs as far as your next salary and stops. Net worth, what you owe and how long you would last if income stopped are folded into "Standing" at the foot of the page: true, but not decisions anyone takes at 11am.',
           },
         ],
       },
@@ -155,7 +156,7 @@ export const TODAY_TOPICS: DocTopic[] = [
         blocks: [
           {
             kind: 'prose',
-            text: 'Free until salary is what is left over your whole stretch until payday - but a single large number invites spending it all today. Room takes that figure and divides it by the days remaining, so you see a fair daily share instead.',
+            text: 'Free until salary is what is left over your whole stretch until payday - but a single large number invites spending it all today. Room takes that figure and divides it by the days remaining, giving a fair daily share. That share, less whatever has already gone today, is the big figure Today leads with.',
           },
         ],
       },
@@ -169,19 +170,18 @@ export const TODAY_TOPICS: DocTopic[] = [
           {
             kind: 'terms',
             items: [
-              { term: 'A day', means: 'Free until salary, spread evenly over the days left until your next salary.' },
-              { term: 'Spent today', means: 'What has already left your accounts today, counted only against today’s share.' },
-              { term: 'Left today', means: 'Today’s share minus what you have spent today.' },
+              { term: 'A day from here', means: 'Free until salary, spread evenly over the days left until your next salary.' },
+              { term: 'Spent today', means: 'What has already left your accounts today, counted only against today’s share. The note beside it says how much of today’s share is left, or how far over it you are.' },
             ],
           },
           {
             kind: 'example',
             title: 'Six days to salary, ₹16,950 free',
             lines: [
-              { label: 'A day', value: '₹2,825' },
+              { label: 'A day from here', value: '₹2,825' },
               { label: 'Spent today', value: '₹640' },
-              { label: 'Left today', value: '₹2,185' },
             ],
+            note: '₹2,185 left of today’s ₹2,825 share.',
           },
         ],
       },
@@ -202,7 +202,7 @@ export const TODAY_TOPICS: DocTopic[] = [
             items: [
               {
                 question: 'I spent more than today’s share - what happens?',
-                answer: 'Nothing is stopped. The page says "today’s share used - tomorrow’s will be a little smaller", and it will be, because the same total is now spread over the remaining days.',
+                answer: 'Nothing is stopped. The note beside "Spent today" names how far over - for example "₹75 over today’s ₹187 share" - and tomorrow’s share will be a little smaller, because the same total is now spread over the remaining days.',
               },
               {
                 question: 'Does Room count credit card spending?',
@@ -237,9 +237,10 @@ export const TODAY_TOPICS: DocTopic[] = [
               { term: '− Reserved', means: 'Money you set aside for something specific - an emergency fund, a trip.' },
               { term: '− Committed', means: 'Bills and EMIs still to leave before your next salary.' },
               { term: '− Owed on cards', means: 'Already spent on credit cards, still to be paid.' },
-              { term: '= Free until salary', means: 'What is genuinely yours to decide about until payday.', primer: true },
-              { term: '÷ Days to salary', means: 'Spread evenly - "a day" under the big number. Spend less and tomorrow’s share grows.', primer: true },
-              { term: 'Needs you', means: 'Something worth acting on now - act on it from the list right under the big number.', primer: true },
+              { term: '= Free until salary', means: 'What is genuinely yours to decide about until payday. The three ruled lines under the big number show it.', primer: true },
+              { term: '÷ Days to salary', means: 'Spread evenly, giving a day’s share. Spend less today and tomorrow’s share grows.', primer: true },
+              { term: 'Spend today', means: 'The big number: today’s share, less whatever has already gone today.', primer: true },
+              { term: 'Needs you', means: 'Something worth acting on now. A shortfall sits on the payment it breaks, in Before payday.', primer: true },
             ],
           },
           {
@@ -322,7 +323,7 @@ export const TODAY_TOPICS: DocTopic[] = [
         blocks: [
           {
             kind: 'prose',
-            text: 'Free until salary answers "what can I spend between now and payday". "Free this month", underneath it on Today, answers a related but different question: over the whole current cycle, once everything expected in has paid for everything committed and set aside, what is left for everything flexible? It is the same figure Months leads with as "Flexible".',
+            text: 'Free until salary answers "what can I spend between now and payday". "Free this month", inside "Standing" at the foot of Today, answers a related but different question: over the whole current cycle, once everything expected in has paid for everything committed and set aside, what is left for everything flexible? It is the same figure Months leads with as "Flexible". The two are kept apart on purpose - side by side, two figures both labelled "free" and several times apart read as a contradiction when neither is wrong.',
           },
         ],
       },
@@ -392,7 +393,7 @@ export const TODAY_TOPICS: DocTopic[] = [
               { label: 'Must-pay a month', value: '₹42,000' },
               { label: 'If income stopped', value: '5 months' },
             ],
-            note: 'Day-to-day spending sits on top of the 5 months, so it is a floor, not the whole story - the "How is this worked out?" line under it opens the exact accounts and bills counted.',
+            note: 'Day-to-day spending sits on top of the 5 months, so it is a floor, not the whole story - open "Standing" at the foot of Today and click the label to see the exact accounts and bills counted.',
           },
         ],
       },
@@ -434,7 +435,7 @@ export const TODAY_TOPICS: DocTopic[] = [
         blocks: [
           {
             kind: 'prose',
-            text: 'The "Owed" line on Today adds every loan’s outstanding balance into one figure, alongside what share of your income goes to EMIs each month and the date your last loan clears - a single position, rather than reading five rows on Debts to work it out yourself.',
+            text: 'The "Owed" line inside "Standing" at the foot of Today adds every loan’s outstanding balance into one figure, alongside what share of your income goes to EMIs each month and the date your last loan clears - a single position, rather than reading five rows on Debts to work it out yourself.',
           },
         ],
       },

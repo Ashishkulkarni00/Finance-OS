@@ -41,9 +41,11 @@ Rewritten from scratch 2026-09-17; stack, feature map and data snapshot refreshe
 ## 2. Stack and commands
 - **Backend:** `webapp/backend/finance`
   - Spring Boot 4.1.1, Hibernate 7, Jackson 3 (`tools.jackson.*`), Flyway, MySQL 8.
-  - The latest migration is **V21** (`insight_state` dismissal columns). V18 plan revisions ·
-    V19 insurance policies · V20 notification state · V21 dismiss/snooze — each asked for
-    explicitly; the freeze is back on.
+  - The latest migration is **V23** (`commitment_instance_payments`). V18 plan
+    revisions · V19 insurance policies · V20 notification state · V21 dismiss/snooze ·
+    V22 one-month amount override · **V23 commitment_instance_payments** — each asked for explicitly; the freeze is back on.
+  - Flyway applies a new migration **on the devtools restart**, so a `mvnw compile` is
+    usually enough; no manual step was needed for V22.
   - Tests: `JAVA_HOME=C:/Users/DELL/.jdks/corretto-21.0.4 MAVEN_OPTS="-Xmx512m" ./mvnw.cmd -B -o test`. Last known **125/125**, but **frozen since 2026-09-17** and not run since; Phase 1.1-1.4 added none. Treat that number as history, not as a current pass. Use `test-compile` — compiling is not running.
   - Dev server: `:8080` with devtools; it reloads on compile.
     - A test build can trigger a restart. Wait with an until-loop on `/api/v1/health`, not `sleep`.
@@ -102,42 +104,40 @@ Rewritten from scratch 2026-09-17; stack, feature map and data snapshot refreshe
   `INFORMATION_ARCHITECTURE.md` and the rest carry supersession banners).
   `DISCIPLINE_AND_TRUST.md` is parked, not next.
 
-## 4. The user's data (read-only snapshot, refreshed 2026-09-23)
+## 4. The user's data (read-only snapshot, refreshed 2026-09-30)
 
-> **₹1,597 of today's spending is six test rows** (ids 66-71, all described "test", dated
-> 2026-09-23) the user created while checking the write-effect toast. They sit in the
-> 28 Aug - 27 Sep cycle, which is **not** a month being used for real, and the user has been
-> asked to delete them. Subtract them before reading anything into Real Balance or net worth.
-> Figures below that depend on them are marked.
-- **Accounts:**
-  - HDFC Salary ₹8,788 (spending), IDBI Saving ₹709 (spending).
-  - HDFC Premium ₹33,000: the emergency fund, not spending money.
-  - Cash wallet ₹17,000: bank type, not spending money; to be deposited into the EF.
-  - HDFC Money back credit card.
-  - SIP - Zerodha (investment).
-  - Loan accounts for 5 loans.
-- **Loans:**
-  - Bank-paid: HDFC bike ₹6,145 (to Oct 2029), IDBI education ₹3,417 (to Nov 2027), Fibe "Coding ninjas" ₹4,983 (to Dec 2027). All three are **linked** to their bills.
-  - Card-paid on HDFC Money back: Mobile Mom ₹2,648 (to Feb 2027) and Health Insurance ₹3,998 (to Sep 2027). Both **now have bills** (added 21 Sept).
-- **Holdings:** SIP - Zerodha ₹2,500/month (ledger-tracked) and RD - Mom ₹1,000/month.
-  **The RD's bill was deleted by the user on 2026-09-22**, so October carries no RD at all.
-  The RD is tracked *outside the ledger*, which is why its bill could only ever settle as
-  `EXPENSE` (`SourceBillSync.java:149`) and why its ₹9,000 is invisible to net worth. It
-  cannot be fixed by editing — see CONTINUE_HERE's parked withdrawal design.
-- **Goals:** Emergency fund ₹33,000 of ₹2,00,000 by 31 Aug 2027, kept in HDFC Premium · Bangalore trip ₹0 of ₹12,000 by 31 Oct 2026, unfunded. **Both read `ON_TRACK`, and both are wrong** — see CONTINUE_HERE.
-- **Card:** HDFC Money back, limit ₹1,31,000, statement 21st, due 10th. ₹55,302 of EMI principal is blocked against the limit, so ₹75,698 is actually available.
-- **Plan from October:**
-  - Salary ₹57,700 on the 28th into HDFC Salary (Salary category exists).
-  - EF contribution ₹10,000 (transfer to HDFC Premium).
-  - One-offs: EF top-up ₹17,000 from Cash wallet (2 Oct) and EF top-up ₹30,000 (3 Nov). Diwali Bonus ₹46,000 (2 Nov, still *every year*).
-  - Bills: **all 5 EMIs** (the 3 bank ones plus Mobile Mom ₹2,648 and Health Insurance ₹3,998, both billed to the card — added 21 Sept), Electricity (varies), Home Support ₹10,000, TV+WiFi ₹1,000, Mobile recharges (varies), Hair cut ₹500, Petrol ₹2,500, SIP Zerodha ₹2,500, RD – Mom ₹1,000, Spotify ₹139, Anthropic subscription ₹2,373 (on the card, **currently archived**).
-- **October shape (2026-09-23):** comes in ₹57,700 · committed ₹41,616 · set aside ₹12,500 ·
-  **flexible ₹3,584** · 0 unknown amounts. Ahead's forecast reports the same figures as
-  Months for any month that has occurrences.
-- **Today's Real Balance:** ₹8,000 *(₹9,597 less the ₹1,597 of test rows)*. Room ₹1,919.40 a
-  day with 5 days to salary; ₹322.40 left today. **Net worth −₹2,77,192** — assets ₹62,900,
-  liabilities ₹3,40,092 *(also test-row affected; it was −₹2,75,595 before them)*.
-- **Open questions and clean-ups:** see CONTINUE_HERE → "The user's open to-dos".
+**They are live.** October (28 Sept - 27 Oct) is the current cycle and the first real month.
+The junk test rows are gone and the balances have been re-anchored by hand.
+
+- **Position, end of 30 Sept (day 3 of 30):** Real Balance **₹4,897** · held ₹41,436 ·
+  reserved ₹3,226 · committed ₹33,313 · spent today ₹252 · today's share ₹184 ·
+  **`perDay` ₹174.89** (the affordable rate - `roomToday` is the day's benchmark and must
+  never be projected; see the 2026-09-29 entry in CONTINUE_HERE).
+- **Accounts:** HDFC Salary (min balance ₹10,000, **no longer mandatory** - the user turned
+  that off on 30 Sept) · IDBI Saving, **very low** · HDFC Premium ₹43,000 (emergency fund,
+  mandatory ₹25,000 minimum) · Cash wallet · HDFC Money back card · SIP - Zerodha · 5 loan
+  accounts.
+- **Settled so far in October:** Salary ₹57,700 (28 Sept) · Emergency fund contribution
+  ₹10,000 (28 Sept) · Home Support **₹8,000** - reduced from ₹10,000 **for this month only**,
+  the first real use of V22's override.
+- **Part-paid:** Petrol ₹500 of ₹2,500 · Mobile recharges ₹303 of ₹600. Both show a progress
+  rule on Months.
+- **Reservation:** ₹3,226 set aside for the Bangalore trip, linked to goal 6. Goal 1
+  (Emergency fund) is ₹52,500 of ₹2,00,000.
+- **A one-off changed in two places:** the October EF top-up is ₹15,000 (was ₹17,000) - the
+  user edited both the occurrence and the rule, so they agree.
+- **6 live insights**, one **CRITICAL**: *IDBI Saving account won't cover Electricity bill on
+  1 Oct* - ₹17,429 of bills leave it before the next salary on 28 Oct and it holds very
+  little. **This is real and imminent; raise it.**
+
+### Data fixes still outstanding from the fresh start
+
+Re-verified 2026-09-28 and not confirmed done since: Home Support's category is **Utilities**
+(should be Family Support) · category 19 reads **"Emergenecy fund contribution"** and is
+wrongly nested under Family Support · category 20 **"SIP - Investment"** is nested under
+Insurance · the two card EMIs were named **"HDFC - Credit card EMI"** (they now read
+"Antropic claude subscription", "MOM - Mobile" and "Health Insurance" on Months, so this one
+may be done - check before raising it).
 
 ## 5. Open backlog (full detail in FIX_BACKLOG.md)
 - **1.5:** Net worth doesn't move as EMIs are paid — becomes visible **5 Oct**.
@@ -145,7 +145,7 @@ Rewritten from scratch 2026-09-17; stack, feature map and data snapshot refreshe
 - **2.2:** No must-pay total or suggested EF target.
 - **2.6:** Month close counts an early salary by date.
 - **2.8:** A prepayment doesn't update the loan.
-- **2.9:** A one-month amount change on a fixed bill doesn't stick (deferred SQL).
+- ~~**2.9:** A one-month amount change on a fixed bill doesn't stick~~ — **fixed 2026-09-28 (V22)**. Changing an amount on a fixed bill now asks *Just this month* / *From now on*; an overridden month shows what it differs from and offers a way back.
 - **2.11:** An expense bill from a non-spendable bank still reduces Free.
 - **3.2:** Card bills are missing from Needs you.
 - **3.3:** A manual card-bill plan item would double count.

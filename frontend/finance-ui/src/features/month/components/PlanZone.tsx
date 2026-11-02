@@ -57,6 +57,33 @@ function duePhrase(dueDate: string): { value: string; tone: 'neutral' | 'soon' |
 }
 
 /**
+ * "₹500 of ₹2,500 paid", with the rule showing how far in.
+ *
+ * <p>A part-paid bill used to look exactly like an untouched one - the row showed what was
+ * still outstanding and said "Mandatory", so the ₹500 already paid was invisible and the
+ * only clue was that the figure had changed since you last looked.
+ *
+ * <p>The fraction is a proportion, not a figure: it sets a bar's width and is never shown
+ * as money, so it is outside FRONTEND_CONVENTIONS §4 rule 2 - every rupee amount here is
+ * still the server's own string, rendered by `Amount`. `ProgressRule` is the same
+ * instrument the cycle band and the plan's settled count use, so three different kinds of
+ * progress on one screen cannot drift into looking like three different kinds of thing.
+ */
+function PartPaidNote({ instance }: { instance: CommitmentInstanceResponse }) {
+  const expected = Number(instance.expectedAmount);
+  const fraction = expected > 0 ? Number(instance.confirmedAmount) / expected : 0;
+  return (
+    <span className="flex flex-col gap-space-1">
+      <span>
+        <Amount value={instance.confirmedAmount} role="caption" className="text-positive" /> of{' '}
+        <Amount value={instance.expectedAmount} role="caption" /> paid
+      </span>
+      <ProgressRule fraction={fraction} className="max-w-[9rem]" />
+    </span>
+  );
+}
+
+/**
  * One unsettled bill. Its own component because a bill with no amount can open an
  * inline estimate form under the row, and that toggle is per row.
  *
@@ -70,6 +97,7 @@ function UnsettledRow({ instance, onEdit }: { instance: CommitmentInstanceRespon
   const [estimating, setEstimating] = useState(false);
   const due = duePhrase(instance.dueDate);
   const unknownAmount = instance.expectedAmount == null;
+  const partPaid = instance.status === 'PART_PAID' && instance.confirmedAmount != null && instance.expectedAmount != null;
   const passed = due.tone === 'overdue';
 
   const secondary = passed
@@ -93,7 +121,8 @@ function UnsettledRow({ instance, onEdit }: { instance: CommitmentInstanceRespon
         onEdit={onEdit}
         leading={<DateBlock date={instance.dueDate} tone={due.tone} />}
         primary={instance.commitmentName}
-        secondary={secondary}
+        secondary={partPaid ? <PartPaidNote instance={instance} /> : secondary}
+        richSecondary={partPaid}
         meta={
           <MetaFacts
             items={[
@@ -106,7 +135,16 @@ function UnsettledRow({ instance, onEdit }: { instance: CommitmentInstanceRespon
           unknownAmount ? (
             <span className="text-caption text-attention">Amount unknown</span>
           ) : (
-            <Amount value={instance.outstanding} role="row" className="text-ink" />
+            <span className="flex flex-col items-end">
+              <Amount value={instance.outstanding} role="row" className="text-ink" />
+              {/* Says what it differs *from*, not just that it differs - "changed" alone
+                  raises the question it is meant to answer (FIX_BACKLOG 2.9). */}
+              {instance.amountOverridden && instance.ruleAmount != null && (
+                <span className="text-micro text-ink-muted">
+                  this month · usually <span className="num">{formatMoney(instance.ruleAmount)}</span>
+                </span>
+              )}
+            </span>
           )
         }
         action={
@@ -147,7 +185,7 @@ function SettledRow({ instance, onEdit }: { instance: CommitmentInstanceResponse
     return (
       <WorklistRow
         instanceId={instance.id}
-        tone="completed"
+        tone="skipped"
         onEdit={onEdit}
         primary={instance.commitmentName}
         secondary="Skipped this month - not counted against what's free"
@@ -164,7 +202,7 @@ function SettledRow({ instance, onEdit }: { instance: CommitmentInstanceResponse
   return (
     <WorklistRow
       instanceId={instance.id}
-      tone="completed"
+      tone="paid"
       onEdit={onEdit}
       primary={instance.commitmentName}
       secondary={varianceNote(instance)}
@@ -174,11 +212,16 @@ function SettledRow({ instance, onEdit }: { instance: CommitmentInstanceResponse
             // settledOn, not dueDate - labelling a due date "Paid on" states
             // a date the money did not actually move on.
             ...(instance.settledOn ? [{ label: 'Paid on', value: formatShortDate(instance.settledOn) }] : []),
-            { label: 'Paid from', value: instance.account.name },
+            // The account the money actually left, not the one the bill plans on - they are
+            // allowed to differ, so printing the plan's would misreport the payment.
+            { label: 'Paid from', value: (instance.settledFromAccount ?? instance.account).name },
           ]}
         />
       }
-      amount={<Amount value={instance.confirmedAmount} role="row" className="text-ink-muted" />}
+      // Green, not grey: the row is already muted to say "nothing to do here", and the
+      // figure is the one thing worth seeing at a glance when you scan the month for what
+      // is done. Not struck through - a strikethrough is the language of cancellation.
+      amount={<Amount value={instance.confirmedAmount} role="row" className="text-positive" />}
     />
   );
 }
@@ -246,7 +289,8 @@ function IncomeBlock({
             <WorklistRow
               key={instance.id}
               instanceId={instance.id}
-              tone="completed"
+              tone="paid"
+              doneLabel="Received"
               onEdit={onEdit(instance)}
               primary={instance.commitmentName}
               secondary={instance.variance == null || Number(instance.variance) === 0 ? 'Arrived as expected' : `${varianceNote(instance)?.replace('than planned', 'than expected')}`}
@@ -598,6 +642,7 @@ export function PlanZone({ cycle, instances: allInstances, progress, isLoading, 
         instanceId={editing?.id ?? null}
         instanceAmount={editing?.expectedAmount ?? null}
         instanceDueDate={editing?.dueDate ?? null}
+        instanceOverridden={editing?.amountOverridden ?? false}
         onClose={() => setEditing(null)}
       />
       <ManageCategoriesSheet open={managingCategories} onClose={() => setManagingCategories(false)} />

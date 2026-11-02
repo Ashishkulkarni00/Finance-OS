@@ -75,6 +75,7 @@ public enum ErrorCode {
     CONFIRMATION_WRONG_CYCLE(HttpStatus.UNPROCESSABLE_CONTENT),
     VERIFICATION_REQUIRED(HttpStatus.UNPROCESSABLE_CONTENT),
     INSTANCE_ALREADY_SETTLED(HttpStatus.CONFLICT),
+    INSTANCE_NOT_SETTLED(HttpStatus.CONFLICT),
     /** The transaction being linked already settles a different occurrence - rule 4. */
     TRANSACTION_ALREADY_LINKED(HttpStatus.CONFLICT),
     INSTANCE_NOT_SKIPPABLE(HttpStatus.UNPROCESSABLE_CONTENT),

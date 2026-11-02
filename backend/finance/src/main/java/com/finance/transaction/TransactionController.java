@@ -73,9 +73,11 @@ public class TransactionController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
             @RequestParam(required = false) String q,
+            /** Drops entries that already settle a bill - the Settle sheet's candidate list. */
+            @RequestParam(required = false, defaultValue = "false") boolean unlinkedOnly,
             @PageableDefault(size = 50) Pageable pageable) {
         return PageResponse.from(
-                service.search(accountId, categoryId, type, cycleId, dateFrom, dateTo, q, pageable),
+                service.search(accountId, categoryId, type, cycleId, dateFrom, dateTo, q, unlinkedOnly, pageable),
                 view -> mapper.toResponse(view.transaction(), view.account(), view.toAccount(), view.category()));
     }
 

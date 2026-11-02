@@ -21,6 +21,15 @@ public interface CommitmentInstanceRepository extends JpaRepository<CommitmentIn
     List<CommitmentInstance> findByCycleIdAndUserId(Long cycleId, Long userId);
 
     /**
+     * Occurrences still pointing at one entry.
+     *
+     * <p>The payments table is the complete record, but an occurrence settled before V23
+     * carries only this column, so a release has to check both or it would silently miss
+     * the older ones.
+     */
+    List<CommitmentInstance> findByUserIdAndLinkedTransactionId(Long userId, Long transactionId);
+
+    /**
      * Every open (unsettled) instance in the given cycle, mandatory or not, with its rule
      * joined for ownership. Real Balance subtracts all of them: a bill you plan to pay is
      * spoken-for money whether or not it's a must-pay. Skipping an optional bill closes it.

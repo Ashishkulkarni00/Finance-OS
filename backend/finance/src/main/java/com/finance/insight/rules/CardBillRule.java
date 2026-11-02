@@ -21,7 +21,13 @@ import static com.finance.insight.Wording.date;
 import static com.finance.insight.Wording.money;
 import static com.finance.insight.Wording.relative;
 
-/** A card bill due within 5 days, or past its due date, with money still owed (FIX_BACKLOG 3.2). */
+/**
+ * A card bill due within 5 days, or past its due date, with money still owed (FIX_BACKLOG 3.2).
+ *
+ * <p>"Still owed" is checked twice, against two different sources, and both must agree: the
+ * statement must not be settled, <strong>and</strong> the card's own ledger balance must show a
+ * debt. See the comment on the second check for why.
+ */
 @Component
 public class CardBillRule implements InsightRule {
 
@@ -33,6 +39,27 @@ public class CardBillRule implements InsightRule {
         for (CreditCardView card : ctx.cards()) {
             CreditCardView.LatestStatement latest = card.latestStatement();
             if (latest == null || latest.status() == StatementStatus.PAID) {
+                continue;
+            }
+            // **A statement is a claim; the ledger is the record. Never raise an alarm the
+            // ledger does not support.**
+            //
+            // `outstanding` is `-balance(card)` - what the card owes according to its own
+            // postings. A statement can only reach PAID when money arrives *in the card
+            // account*, so a user who pays the card's items individually from their bank -
+            // which is a legitimate way to work, and this user's (CONTINUE_HERE, 2026-10-04) -
+            // never satisfies it. Their four card bills were all settled, to the rupee of the
+            // ₹10,567 statement, and this rule still warned every day and would have escalated
+            // to CARD_BILL_OVERDUE/CRITICAL on the due date, about a debt the ledger put at ₹0.
+            //
+            // **The trade-off, taken deliberately:** someone who records statements but never
+            // records the charges behind them now gets no warning at all. That was the open
+            // question in CONTINUE_HERE ("an unbacked card statement"), and this answers it the
+            // same way ADR-0018 and ADR-0020 answer theirs - a figure is true because an entry
+            // says so, not because something was typed in a form. An unbacked statement is not
+            // evidence of a debt, and warning on one trains the reader to dismiss the warning
+            // that matters.
+            if (card.outstanding() == null || card.outstanding().signum() <= 0) {
                 continue;
             }
             LocalDate due = latest.statement().getDueDate();

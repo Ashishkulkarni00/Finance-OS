@@ -89,6 +89,10 @@ public class TimelineServiceImpl implements TimelineService {
             java.math.BigDecimal amount = instance.outstanding();
             TimelineItemType type = commitment.getSettleAs() == com.finance.transaction.domain.TransactionType.INCOME
                     ? TimelineItemType.INCOME : TimelineItemType.COMMITMENT;
+            // **Plan, and correct.** These are bills that have not been paid, so there is no
+            // evidence to prefer - "which account is this due to leave" is exactly what the
+            // plan is for. Distinct from the shortfall projection next door, which asks the
+            // past-tense question and therefore reads `CommitmentSourceResolver` (M1 register).
             items.add(new TimelineItem(type, instance.getId(), commitment.getName(),
                     instance.getDueDate(), amount, accountName(commitment.getAccountId()), commitment.getAccountId()));
         }

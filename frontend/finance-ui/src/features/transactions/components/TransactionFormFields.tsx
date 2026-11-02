@@ -17,6 +17,8 @@ import {
 import { cn } from '@/lib/cn';
 import type { AccountResponse } from '@/types/api';
 import type { CategoryResponse } from '@/types/category';
+import type { CommitmentInstanceResponse } from '@/types/commitment';
+import { formatMoney } from '@/lib/money';
 
 interface TransactionFormFieldsProps {
   register: UseFormRegister<TransactionFormValues>;
@@ -26,6 +28,9 @@ interface TransactionFormFieldsProps {
   errors: FieldErrors<TransactionFormValues>;
   accounts: AccountResponse[];
   categories: CategoryResponse[];
+  /** Open bills this entry could go towards - already filtered to the chosen account and
+   *  the matching settle type. Empty hides the row entirely. */
+  settleable?: CommitmentInstanceResponse[];
 }
 
 /** A select that sits in a row without a box of its own - the shared `Select`'s
@@ -43,7 +48,8 @@ function RowSelect({
   value: number | '';
   onChange: (v: number | null) => void;
   placeholder?: string;
-  options: { id: number; name: string }[];
+  /** `hint` is the right-aligned qualifier - "₹2,500 left". Optional. */
+  options: { id: number; name: string; hint?: string }[];
   ariaLabel?: string;
 }) {
   return (
@@ -54,7 +60,7 @@ function RowSelect({
       ariaLabel={ariaLabel}
       value={value === '' ? '' : String(value)}
       placeholder={placeholder}
-      options={options.map((o) => ({ value: String(o.id), label: o.name }))}
+      options={options.map((o) => ({ value: String(o.id), label: o.name, hint: o.hint }))}
       onChange={(v) => onChange(v ? Number(v) : null)}
     />
   );
@@ -76,7 +82,44 @@ function RowSelect({
  * gets worse with every category the user adds. A dropdown inside a ruled row costs one
  * line whatever the list length.
  */
-export function TransactionFormFields({ register, control, watch, setValue, errors, accounts, categories }: TransactionFormFieldsProps) {
+/**
+ * "₹40,926 available · ₹10,000 held back as a minimum balance" under a chosen account.
+ *
+ * <p>The bare figure prompted the question it was meant to answer. The user picked HDFC
+ * Salary, saw "₹40,926 available" against a balance of ₹50,926, and asked what the number
+ * had been through - which is the whole complaint about unexplained figures, on a form where
+ * the gap decides whether a transfer goes through.
+ *
+ * <p>Says what is held and why, because the two reasons behave differently: a mandatory
+ * minimum is the bank's rule, a reservation is the user's own. When both exist the larger
+ * wins (`locked = max(reserved, minimumHold)`, never the sum - money inside the minimum is
+ * already held by it), so only the one actually doing the work is named. Nothing held back
+ * means nothing to explain, and the figure stands alone as before.
+ */
+function AvailableNote({ account }: { account: AccountResponse }) {
+  const locked = account.hold?.locked;
+  const held = locked != null && Number(locked) > 0;
+  const byMinimum = held && account.hold != null && Number(account.hold.minimumHold) >= Number(account.hold.reserved);
+  const reasons = account.hold?.reservedFor ?? [];
+  return (
+    <span className="mt-space-1 block text-caption text-ink-muted">
+      <Amount value={account.available} role="caption" /> available
+      {held && (
+        <>
+          {' · '}
+          <Amount value={locked} role="caption" /> held back
+          {byMinimum
+            ? ' as a minimum balance'
+            : reasons.length > 0
+              ? ` for ${reasons.join(', ')}`
+              : ' as a reservation'}
+        </>
+      )}
+    </span>
+  );
+}
+
+export function TransactionFormFields({ register, control, watch, setValue, errors, accounts, categories, settleable = [] }: TransactionFormFieldsProps) {
   const type = watch('type');
   const accountId = watch('accountId');
   const toAccountId = watch('toAccountId');
@@ -178,11 +221,7 @@ export function TransactionFormFields({ register, control, watch, setValue, erro
             onChange={(v) => v != null && setValue('accountId', v, { shouldValidate: true })}
             options={sourceAccounts}
           />
-          {selectedAccount && (
-            <span className="mt-space-1 block text-caption text-ink-muted">
-              <Amount value={selectedAccount.available} role="caption" /> available
-            </span>
-          )}
+          {selectedAccount && <AvailableNote account={selectedAccount} />}
         </FormRow>
 
         {activeType.needsDestination && (
@@ -192,13 +231,48 @@ export function TransactionFormFields({ register, control, watch, setValue, erro
             render={({ field }) => (
               <FormRow label="To" error={errors.toAccountId?.message}>
                 <RowSelect value={field.value ?? ''} onChange={field.onChange} placeholder="Choose one" options={destinationAccounts} />
-                {selectedToAccount && (
-                  <span className="mt-space-1 block text-caption text-ink-muted">
-                    <Amount value={selectedToAccount.available} role="caption" /> available
-                  </span>
-                )}
+                {selectedToAccount && <AvailableNote account={selectedToAccount} />}
               </FormRow>
             )}
+          />
+        )}
+
+        {/* Only when there is actually an open bill this could pay - a row offering nothing
+            is worse than no row. Sits after the account because the list depends on it. */}
+        {settleable.length > 0 && (
+          <Controller
+            control={control}
+            name="settlesInstanceId"
+            render={({ field }) => {
+              // Not a warning any more - a bill may be settled from any account, and the
+              // row records where the money actually came from. This just names the plan,
+              // so choosing a bill that usually leaves another account is a deliberate act
+              // rather than a surprise on Months later.
+              const chosen = settleable.find((i) => i.id === field.value);
+              const mismatch = chosen && chosen.account.id !== accountId ? chosen.account.name : null;
+              return (
+              <FormRow
+                label="Towards a bill?"
+                hint={
+                  mismatch
+                    ? `Marks that bill part-paid by this entry. It is usually paid from ${mismatch}; paying it from here is fine, and the bill will show where the money actually came from.`
+                    : 'Marks that bill part-paid by this entry. Leave it as day-to-day spending if it isn’t one of them.'
+                }
+              >
+                <RowSelect
+                  value={field.value ?? ''}
+                  onChange={(v) => field.onChange(v ?? null)}
+                  placeholder="No — day-to-day spending"
+                  options={settleable.map((i) => ({
+                    id: i.id,
+                    name: i.commitmentName,
+                    // What is still owed, so a part payment is an obvious thing to make.
+                    hint: i.outstanding != null ? `${formatMoney(i.outstanding)} left` : undefined,
+                  }))}
+                />
+              </FormRow>
+              );
+            }}
           />
         )}
 

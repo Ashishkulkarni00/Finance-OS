@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -19,6 +20,15 @@ public interface CommitmentRepository extends JpaRepository<Commitment, Long> {
     /** The live bills that follow one loan / investment / goal. */
     List<Commitment> findBySourceTypeAndSourceIdAndUserIdAndDeletedAtIsNull(CommitmentSource sourceType,
                                                                          Long sourceId, Long userId);
+
+    /**
+     * The bills behind a set of occurrences, in one read.
+     *
+     * <p>Deliberately <strong>not</strong> filtered on {@code deletedAt}: an occurrence that
+     * already fell due is history, and a bill deleted since does not unmake the month it
+     * fell in. Soft delete exists precisely so the past stays readable (ADR-0004).
+     */
+    List<Commitment> findByIdInAndUserId(Collection<Long> ids, Long userId);
 
     @Query("""
             select c from Commitment c

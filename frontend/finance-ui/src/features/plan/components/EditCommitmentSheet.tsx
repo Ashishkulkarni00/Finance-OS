@@ -14,7 +14,10 @@ import {
   useUpdateCommitmentRuleMutation,
 } from '@/services/commitmentRuleService';
 import { handleEnterAdvance } from '@/lib/formKeyboard';
-import { useSetCommitmentInstanceAmountMutation } from '@/services/commitmentInstanceService';
+import {
+  useSetCommitmentInstanceAmountMutation,
+  useUseBillAmountForInstanceMutation,
+} from '@/services/commitmentInstanceService';
 import type { CommitmentResponse, UpdateCommitmentRequest } from '@/types/commitmentRule';
 import { CommitmentFields } from './CommitmentFields';
 import { cycleOptions } from './AddCommitmentSheet';
@@ -47,6 +50,9 @@ interface EditCommitmentSheetProps {
   instanceAmount?: string | null;
   /** That occurrence's due date - names which one "This time" is. */
   instanceDueDate?: string | null;
+  /** That occurrence's amount was already set by hand - offers the way back to the bill's
+   *  own figure, which clearing the field cannot mean (blank means "leave it as it is"). */
+  instanceOverridden?: boolean;
 }
 
 /**
@@ -56,7 +62,15 @@ interface EditCommitmentSheetProps {
  * ahead; paid months keep what was recorded. That's done server-side, so this sheet only
  * sends the rule's new values.
  */
-export function EditCommitmentSheet({ commitmentId, onClose, onDeleted, instanceId, instanceAmount, instanceDueDate }: EditCommitmentSheetProps) {
+export function EditCommitmentSheet({
+  commitmentId,
+  onClose,
+  onDeleted,
+  instanceId,
+  instanceAmount,
+  instanceDueDate,
+  instanceOverridden,
+}: EditCommitmentSheetProps) {
   const { data: rule, isLoading } = useGetCommitmentRuleQuery(commitmentId ?? 0, { skip: commitmentId == null });
 
   return (
@@ -77,6 +91,7 @@ export function EditCommitmentSheet({ commitmentId, onClose, onDeleted, instance
           instanceId={instanceId ?? null}
           instanceAmount={instanceAmount ?? null}
           instanceDueDate={instanceDueDate ?? null}
+          instanceOverridden={instanceOverridden ?? false}
         />
       )}
     </Modal>
@@ -114,6 +129,7 @@ function EditForm({
   instanceId,
   instanceAmount,
   instanceDueDate,
+  instanceOverridden,
 }: {
   rule: CommitmentResponse;
   onClose: () => void;
@@ -121,12 +137,14 @@ function EditForm({
   instanceId: number | null;
   instanceAmount: string | null;
   instanceDueDate: string | null;
+  instanceOverridden: boolean;
 }) {
   const { data: accountsPage } = useGetAccountsQuery();
   const { data: categoriesPage } = useGetCategoriesQuery();
   const [updateRule, { isLoading: saving }] = useUpdateCommitmentRuleMutation();
   const [deleteRule, { isLoading: deleting }] = useDeleteCommitmentRuleMutation();
   const [setInstanceAmount, { isLoading: savingAmount }] = useSetCommitmentInstanceAmountMutation();
+  const [useBillAmount, { isLoading: reverting }] = useUseBillAmountForInstanceMutation();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   // Shown right above Save, in addition to any field-level error - so a rejected save is
@@ -213,7 +231,11 @@ function EditForm({
     // '' means "leave it as it is" - the endpoint has no way to unset an amount, only set
     // one, so an emptied field is never sent rather than treated as a validation failure.
     const trimmedInstanceAmount = instanceAmountInput.trim();
-    const instanceAmountEligible = !termsLocked && values.amountType === 'VARIABLE' && instanceId != null;
+    // FIXED counts too since V22: a fixed bill can differ for one month and the figure now
+    // survives `reconcileWithRule` (FIX_BACKLOG 2.9). Still never for a terms-locked bill -
+    // a loan's EMI is the loan's to say. Unchanged means not sent, so saving the bill
+    // without touching "This time" never marks the month overridden.
+    const instanceAmountEligible = !termsLocked && instanceId != null;
     const instanceAmountChanged = instanceAmountEligible && trimmedInstanceAmount !== '' && trimmedInstanceAmount !== (instanceAmount ?? '');
     if (instanceAmountChanged && !VALID_INSTANCE_AMOUNT.test(trimmedInstanceAmount)) {
       setFormError('This occurrence’s amount looks wrong - enter something like 1200.');
@@ -368,18 +390,44 @@ function EditForm({
           instanceId != null && !termsLocked ? (
             <FormRow
               label="This time"
-              hint={`This month only - the one due ${instanceDueDate ? formatShortDate(instanceDueDate) : 'now'}. Later months you fill in as you go.`}
+              hint={
+                watch('amountType') === 'FIXED'
+                  ? `Just the one due ${instanceDueDate ? formatShortDate(instanceDueDate) : 'now'}, if it differs. Leave it blank and this month uses the amount above, like every other month.`
+                  : `This month only - the one due ${instanceDueDate ? formatShortDate(instanceDueDate) : 'now'}. Later months you fill in as you go.`
+              }
             >
-              <span className="flex items-center gap-space-1">
-                <span className="num text-ink-muted">₹</span>
-                <input
-                  inputMode="decimal"
-                  value={instanceAmountInput}
-                  onChange={(e) => setInstanceAmountInput(e.target.value)}
-                  placeholder={instanceDueDate ? `Amount due ${formatShortDate(instanceDueDate)} - optional` : 'Optional'}
-                  aria-label={`Amount for ${rule.name} this time`}
-                  className={FORM_ROW_CONTROL + ' num'}
-                />
+              <span className="flex flex-col gap-space-1">
+                <span className="flex items-center gap-space-1">
+                  <span className="num text-ink-muted">₹</span>
+                  <input
+                    inputMode="decimal"
+                    value={instanceAmountInput}
+                    onChange={(e) => setInstanceAmountInput(e.target.value)}
+                    placeholder={instanceDueDate ? `Amount due ${formatShortDate(instanceDueDate)} - optional` : 'Optional'}
+                    aria-label={`Amount for ${rule.name} this time`}
+                    className={FORM_ROW_CONTROL + ' num'}
+                  />
+                </span>
+                {/* The way out of a one-month amount. Clearing the field cannot mean "put it
+                    back": blank already means "leave it as it is" for a varying bill, and one
+                    control cannot carry both meanings. So reverting is its own action. */}
+                {instanceOverridden && (
+                  <button
+                    type="button"
+                    disabled={reverting}
+                    onClick={async () => {
+                      try {
+                        const back = await useBillAmount(instanceId).unwrap();
+                        setInstanceAmountInput(back.expectedAmount ?? '');
+                      } catch {
+                        setFormError("Couldn't put this month back on the bill's amount.");
+                      }
+                    }}
+                    className="self-start text-caption text-accent underline-offset-2 hover:underline disabled:text-ink-muted"
+                  >
+                    {reverting ? 'Putting it back…' : 'Use the usual amount for this month too'}
+                  </button>
+                )}
               </span>
             </FormRow>
           ) : undefined

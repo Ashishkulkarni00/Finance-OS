@@ -63,6 +63,18 @@ public class CommitmentInstance extends AuditableEntity {
     @Column(name = "expected_amount", precision = 15, scale = 2)
     private BigDecimal expectedAmount;
 
+    /**
+     * The user set this month's amount by hand, so the rule no longer overwrites it
+     * (FIX_BACKLOG 2.9, V22).
+     *
+     * <p>A record of a <em>decision</em>, not a derived comparison. "Different from the
+     * rule" would silently lose the override the moment someone deliberately typed the
+     * usual figure, and would say nothing at all about intent.
+     */
+    @Column(name = "amount_overridden", nullable = false)
+    @Builder.Default
+    private boolean amountOverridden = false;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     @Builder.Default

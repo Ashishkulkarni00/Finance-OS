@@ -226,7 +226,9 @@ export function AheadForecast() {
   return (
     <div className="flex flex-col gap-space-8">
       <div className="flex flex-col gap-space-1">
-        <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">Ahead</span>
+        {/* The section is called Goals in the rail, so the eyebrows here name the two blocks
+            rather than repeating it - "Goals" above both would say nothing about either. */}
+        <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">Looking ahead</span>
         <span className="text-title text-ink">The months after this one</span>
         <p className="max-w-[40rem] text-caption text-ink-muted">
           Your plan carried forward, so you can see where the room is before you get there.

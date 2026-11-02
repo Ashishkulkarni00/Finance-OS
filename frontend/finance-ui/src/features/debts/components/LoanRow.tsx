@@ -75,7 +75,7 @@ export function LoanRow({ loan }: { loan: LoanResponse }) {
             <span className="text-caption text-ink-muted">/mo</span>
           </span>
           <div className="text-caption text-ink-muted" {...outstandingDoc}>
-            <Amount value={loan.remainingPayments} role="caption" /> to go
+            <Amount value={loan.remainingPayments} role="caption" /> still to pay
           </div>
         </>
       }

@@ -26,6 +26,8 @@ reversed. Each one states the decision, why, and what it costs.
 | [0017](0017-writes-report-their-own-effect.md) | A write reports its own effect; a warning is announced on crossing | Accepted | Phase 1.4 |
 | [0018](0018-debt-truth-comes-from-recorded-payments.md) | A loan's truth is its recorded payments, not the calendar | Accepted | Phase 1.2 |
 | [0019](0019-ai-is-an-interface-never-the-engine.md) | AI is an interface over the state engine, never a calculator | Accepted | Phase 1.6 |
+| [0020](0020-committed-reads-the-account-actually-paid-from.md) | `committed` reads the account actually paid from, not the planned one | Accepted | Phase 1.4 |
+| [0021](0021-charts-read-money-as-geometry-only.md) | Charts turn money into geometry and nothing else; no charting library | Accepted | Summary |
 
 ## Writing a new one
 

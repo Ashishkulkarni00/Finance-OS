@@ -5,6 +5,7 @@ import com.finance.account.AccountService;
 import com.finance.account.domain.Account;
 import com.finance.commitment.CommitmentInstanceRepository;
 import com.finance.commitment.CommitmentRepository;
+import com.finance.commitment.CommitmentSourceResolver;
 import com.finance.commitment.domain.Commitment;
 import com.finance.commitment.domain.CommitmentInstance;
 import com.finance.common.money.MoneyScale;
@@ -21,11 +22,15 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 
 /**
  * The shortfall detector: {@code balance − Σ open instances hitting this account
  * before the next pay date}. See {@code ProjectionResult} for what's deliberately
  * left out (expected income has no recurring model in this build).
+ *
+ * <p>Which bills count against an account comes from {@code CommitmentSourceResolver},
+ * shared with {@code PositionServiceImpl} - evidence first, plan second (ADR-0020).
  *
  * <p>Same circular-dependency reasoning as {@code PositionServiceImpl}: reads
  * {@code CommitmentInstanceRepository}/{@code CommitmentRepository} directly and
@@ -40,6 +45,7 @@ public class ProjectionServiceImpl implements ProjectionService {
     private final CurrentCycleResolver cycleResolver;
     private final CommitmentInstanceRepository instanceRepository;
     private final CommitmentRepository commitmentRepository;
+    private final CommitmentSourceResolver sourceResolver;
     private final CurrentUserProvider currentUser;
     private final Clock clock;
 
@@ -48,6 +54,7 @@ public class ProjectionServiceImpl implements ProjectionService {
                                  CurrentCycleResolver cycleResolver,
                                  CommitmentInstanceRepository instanceRepository,
                                  CommitmentRepository commitmentRepository,
+                                 CommitmentSourceResolver sourceResolver,
                                  CurrentUserProvider currentUser,
                                  Clock clock) {
         this.accountService = accountService;
@@ -55,6 +62,7 @@ public class ProjectionServiceImpl implements ProjectionService {
         this.cycleResolver = cycleResolver;
         this.instanceRepository = instanceRepository;
         this.commitmentRepository = commitmentRepository;
+        this.sourceResolver = sourceResolver;
         this.currentUser = currentUser;
         this.clock = clock;
     }
@@ -68,8 +76,33 @@ public class ProjectionServiceImpl implements ProjectionService {
         BigDecimal currentBalance = balanceCalculator.currentBalance(account);
 
         Cycle cycle = cycleResolver.resolve(userId, LocalDate.now(clock));
-        List<CommitmentInstance> hitting = new ArrayList<>(instanceRepository.findAllOpenForCycleAndAccount(
-                userId, cycle.getId(), accountId));
+
+        // **Which bills hit this account is decided by evidence, not by the plan**
+        // (FIX_BACKLOG 1.9, the same decision ADR-0020 made for `committed`).
+        //
+        // This used to ask the database for `c.accountId = :accountId` - the commitment's
+        // "Paid from". Since USAGE_ISSUES U3 a bill may be settled from any account, so that
+        // field is a forecast, and a projection built on it warns about the account the plan
+        // names rather than the one being drawn on. A bill part-paid twice from the salary
+        // account was still projected against the account it was *supposed* to leave, which
+        // is the account that then looks short when it is not - and the one actually being
+        // emptied raised nothing.
+        //
+        // So: take the cycle's open bills once and group them by their *effective* source.
+        // Same status filter as the old per-account query, so the bill set is unchanged; only
+        // which account each one is attributed to can differ. One cycle's bills, filtered in
+        // memory - this is selection, not arithmetic.
+        List<CommitmentInstance> open = instanceRepository.findOpenForCycle(userId, cycle.getId());
+        Map<Long, Long> actualSource = sourceResolver.actualSourceByInstance(
+                open.stream().map(CommitmentInstance::getId).toList(), userId);
+
+        List<CommitmentInstance> hitting = new ArrayList<>();
+        for (CommitmentInstance instance : open) {
+            Commitment rule = commitmentRepository.findById(instance.getCommitmentId()).orElse(null);
+            if (accountId.equals(sourceResolver.effectiveSource(instance, rule, actualSource))) {
+                hitting.add(instance);
+            }
+        }
         // Due-date order, so each bill's balanceAfter reflects only the bills before it.
         hitting.sort(Comparator.comparing(CommitmentInstance::getDueDate).thenComparing(CommitmentInstance::getId));
 

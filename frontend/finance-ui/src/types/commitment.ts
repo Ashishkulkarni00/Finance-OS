@@ -39,8 +39,16 @@ export interface CommitmentInstanceResponse {
   mandatory: boolean;
   /** "Family depends on it" - the row's own justification. Null when never set. */
   ifSkipped: string | null;
+  /** This month's amount was set by hand, so it no longer follows the bill (V22). */
+  amountOverridden: boolean;
+  /** What the bill itself says. Null for a bill whose amount varies - it has no usual
+   *  figure, so there is nothing for a changed month to differ from. */
+  ruleAmount: Money | null;
   /** The account this leaves from - shown inline on the row, not behind a click. */
   account: AccountSummary;
+  /** Where the money actually left from, when that is not the bill's own account. Null when
+   *  they agree. A bill can be settled from anywhere - "Paid from" is the plan, not a gate. */
+  settledFromAccount: AccountSummary | null;
   /** The bill's category - Months groups its plan by it. Null when none is set. */
   category: CategorySummary | null;
   /** MANUAL, or the loan (etc.) this bill follows. */

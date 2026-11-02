@@ -7,7 +7,7 @@ import { useGetCommitmentInstancesForCycleQuery, useGetCommitmentPlanProgressQue
 import { MonthOverview } from '@/features/month/components/MonthOverview';
 import type { CycleMode } from '@/features/month/components/MonthOverview';
 import { InsightList } from '@/components/InsightList';
-import { formatShortDate } from '@/lib/dates';
+import { formatShortDate, cycleProgress } from '@/lib/dates';
 import { PlanZone } from '@/features/month/components/PlanZone';
 import { MonthBriefing } from '@/features/month/components/MonthBriefing';
 import { FlexibleSpendingSection } from '@/features/month/components/FlexibleSpendingSection';
@@ -63,7 +63,10 @@ export default function MonthPage() {
   const { data: planProgress } = useGetCommitmentPlanProgressQuery(cycle?.id ?? 0, { skip: !cycle });
 
   const mode: CycleMode = isCurrent ? 'current' : isFuture ? 'future' : 'past';
-  const canClose = cycle ? new Date(cycle.endDate).getTime() < Date.now() : false;
+  // One definition of "ended" for the whole frontend (`cycleProgress`), so this can never
+  // disagree with the band above it or with the server. It used to be its own instant
+  // comparison, duplicated again on MonthClosePage, and both were a day early.
+  const canClose = cycle ? cycleProgress(cycle.startDate, cycle.endDate).ended : false;
   // Bills only: expected income is shown in the plan's "Coming in" block, not as a payment.
   const bills = (instances ?? []).filter((i) => i.settleAs !== 'INCOME');
   // A late salary is flagged too (only once late) - it needs recording like any planned item.

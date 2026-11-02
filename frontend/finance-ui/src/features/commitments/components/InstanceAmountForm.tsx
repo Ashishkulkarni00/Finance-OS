@@ -12,13 +12,20 @@ function messageFrom(error: unknown): string {
 }
 
 /**
- * "₹ [estimate] [Set amount]" - gives an unpaid bill an expected amount, in place.
+ * "₹ [estimate] [Set amount]" - gives an unpaid bill with no amount one, in place.
  *
  * <p>Inline rather than a sheet because the question is one number and the reason for
  * asking is already on screen next to it ("Room needs a number", "Needs an amount").
  * Settling is a different act - it records a payment - and was the only way to give a
  * variable bill an amount before `PATCH /commitment-instances/{id}` existed, which is
  * why every electricity bill used to blank out Room for most of the cycle.
+ *
+ * <p><strong>Only for a bill with no amount yet.</strong> Changing a <em>fixed</em> bill for
+ * one month is a different question - "this month, or from now on?" - and it belongs in Edit,
+ * where "How much" and "This time" sit one above the other and say which is which by being
+ * adjacent (FIX_BACKLOG 2.9). An earlier attempt put that choice behind an "Amount" button on
+ * the row: the button gave no clue what it did, the choice was invisible until pressed, and it
+ * made three controls compete on one row. The pencil already means "change this".
  *
  * <p><strong>Deliberately not a {@code <form>}.</strong> This is used both standalone
  * (Months' "Estimate" row) and nested inside `EditCommitmentSheet`'s own outer form

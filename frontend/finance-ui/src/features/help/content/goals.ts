@@ -76,7 +76,7 @@ export const GOALS_TOPICS: DocTopic[] = [
       },
     ],
     related: ['goals.adding-a-goal', 'goals.is-it-on-track', 'goals.the-emergency-fund'],
-    seeInApp: [{ label: 'Open Ahead', to: '/ahead' }],
+    seeInApp: [{ label: 'Open Goals', to: '/ahead' }],
   },
   {
     id: 'goals.is-it-on-track',
@@ -135,7 +135,7 @@ export const GOALS_TOPICS: DocTopic[] = [
       },
     ],
     related: ['goals.tracking-a-goal', 'goals.adding-a-goal'],
-    seeInApp: [{ label: 'Open Ahead', to: '/ahead' }],
+    seeInApp: [{ label: 'Open Goals', to: '/ahead' }],
   },
   {
     id: 'goals.adding-a-goal',
@@ -173,7 +173,7 @@ export const GOALS_TOPICS: DocTopic[] = [
           {
             kind: 'steps',
             items: [
-              'Open "Add a goal" from Ahead.',
+              'Open "Add a goal" from Goals.',
               'Name it, and enter the full target amount and the date you need it by.',
               'If you are keeping the money in its own account, link it under "Saved in".',
               'Save. If it has payments due before its date - like a trip’s bookings - add those from the goal’s own page next.',
@@ -197,7 +197,7 @@ export const GOALS_TOPICS: DocTopic[] = [
           },
           {
             kind: 'prose',
-            text: 'The goal appears on Ahead with its progress and, once it can be worked out, what it needs from you each remaining month.',
+            text: 'The goal appears on Goals with its progress and, once it can be worked out, what it needs from you each remaining month.',
           },
         ],
       },
@@ -221,7 +221,7 @@ export const GOALS_TOPICS: DocTopic[] = [
       },
     ],
     related: ['goals.tracking-a-goal', 'goals.the-emergency-fund'],
-    seeInApp: [{ label: 'Open Ahead', to: '/ahead' }],
+    seeInApp: [{ label: 'Open Goals', to: '/ahead' }],
   },
   {
     id: 'goals.the-emergency-fund',
@@ -279,7 +279,7 @@ export const GOALS_TOPICS: DocTopic[] = [
       },
     ],
     related: ['goals.tracking-a-goal', 'accounts.adding-an-account', 'today.real-balance'],
-    seeInApp: [{ label: 'Open Ahead', to: '/ahead' }],
+    seeInApp: [{ label: 'Open Goals', to: '/ahead' }],
   },
   {
     id: 'goals.how-goals-works',
@@ -374,6 +374,6 @@ export const GOALS_TOPICS: DocTopic[] = [
       },
     ],
     related: ['goals.tracking-a-goal', 'goals.is-it-on-track', 'goals.adding-a-goal'],
-    seeInApp: [{ label: 'Open Ahead', to: '/ahead' }],
+    seeInApp: [{ label: 'Open Goals', to: '/ahead' }],
   },
 ];

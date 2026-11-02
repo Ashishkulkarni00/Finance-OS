@@ -97,6 +97,16 @@ export const transactionFormSchema = z
     description: z.string().min(1, 'Add a short description').max(200),
     date: z.string().min(1),
     note: z.string().max(500).optional(),
+    /**
+     * An open bill this payment goes towards, settled in the same action.
+     *
+     * <p>Not part of the transaction at all - it is a second call once the entry exists.
+     * Kept on the form because the decision is made here: the alternative was recording the
+     * expense, then going to Months and settling the bill against it, and nobody does the
+     * second half. A part payment (₹500 of a ₹2,500 petrol bill) has no other route at all,
+     * since auto-matching needs the amount to the paisa and the due date within three days.
+     */
+    settlesInstanceId: z.number().nullable().optional(),
   })
   .refine((v) => !TRANSACTION_TYPES.find((t) => t.value === v.type)?.needsDestination || v.toAccountId != null, {
     message: 'Choose a destination account',

@@ -38,10 +38,6 @@ public class GoalBehindRule implements InsightRule {
                 .orElse(List.of());
     }
 
-    private static String percent(BigDecimal value) {
-        return value == null ? "—" : value.setScale(0, RoundingMode.HALF_UP).toPlainString() + "%";
-    }
-
     /**
      * Why it is behind, in terms the user can act on.
      *
@@ -51,19 +47,26 @@ public class GoalBehindRule implements InsightRule {
      * and a gap has a fix.
      */
     private String shortfall(GoalView g, LocalDate today) {
-        String target = money(g.goal().getTargetAmount()) + " by " + date(g.goal().getTargetDate(), today);
+        String by = date(g.goal().getTargetDate(), today);
+        // What is actually in it, against what it is for - the two figures the user needs to
+        // tell "saved" from "target" apart (they are otherwise easy to read as the same
+        // thing, especially when a near date makes the monthly requirement equal the target).
+        String saved = money(g.currentAmount()) + " of " + money(g.goal().getTargetAmount()) + " saved";
         if (g.requiredPerMonth() == null) {
-            return percent(g.progressPercent()) + " saved, towards " + target + ".";
+            return saved + ", towards " + by + ".";
         }
-        String needed = money(g.requiredPerMonth()) + " a month reaches " + target;
+        String needed = money(g.requiredPerMonth()) + " a month";
         BigDecimal funded = g.fundedPerMonth();
         if (funded == null) {
-            return needed + ".";
+            return saved + ". " + needed + " reaches the target by " + by + ".";
         }
         if (funded.signum() == 0) {
-            return "Nothing is funding it yet. " + needed + ".";
+            return saved + ", and nothing is going in. " + needed + " reaches the target by " + by + ".";
         }
-        return money(funded) + " a month is going in, and " + needed + ".";
+        // Going in vs needed, named as different things - "₹2,000 a month is going in, and
+        // ₹8,774 a month reaches it" read as one continuing sentence about the same figure.
+        return saved + ". " + money(funded) + " a month is going in; it needs " + needed
+                + " to reach the target by " + by + ".";
     }
 
     private Insight describe(GoalView g, LocalDate today) {

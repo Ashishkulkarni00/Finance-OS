@@ -32,6 +32,16 @@ interface LedgerRowProps {
   actionWidth?: string;
   /** Quieter and tighter - for rows that are done and no longer competing for attention. */
   muted?: boolean;
+  /**
+   * The secondary slot holds something other than one line of text - a progress rule, a
+   * stacked note - so it must not be truncated.
+   *
+   * <p>`truncate` is `overflow: hidden`, which silently clips anything that paints outside
+   * its own box. `ProgressRule`'s end marker is absolutely positioned and overflows its 2px
+   * track by a few pixels, so a part-paid bill's progress dot was sheared off along the
+   * row's bottom edge - visible, wrong, and impossible to explain from the calling code.
+   */
+  richSecondary?: boolean;
 }
 
 /**
@@ -66,6 +76,7 @@ export function LedgerRow({
   reserveAction,
   actionWidth,
   muted,
+  richSecondary,
   revealDelay,
 }: LedgerRowProps) {
   const navigate = useNavigate();
@@ -112,7 +123,9 @@ export function LedgerRow({
 
       <div className="min-w-0">
         <div className={cn('truncate text-row', muted ? 'text-ink-muted' : 'text-ink')}>{primary}</div>
-        {secondary != null && <div className="truncate text-caption text-ink-muted">{secondary}</div>}
+        {secondary != null && (
+          <div className={cn('text-caption text-ink-muted', richSecondary ? 'min-w-0' : 'truncate')}>{secondary}</div>
+        )}
       </div>
 
       <div className="text-right text-caption leading-tight text-ink-muted">{meta}</div>

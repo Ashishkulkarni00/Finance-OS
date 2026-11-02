@@ -47,7 +47,19 @@ public interface CommitmentInstanceService {
     /** Undo a skip - the bill is owed again. */
     CommitmentInstanceView unskip(Long id);
 
+    /**
+     * Lets a settled occurrence go of its payments - "I linked the wrong entry".
+     *
+     * <p>The missing half of {@link #settle}. Correcting a mis-recorded entry is ordinary,
+     * and until this existed there was no way back: settle refuses a second time and skip
+     * refuses anything with a payment on it.
+     */
+    CommitmentInstanceView unsettle(Long id);
+
     /** Gives an unpaid occurrence an expected amount (an estimate is fine), so a variable
      *  mandatory bill stops holding Real Balance at INCOMPLETE until it's paid. */
     CommitmentInstanceView setExpectedAmount(Long id, java.math.BigDecimal expectedAmount);
+
+    /** Puts one month back on its rule's amount, undoing a "just this month" change. */
+    CommitmentInstanceView clearAmountOverride(Long id);
 }

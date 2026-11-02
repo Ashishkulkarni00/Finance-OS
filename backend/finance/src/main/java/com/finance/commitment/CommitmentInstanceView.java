@@ -23,5 +23,8 @@ import java.time.LocalDate;
  *                  the bill has none.
  */
 public record CommitmentInstanceView(CommitmentInstance instance, Commitment commitment, Account account,
-                                     LocalDate settledOn, Category category) {
+                                     LocalDate settledOn, Category category,
+                                     /** Where the money actually left from, when that is not
+                                      *  the bill's own account. Null when they agree. */
+                                     Account settledFromAccount) {
 }

@@ -69,6 +69,10 @@ export type PositionResponse =
       realBalance: Money;
       roomToday: Money;
       roomLeft: Money;
+      /** What's left, per remaining day - the rate that is actually affordable. Use this,
+       *  never `roomToday`, beside "a day for N days": `roomToday` adds today's spending
+       *  back to stay still through the day, so it multiplies out to more than is held. */
+      perDay: Money;
       spentToday: Money;
       breakdown: PositionBreakdown;
       reason: null;
@@ -79,6 +83,7 @@ export type PositionResponse =
       realBalance: null;
       roomToday: null;
       roomLeft: null;
+      perDay: null;
       spentToday: null;
       breakdown: null;
       reason: string;

@@ -70,6 +70,12 @@ export const commitmentInstanceService = baseApi.injectEndpoints({
       query: ({ id, ...body }) => ({ url: `/commitment-instances/${id}`, method: 'PATCH', body }),
       invalidatesTags: (_result, _error, { id }) => [{ type: 'CommitmentInstance', id: 'LIST' }, { type: 'CommitmentInstance', id }, 'Position', 'Timeline'],
     }),
+
+    /** Undoes a "just this month" amount - the month follows the bill again (V22). */
+    useBillAmountForInstance: build.mutation<CommitmentInstanceResponse, number>({
+      query: (id) => ({ url: `/commitment-instances/${id}/use-bill-amount`, method: 'POST' }),
+      invalidatesTags: (_result, _error, id) => [{ type: 'CommitmentInstance', id: 'LIST' }, { type: 'CommitmentInstance', id }, 'Position', 'Timeline'],
+    }),
   }),
 });
 
@@ -84,6 +90,7 @@ export const {
   useConfirmCommitmentInstanceMutation,
   useSettleCommitmentInstanceMutation,
   useSetCommitmentInstanceAmountMutation,
+  useUseBillAmountForInstanceMutation,
   useSkipCommitmentInstanceMutation,
   useUnskipCommitmentInstanceMutation,
 } = commitmentInstanceService;

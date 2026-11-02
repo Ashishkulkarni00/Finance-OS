@@ -7,6 +7,7 @@ import com.finance.category.CategoryService;
 import com.finance.category.domain.Category;
 import com.finance.category.domain.CategoryGroup;
 import com.finance.commitment.CommitmentAutoMatcher;
+import com.finance.commitment.CommitmentSettlementReleaser;
 import com.finance.cycle.CycleService;
 import com.finance.cycle.domain.Cycle;
 import com.finance.common.exception.BusinessRuleException;
@@ -55,6 +56,8 @@ public class TransactionServiceImpl implements TransactionService {
     private final CategoryService categoryService;
     private final IdempotencyService idempotencyService;
     private final CommitmentAutoMatcher commitmentAutoMatcher;
+    /** Lets a bill go of an entry that has been deleted - see its own note. */
+    private final CommitmentSettlementReleaser settlementReleaser;
     private final CurrentUserProvider currentUser;
     private final CycleService cycleService;
 
@@ -66,6 +69,7 @@ public class TransactionServiceImpl implements TransactionService {
                                   CategoryService categoryService,
                                   IdempotencyService idempotencyService,
                                   CommitmentAutoMatcher commitmentAutoMatcher,
+                                  CommitmentSettlementReleaser settlementReleaser,
                                   CurrentUserProvider currentUser,
                                   CycleService cycleService) {
         this.repository = repository;
@@ -76,6 +80,7 @@ public class TransactionServiceImpl implements TransactionService {
         this.categoryService = categoryService;
         this.idempotencyService = idempotencyService;
         this.commitmentAutoMatcher = commitmentAutoMatcher;
+        this.settlementReleaser = settlementReleaser;
         this.currentUser = currentUser;
         this.cycleService = cycleService;
     }
@@ -146,12 +151,12 @@ public class TransactionServiceImpl implements TransactionService {
 
     @Override
     @Transactional(readOnly = true)
-    public Map<Long, LocalDate> datesByIds(Collection<Long> ids) {
+    public Map<Long, TransactionDateProjection> settlementFactsByIds(Collection<Long> ids) {
         if (ids.isEmpty()) {
             return Map.of();
         }
         return repository.findDatesByIds(ids, currentUser.currentUserId()).stream()
-                .collect(Collectors.toMap(TransactionDateProjection::getId, TransactionDateProjection::getDate));
+                .collect(Collectors.toMap(TransactionDateProjection::getId, f -> f));
     }
 
     @Override
@@ -159,17 +164,17 @@ public class TransactionServiceImpl implements TransactionService {
     public Page<TransactionView> search(Long accountId, Long categoryId, TransactionType type,
                                         LocalDate dateFrom, LocalDate dateTo, Pageable pageable) {
         return repository.search(currentUser.currentUserId(), accountId, categoryId, type,
-                dateFrom, dateTo, null, pageable).map(this::loadView);
+                dateFrom, dateTo, null, false, pageable).map(this::loadView);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<TransactionView> search(Long accountId, Long categoryId, TransactionType type,
                                         Long cycleId, LocalDate dateFrom, LocalDate dateTo, String q,
-                                        Pageable pageable) {
+                                        boolean unlinkedOnly, Pageable pageable) {
         LocalDate[] range = resolveRange(cycleId, dateFrom, dateTo);
         return repository.search(currentUser.currentUserId(), accountId, categoryId, type,
-                range[0], range[1], likePattern(q), pageable).map(this::loadView);
+                range[0], range[1], likePattern(q), unlinkedOnly, pageable).map(this::loadView);
     }
 
     @Override
@@ -307,7 +312,12 @@ public class TransactionServiceImpl implements TransactionService {
         Transaction tx = requireOwned(id);
         tx.markDeleted();
         repository.save(tx);
-        log.info("Transaction soft-deleted id={}", id);
+        // A deleted entry stops being evidence of anything, so every bill it was paying has
+        // to let it go. Without this the occurrence stayed PAID pointing at a row that no
+        // longer exists, and the month counted a settlement twice - once from the phantom
+        // link and once from whatever replaced it (found in use 2026-10-29).
+        int released = settlementReleaser.releaseTransaction(id, tx.getUserId());
+        log.info("Transaction soft-deleted id={} releasedCommitments={}", id, released);
     }
 
     private TransactionView loadView(Long transactionId) {

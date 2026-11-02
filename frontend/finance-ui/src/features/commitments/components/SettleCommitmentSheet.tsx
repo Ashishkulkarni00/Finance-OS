@@ -94,11 +94,20 @@ export function SettleCommitmentSheet() {
   // own account, an investment, or (for expected income) income.
   const kind = instance?.settleAs ?? 'EXPENSE';
   const copy = KIND_COPY[kind];
+  // Deliberately NOT filtered to the bill's own account. "Paid from" is the plan, not a
+  // gate - a bill can be settled from anywhere (USAGE_ISSUES U3), and querying only the
+  // planned account meant a payment made from elsewhere could not even be chosen. The
+  // destination still narrows it below, because money that went somewhere else did not pay
+  // this bill.
   const { data: candidatesPage, isFetching: loadingCandidates } = useGetTransactionsQuery(
-    { accountId: instance?.account.id, type: kind, dateFrom, dateTo, size: 20 },
+    { type: kind, dateFrom, dateTo, unlinkedOnly: true, size: 20 },
     { skip: !instance || mode !== 'link' },
   );
-  // A transfer or investment must also go where the bill says.
+  // A transfer or investment must also go where the bill says - and an entry that already
+  // settles this bill is not a candidate for settling it again. Offering it put a
+  // double-count one tap away: picking the ₹9,500 that already part-paid a ₹15,000 bill
+  // would have added it twice (FIX_BACKLOG 1.7). The server refuses it now too; this stops
+  // it being asked for.
   const candidates = (candidatesPage?.content ?? []).filter(
     (t) => instance?.toAccountId == null || t.toAccount?.id === instance.toAccountId,
   );
@@ -319,9 +328,15 @@ export function SettleCommitmentSheet() {
           ) : (
             <div className="flex flex-col gap-space-3">
               <p className="text-caption text-ink-soft">
-                {copy.entries} {kind === 'INCOME' ? 'into' : 'from'} {instance.account.name}
-                {toAccount ? ` into ${toAccount.name}` : ''} within {LINK_WINDOW_DAYS} days of the due date. Pick the one
-                that paid this bill.
+                {copy.entries}
+                {toAccount ? ` into ${toAccount.name}` : ''} within {LINK_WINDOW_DAYS} days of the due date, from any
+                account. Pick the one that paid this bill.
+              </p>
+              {/* Entries that already settle a bill - this one or any other - are dropped by
+                  the query (`unlinkedOnly`). Offering one was a dead end: the server refuses
+                  it, and before that it could be used twice on the same bill. */}
+              <p className="text-caption text-ink-muted">
+                Entries that already pay a bill are not listed.
               </p>
               {loadingCandidates ? (
                 <p className="text-body text-ink-muted">Looking in your Ledger…</p>
