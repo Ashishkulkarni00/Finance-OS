@@ -13,6 +13,8 @@ export type InsightType =
   | 'PLANNED_ITEM_MISSED'
   | 'CARD_BILL_DUE'
   | 'CARD_BILL_OVERDUE'
+  /** A card has been paid more than the charges recorded on it, so it sits in credit. */
+  | 'CARD_IN_CREDIT'
   | 'GOAL_BEHIND'
   /** A goal funded by a bill with no set amount — its pace cannot be judged at all. */
   | 'GOAL_FUNDING_UNCLEAR'

@@ -22,6 +22,12 @@ public enum InsightType {
     CARD_BILL_DUE,
     /** A credit card bill's due date has passed with money still owed. */
     CARD_BILL_OVERDUE,
+    /**
+     * A credit card has been paid more than the charges recorded on it, so its balance is a
+     * credit rather than a debt. Nearly always a charge that was never entered; sometimes a
+     * refund. See {@code CardCreditBalanceRule}.
+     */
+    CARD_IN_CREDIT,
     /** The top goal is behind its pace or past its date. */
     GOAL_BEHIND,
     /** A goal is funded by a bill with no set amount, so its pace cannot be judged at all. */
