@@ -9,6 +9,8 @@ import com.finance.common.exception.ResourceNotFoundException;
 import com.finance.common.money.MoneyScale;
 import com.finance.common.user.CurrentUserProvider;
 import com.finance.commitment.CommitmentInstanceRepository;
+import com.finance.commitment.CommitmentRepository;
+import com.finance.commitment.domain.CommitmentInstance;
 import com.finance.cycle.domain.Cycle;
 import com.finance.cycle.domain.CycleSnapshot;
 import com.finance.plan.PlanRevisionRepository;
@@ -46,6 +48,13 @@ public class CycleServiceImpl implements CycleService {
     private final CategoryService categoryService;
     /** Read at close only, for the snapshot's planned-versus-actual figures (ADR-0015). */
     private final CommitmentInstanceRepository instanceRepository;
+    /**
+     * Read at close only, and for one thing: whether an occurrence belongs to an income
+     * commitment, so a salary is not written into the snapshot as a promise kept
+     * (FIX_BACKLOG 1.15). A repository, not a service - no bean cycle through
+     * {@code PositionService}.
+     */
+    private final CommitmentRepository commitmentRepository;
     private final PlanRevisionRepository planRevisionRepository;
     private final CurrentUserProvider currentUser;
     private final Clock clock;
@@ -57,10 +66,12 @@ public class CycleServiceImpl implements CycleService {
                             PositionService positionService,
                             CategoryService categoryService,
                             CommitmentInstanceRepository instanceRepository,
+                            CommitmentRepository commitmentRepository,
                             PlanRevisionRepository planRevisionRepository,
                             CurrentUserProvider currentUser,
                             Clock clock) {
         this.instanceRepository = instanceRepository;
+        this.commitmentRepository = commitmentRepository;
         this.planRevisionRepository = planRevisionRepository;
         this.repository = repository;
         this.snapshotRepository = snapshotRepository;
@@ -121,8 +132,12 @@ public class CycleServiceImpl implements CycleService {
         // Plan versus actual, captured while the occurrences still say what they said at
         // close. Everything else on this row is an actual; without these the cycle could
         // never be compared against the plan that was in force during it (ADR-0015).
-        PlanAdherence adherence = PlanAdherence.from(
-                instanceRepository.findByCycleIdAndUserId(cycle.getId(), userId));
+        List<CommitmentInstance> occurrences = instanceRepository.findByCycleIdAndUserId(cycle.getId(), userId);
+        // Income occurrences are dropped before counting - a salary credit is not a promise
+        // the user keeps, and this row is immutable once written (FIX_BACKLOG 1.15).
+        PlanAdherence adherence = PlanAdherence.from(occurrences,
+                commitmentRepository.findByIdInAndUserId(
+                        occurrences.stream().map(CommitmentInstance::getCommitmentId).distinct().toList(), userId));
         int planRevisions = (int) planRevisionRepository.countByUserIdAndCycleId(userId, cycle.getId());
 
         CycleSnapshot snapshot = CycleSnapshot.builder()

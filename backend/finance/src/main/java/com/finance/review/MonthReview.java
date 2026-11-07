@@ -48,10 +48,10 @@ import java.time.LocalDate;
  * @param commitmentsKept  paid, or settled in an earlier cycle - the North Star, per cycle.
  *                         Counts <strong>bills only</strong>: occurrences of an income
  *                         commitment are filtered out before counting, because a salary
- *                         credit is not a promise the user keeps. {@code PlanAdherence}
- *                         itself does not filter them, which is a defect in what gets
- *                         written into every snapshot at close - logged in FIX_BACKLOG
- *                         rather than changed here, since that row is a historical fact
+ *                         credit is not a promise the user keeps. The filter lives in
+ *                         {@code PlanAdherence}, so this figure and the one written into
+ *                         the snapshot at close are the same arithmetic (FIX_BACKLOG 1.15,
+ *                         fixed 2026-11-07)
  * @param plannedCommittedTotal what the plan said would leave spending money this month -
  *                         bills <em>and</em> money set aside, so it is deliberately larger
  *                         than {@link #committed}, which counts only what was spent
