@@ -88,7 +88,7 @@ is cheap to fix.
 
 ---
 
-### 1.19 Archiving a goal leaves its reservation holding money
+### 1.19 Archiving a goal leaves its reservation holding money — 🔨 **built 2026-11-08**
 
 **Found 2026-11-01.** The goal *Bangalore trip tickets booking* was archived on 18 Oct with
 a target date of 31 Oct. Both passed. Its ₹3,226 reservation on HDFC Salary stayed live and
@@ -109,6 +109,39 @@ mentions, the reservation funding it.
 
 Not auto-release: money set aside is the user's statement of intent, and silently undoing it
 is the kind of plan rewrite ADR-0015 exists to prevent.
+
+---
+
+**Built 2026-11-08** — option 1, the insight.
+
+- `reservation/StrandedReservation.java` — the finding, carrying a `Reason` because the two
+  cases read very differently: a goal **archived** can be named and dated so the reader can
+  judge it; a goal **deleted** leaves a reservation pointing at nothing, and the only honest
+  thing to say is that nothing explains what the money is for any more.
+- `reservation/StrandedReservationCalculator.java` — `@Component`, two user-filtered
+  queries: every live reservation, and every goal *including archived* (`findAllForUser`
+  with `includeArchived = true`, which is precisely what this needs and what
+  `FinancialContext.goals` deliberately excludes). Deleted goals stay out of that query, and
+  their absence **is** the `GOAL_GONE` signal rather than a lookup failure to paper over.
+- `insight/rules/StrandedReservationRule.java` — ATTENTION, undated, ranked by amount. A
+  past archive date in `when` would rank it above every bill still to come, which it should
+  never outrank.
+- `InsightType.RESERVATION_STRANDED` + the frontend union member;
+  `FinancialContext.strandedReservations` wired in `buildContext`.
+- Reservations with **no** goal are skipped: "rent I'm holding for a flatmate" answers for
+  itself and has no goal to outlive.
+
+**It states the effect and opens the account; it does not offer to release.** The user may
+still be saving for the thing and have simply tidied the goal away. The sentence says what
+the money is doing — *"it is coming off what's free until salary and off the daily figure.
+Release it and it counts again — it stays in the account either way"* — and the action opens
+the account where **Set aside → Release** lives.
+
+**Not yet observed firing.** The Bangalore trip reservation that prompted this was released
+by the user on 2026-11-01, and the one live reservation today (₹10,001, parked from HDFC
+Premium to avoid minimum-balance charges) has no goal attached — so there is nothing stranded
+to find. Goal 6 is still archived, so a ₹1 reservation against it would raise the insight and
+can be deleted straight after.
 
 ---
 
@@ -148,7 +181,7 @@ is the kind of plan rewrite ADR-0015 exists to prevent.
     already filtered — so `/review/months` reading identically after a restart is the
     regression check, not a non-result.
 
-### 1.16 `formatPercent` prints a hyphen, not a true minus
+### 1.16 `formatPercent` prints a hyphen, not a true minus — ✅ **fixed 2026-11-08**
 
 - **Found 2026-10-24** on Summary: a negative savings rate renders **`-10%`** with
   `U+002D`, beside figures that correctly use `U+2212` (`Amount` via `splitMoney`).
@@ -392,24 +425,60 @@ is the kind of plan rewrite ADR-0015 exists to prevent.
 - `CycleServiceImpl` keeps the old unfiltered sum: its "money out" is every expense, bills
   included, which is what that figure is for.
 
-### 1.5 Net worth doesn't move as loan EMIs are paid
+### 1.5 Net worth doesn't move as loan EMIs are paid — 🔨 **built 2026-11-08**
 - **Problem.** Total debt uses the LOAN account balance, which only changes when the loan's
   outstanding principal is edited (V13 re-bases the account then). The loan page's
   "Outstanding today" is derived and does fall as payments are recorded.
 - **Cost.** Net worth reads more pessimistic every month until the user edits the loan.
 - **Fix.** Derive the loan account's balance from the loan's outstanding in the net worth /
   account balance calculation instead of the opening balance. Nothing stored (ADR-0011).
-- **Changed by ADR-0018 (2026-09-21), still open.** The loan's own figure is no longer a
-  calendar guess — it now falls only when a payment is *recorded*, which makes this fix both
-  safer and more valuable: net worth would move on evidence rather than on a date. The
-  divergence is still live and **will become visible on 5 October**, when the first three
-  EMIs fall due and the loan pages move while net worth does not.
+- **Changed by ADR-0018 (2026-09-21).** The loan's own figure is no longer a calendar guess —
+  it now falls only when a payment is *recorded*, which made this fix both safer and more
+  valuable: net worth moves on evidence rather than on a date.
+
+**The divergence, measured 2026-11-08 before fixing:**
+
+| Loan | Account balance | Loan's outstanding | Apart |
+|---|---:|---:|---:|
+| Mobile Mom | 12,600.98 | 10,163.00 | 2,437.98 |
+| Health Insurance | 42,701.00 | 39,488.70 | 3,212.30 |
+| **Total debt** | **3,40,091.98** | **3,34,441.70** | **5,650.28** |
+
+Both figures print on Today, in the *Standing* panel: *Owed ₹3,34,442* and *Net worth …
+₹3,40,092 owed*. Only the two card-paid loans had drifted, because only their EMIs had been
+recorded as payments; the bank-paid three will join them as their EMIs land.
+
+**Built 2026-11-08.**
+
+- `loan/LoanOutstandingIndex.java` — `@Component`, loan-account id to what that loan still
+  owes. Two queries for every loan, not two per loan: the loans, then
+  `findPaidAmountsForUser` batched and grouped here. **Repositories and a stateless
+  calculator only** — `PositionService` is reachable from `CycleServiceImpl.close`, so
+  anything it depends on must stay clear of the services that depend back on it (CLAUDE.md
+  bean-cycle traps). That is also why the arithmetic is duplicated from
+  `LoanServiceImpl.toView` rather than called through `LoanService`.
+- `PositionServiceImpl.currentNetWorth` reads it for LOAN accounts. **Credit cards keep the
+  posted balance** — a card's balance *is* its debt, since every charge posts to it. A LOAN
+  account with no loan behind it falls back to the posted balance, which is the old
+  behaviour.
+- Nothing stored (ADR-0011). No schema. `CycleServiceImpl.close` writes `netWorth` and
+  `totalDebt` into the snapshot through the same path, so a closed cycle now records the
+  derived figure too.
+- **Where it cannot be derived, the stated balance stands** — no rate, or a loan whose own
+  figures don't support derived ones. That overstates by whatever principal has been repaid,
+  but it is the *same* overstatement as before rather than a new one, and net worth going
+  unknown over one unpriced loan would be a worse answer. `loansWithoutTerms` on
+  `/financial-state` already exposes the condition; it is 0 for this user.
+
+**Expected after restart:** `netWorth.totalLiabilities` 3,40,091.98 → **3,34,441.70**,
+matching `debt.totalOutstanding` exactly; `netWorth.netWorth` −2,42,363.08 → **−2,36,712.80**.
+Assets must not move.
 
 ---
 
 ## 2. Missing capability, requested or implied
 
-### 2.16 A bill's "Paid from" never learns from where the money actually comes
+### 2.16 A bill's "Paid from" never learns from where the money actually comes — 🔨 **built 2026-11-07**
 
 **Found 2026-11-04**, after the same mistake was made twice a month apart.
 
@@ -441,7 +510,46 @@ the October mistake.
 
 **Related, same cause, cheaper:** warn in the Settle sheet when the chosen *From* account is a
 different **kind** from the plan's — a bank where the plan says a card, or the reverse. That
-catches the first occurrence; the rule above catches the pattern.
+catches the first occurrence; the rule above catches the pattern. **Not built.**
+
+---
+
+**Built 2026-11-07.**
+
+- `commitment/PlanAccountDrift.java` — the finding: the bill, both accounts, how many
+  payments in a row, and when the last one was.
+- `commitment/PlanAccountDriftCalculator.java` — a `@Component` in the
+  `GoalWithdrawalCalculator` mould, so rules stay pure and never query. One
+  `findTop6ByCommitmentIdAndUserIdOrderByDueDateDesc` per bill (an existing finder, bounded
+  by the cycle's own commitments) and **one** batched `settlementFactsByIds` for every
+  payment behind them.
+- `insight/rules/PlanAccountDriftRule.java` — ATTENTION, undated, no rupee impact, so it can
+  never outrank a bill about to bounce. The action **opens the plan** rather than rewriting
+  it: changing where a bill is paid from is a plan revision (ADR-0015) and belongs to the
+  user on the page that records it, not to a button inside a warning.
+- `InsightType.PLAN_ACCOUNT_DRIFT` and the frontend union member.
+- `FinancialContext.planAccountDrifts`. While wiring it, `buildContext` was reading
+  `instanceService.listForCycle` twice — the cycle's whole worklist, the most expensive read
+  in the context. Now read once and shared.
+
+**Two in a row, never one.** The Settle sheet allows any account deliberately, and a bill
+paid from elsewhere once is ordinary. A warning on a one-off is noise, and noise is how a
+reader learns to skip the warning that matters. Paying from the planned account breaks the
+run, so correcting course clears the finding rather than leaving a standing accusation —
+the same principle `GoalWithdrawalCalculator` applies by netting deposits against
+withdrawals.
+
+**Verified silent on real data, which is the result the threshold predicts.** Replaying the
+rule's own logic over every cycle found exactly two bills with a single off-plan payment —
+*Home Support* (planned HDFC Salary, paid from Cash wallet, 29 Oct) and *Emergency fund
+top-up* (planned Cash wallet, paid from HDFC Salary, 3 Oct) — and none with two. Both look
+like a plan that wants correcting; both are correctly below the floor until it happens
+again.
+
+**Not yet observed firing**, for that same reason: no bill in this data has drifted twice
+yet. *Clothes shopping* will be the first if November repeats in December. The firing path
+can be proved without touching data by lowering `MIN_CONSECUTIVE` to 1 for one restart —
+both bills above should then appear — and putting it back.
 
 ---
 
@@ -641,7 +749,7 @@ catches the first occurrence; the rule above catches the pattern.
 - **Fix, if wanted.** Hard-delete the three rows and their postings after a `mysqldump`;
   harmless either way.
 
-### 4.7 A nested `<button>` on Needs you logs a React hydration error
+### 4.7 A nested `<button>` on Needs you logs a React hydration error — ✅ **fixed 2026-11-08**
 - Found 2026-09-25 in the headless console while screenshotting `/needs-you`:
   *"In HTML, `<button>` cannot be a descendant of `<button>`"*, traced through `AppShell` →
   `Outlet`. `InsightRow` renders the whole row as a button when `navigable` (the dedicated

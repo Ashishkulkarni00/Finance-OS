@@ -29,133 +29,94 @@ This changes how much gets *printed*, never how much gets verified.
 
 ## NEXT ACTION
 
-On branch **`feature/month-summary`**, off `uat-release`. Two pieces of finished work sit
-uncommitted: **Summary** (2026-10-24) and the **Today rebuild** (2026-11-01). Both are
-verified against real data in a headless browser, not merely compiled.
+On branch **`feature/month-summary`**. Everything through the MCP server and the Today
+rebuild was **pushed and merged by the user on 2026-11-07**. What is uncommitted is one
+slice: `FIX_BACKLOG` **2.16**, finished and verified.
 
-### 1. Nothing is half-done. Two things need committing
+### 1. Nothing is half-done. Three slices need committing
 
-**Today, rebuilt 2026-11-01** on the user's own words: *"whatever is there on today page I
-dont like it how its aligned and everything ... what numbers its showing how it came nothing
-is making sense for me right now ... how much I am able to spend for today that should be
-there along with little relevant information. revamp it please"*. Full write-up below under
-*2026-11-01*.
+All three are backend-only, all compile, all are derived-not-stored so the backend boots
+unchanged. Write-ups below under *2026-11-07* and *2026-11-08*.
 
-**Summary, built 2026-10-24** on *"monthly summary section below Goals in left vertical ...
-via charts graphs etc"*. Five sections at `/summary`, a sixth rail entry under Goals. Full
-write-up below under *2026-10-24*.
+| | What | Runtime state |
+|---|---|---|
+| `1.5` | Net worth reads each loan's **derived** outstanding, not the stale LOAN account balance | ✅ **verified 2026-11-08** |
+| `1.19` | `StrandedReservationRule` — money still set aside for an archived or deleted goal | 🔨 compiles, **never observed** |
+| `2.16` | `PlanAccountDriftRule` — a bill whose payments keep coming from another account | 🔨 loads, **verified silent only** |
 
-Frontend only, both of them. `npx tsc -b --noEmit && npx vite build` clean; no backend
-change, so nothing new is waiting on DDL.
+**`1.5` verified exactly as predicted**, before and after a restart: assets unchanged at
+₹97,728.90; `totalLiabilities` 3,40,091.98 → **3,34,441.70**; `netWorth` −2,42,363.08 →
+**−2,36,712.80**; and `netWorth.totalLiabilities` now equals `debt.totalOutstanding` to the
+rupee. The two figures printed side by side in Today's *Standing* panel had been ₹5,650.28
+apart.
 
-### 2. New: `webapp/mcp-server/` - Kosh's data, read-only, over MCP
+### 2. Blocked, and it needs the user — not a workaround
 
-Built 2026-11-01 on the user's instruction: *"I want to begin new session in claude code via
-app, and give it access of data what our kosh has so that in the session I can ask claude to
-act as my personal CA"*. On the current branch, at their direction.
+**The auto-mode permission classifier denied `curl` against `localhost:8080`** on
+2026-11-08, as *"Modify Shared Resources"* — the `POST` that would have created a test
+reservation **and then a plain read-only `GET /insights`**. Reads had worked all session;
+this was not a change in what was being attempted.
 
-- **`server.mjs`** - one file, zero dependencies, MCP over stdio (Node 22's `fetch` plus
-  newline-delimited JSON-RPC). 16 tools, each one GET.
-- **Read-only is structural.** `call()` is the only function that touches the network and
-  takes no HTTP method, so there is no code path that can POST, PATCH or DELETE. A session
-  cannot write because no tool *can*. `lastFour` is stripped from every account on the way
-  out; names are not, since an answer has to be able to say "IDBI Saving".
-- **`CA_BRIEF.md`** - the role, the reading rules that are easy to get wrong (the 28-27
-  salary month against the 1 Apr - 31 Mar financial year; transfers are not spending; null
-  is never zero), and the part that decides whether a tax answer is possible at all:
-  **what Kosh does not know** - gross salary, TDS, EPF, HRA, rent, regime choice. The brief
-  tells the session to ask for a payslip or Form 16 rather than compute from take-home.
-  What it *can* do from Kosh alone: **80E** (education loan interest, via
-  `kosh_loan_schedule` on loan 2 - `interestComponent` per row) and **80D** (health premium,
-  with the parent-policy limit noted as separate).
-- **Registered in both clients.** Claude Code reads `.mcp.json` at `G:\FinanceOS\`; Claude
-  Desktop reads `%LOCALAPPDATA%\Claude-Data\<account>\claude_desktop_config.json` - the newer
-  per-account layout, **not** the `%APPDATA%\Claude\` path the guides still give, and it had
-  no `mcpServers` key at all. Desktop's entry uses the **absolute path to `node.exe`**: the app
-  spawns servers without a login shell's `PATH`. The previous config was backed up beside it as
-  `claude_desktop_config.backup-2026-11-01.json`.
-- **The brief reaches a Desktop chat through MCP**, since a chat there cannot open a file: as a
-  *prompt* (`personal_ca`, listed under "+") and as the `kosh_ca_brief` *tool*, read from disk
-  per call so edits need no restart.
-- **`.mcp.json` lives at `G:\FinanceOS\`** - outside the repo, which is not a git work tree
-  at that level, so machine-local config stays untracked while the server itself is
-  versioned.
+So two rules are built and unverified at runtime:
 
-**Verified** against the running backend: handshake, `tools/list` (16), live calls to
-accounts / loans / spending summary / loan schedule, `lastFour` absent from the payload,
-unknown-tool error, and the backend-down path returning a sentence that names the fix. One
-real bug found and fixed in the process: exiting on stdin close dropped in-flight requests,
-so the server now drains before exiting.
+- **`1.19`** — to see it fire: create a **₹1 reservation on HDFC Salary (account 2) against
+  goal 6**, *Bangalore trip tickets booking*, which is still archived. The insight should
+  read *"₹1 is still set aside for Bangalore trip tickets booking"*. Delete the reservation
+  after. Same reversible shape as the ₹1 card overpayment the user approved on 2026-11-07.
+- **`2.16`** — correctly silent (no bill has two consecutive off-plan payments). To see it
+  fire without touching data: `MIN_CONSECUTIVE = 1` in `PlanAccountDriftCalculator`,
+  restart, expect *Home Support* and *Emergency fund top-up*, then set it back.
 
-### 3. What the Today rebuild did **not** fix, deliberately
+**Do not work around the denial.** Ask the user to run the checks, or to add a Bash
+permission rule for `curl http://localhost:8080/*`.
 
-- **`FIX_BACKLOG` 1.17 - "Free this month" leads with an income figure the user will not
-  recognise.** The note reads *"₹1,05,733 in"*: salary ₹57,700 + Diwali bonus ₹46,000 + a
-  ₹1,736 withdrawal from an NJE-wealth SIP + ₹297 recorded as "Unexplained part of the
-  credit". A SIP withdrawal is a transfer between two things the user already owns and is
-  **not income**. The arithmetic is right; the input is not. Contained for now inside Today's
-  collapsed *Standing* section - but it is the **lead figure on Months**, where it is
-  prominent and unexplained. Needs a decision: is the transaction miscategorised, or should
-  the shape calculator exclude income whose counterparty is the user's own holding?
-- **A second shortfall account would keep its card.** `useDatedWarnings` fetches one
-  projection, for the first shortfall account, and anchors that warning to the exact payment
-  that breaks it. Hooks cannot be called in a loop; a second shortfall still shows in full in
-  Needs you, just not inline. Nothing is lost, only the placement.
-
-### 4. Defects still open from Summary, neither fixed
-
-- **`FIX_BACKLOG` 1.15 - `PlanAdherence` counts income as a commitment.** The October cycle
-  read "16 of 17 kept" with a planned cost of ₹1,24,722 against ₹59,200 of income, because the
-  salary and the Diwali bonus are occurrences like any other. Summary filters them out for
-  itself; `CycleServiceImpl.close` still writes the inflated figures into `CycleSnapshot`,
-  which is immutable. **No cycle has been closed yet, so there is nothing to restate - that
-  window shuts the first time a month is closed.** This is the one item with a deadline.
-- **`FIX_BACKLOG` 1.16 - `formatPercent` prints a hyphen, not a true minus.** One line, six
-  existing call sites, so not slipped into an unrelated change.
-
-### 5. Open decisions - the user has not answered these; do not pick for them
+### 3. Open decisions — the user has not answered these; do not pick for them
 
 - **May a closed cycle's figures change?** The only thing blocking `FIX_BACKLOG` **1.11**.
-  `CommitmentBucketClassifier` reads the *planned* source, so an account's spendability checkbox
-  silently restates a month's shape - and it is shared with `CycleReview`, which **recomputes
-  live rather than reading `CycleSnapshot`**. If the answer is "no", `CycleReview` needs the
-  snapshot before the classifier can move. *Note: ₹27,500 is **arithmetically correct** - see the
-  correction in 1.11. The defect is that it moved retroactively, not that it is wrong.*
-- **Commitment 43** (₹30,000 EF top-up, 3 Nov) - **the user said "let it be" on 2026-10-03.**
+  `CommitmentBucketClassifier` reads the *planned* source, so an account's spendability
+  checkbox silently restates a month's shape — and it is shared with `CycleReview`, which
+  **recomputes live rather than reading `CycleSnapshot`**. If the answer is "no",
+  `CycleReview` needs the snapshot before the classifier can move. *₹27,500 is
+  **arithmetically correct** — the defect is that it moved retroactively, not that it is wrong.*
+- **Commitment 43** (₹30,000 EF top-up) — **the user said "let it be" on 2026-10-03.**
   Parked, not pending. Do not raise it again unprompted.
 
-*(The old "green on a positive Free this month" question is closed: that row left Today's
-hierarchy on 2026-11-01 and now sits inside Standing, where a colour would say nothing.)*
+### 4. Two things the data is saying right now, neither investigated
 
-### 6. Real money: IDBI is short on **5 Nov** - and Today now says so on the row
+Both appeared on `/insights` after the 2026-11-08 restart and **neither has been looked at**:
 
-Checked 2026-11-01 against live data. `GET /accounts/4/projection`: IDBI Saving holds ₹4,389
-and is projected to **-₹10,111** by the cycle's end. It covers the Education loan EMI on 5 Nov
-(leaving ₹972) and then **cannot cover the Coding Ninjas EMI** the same day. ₹10,111 needs to
-move in by 5 Nov; ₹44,151 is sitting in HDFC Salary.
+- **`GOAL_RAIDED` — ₹10,001 came back out of Emergency fund** this cycle, with no plan asking
+  for it.
+- **`SHORTFALL` — IDBI won't cover Petrol on 27 Nov.** The IDBI problem has *moved*, not gone:
+  it was Coding Ninjas on 5 Nov, now it is the end of the month. Same account, same cause —
+  the money lives in HDFC Salary. This is the third month running. **Read the live projection
+  before repeating the warning**; re-raising a solved problem is how a product teaches people
+  to ignore it.
 
-This is the **same shape** as the 8 Oct warning raised on 2026-10-03 - the money lives in the
-wrong account each month. The warning is now attached to the payment it breaks in *Before
-payday*, with its own **Move money** button, rather than sitting in a card beside it.
+### 5. What to pick next
 
-### 7. If they say "carry on": the solutions pass, `USAGE_ISSUES` section "Solutions pass"
+From `FIX_BACKLOG`, in the order I would take them:
 
-Six proposals, none approved. **M3 is the one to build** - show the payment list on a bill's
-detail page. It is the only item that hands the user the evidence instead of Claude fixing
-something on their behalf, and *"which entries made up this ₹10,500?"* has been answerable in
-the data since V23 and visible nowhere. **M2** (refuse an over-settle - the calculator still has
-no cap) is smaller and closes a live rule-4 hole.
+1. **`1.19`** — archiving a goal leaves its reservation holding money. Specced, not built; an
+   insight is the proposed fix, so no schema. The user hit this for real (₹3,226 on a goal
+   archived two weeks earlier, quietly shrinking the day rate).
+2. **`1.5`** — net worth doesn't move as loan EMIs are paid.
+3. **The rest of the impossible-state family** that `1.18` opened: a bank account below zero
+   that is not an overdraft, a bill settled for many times its plan, a goal holding more than
+   its target.
 
-### Owed to Summary, small and deliberate
+`ROADMAP` Phase 4 (the decision engine — *"can I afford this"*, prepay vs save vs invest) is
+the real differentiator and **none of it is built**. It is a bigger commitment than a backlog
+slice; raise it as a choice rather than starting it.
 
-- **No Help topic and no primer.** Every other screen has one; this has a takeaway sentence per
-  section and a plain-language footnote under each table instead, because it is a report with no
-  form to get wrong. If a Help topic is written, `SummaryPage` has nowhere to hang a guide sheet
-  yet.
-- **`Statement notes` collapses below ~900px** - its label column squeezes to nothing while the
-  22rem notes column holds its width. Pre-existing, affects Money; Today's own statements use
-  the two-column form and are unaffected. Related to `FIX_BACKLOG` 4.8 (the rail never
-  collapses).
+### 6. Standing agreements that bit this session
+
+- **The user runs every git command.** Claude tracks read-only and reminds.
+- **No migrations, no SQL, no tests.** Both rules built this week were designed around it —
+  derived insights, no schema, so the backend boots unchanged.
+- **Never write to real data without asking.** Asked and granted twice on 2026-11-04/07: the
+  ₹12,000 Myntra correction, and a ₹1 card overpayment to prove `CardCreditBalanceRule` fires,
+  deleted immediately after. Both confirmed back to a clean state.
 
 ### Where a problem found in real use goes
 
@@ -163,6 +124,104 @@ no cap) is smaller and closes a live rule-4 hole.
 `FIX_BACKLOG` is defects and missing capability. Cross-reference, never copy. **Do not fix
 `USAGE_ISSUES` entries piecemeal** — they are solved in one considered pass, at the user's own
 instruction.
+
+---
+
+## 2026-11-07 — The plan learns where the money actually goes (`FIX_BACKLOG` 2.16)
+
+**Why.** *Clothes shopping* (₹12,000, Myntra) is planned from HDFC Salary and actually goes on
+the HDFC Money back card. In October that mis-booked ₹12,000 of card spending against the
+bank; in November it happened again and was only caught because the card ended up ₹12,411 in
+credit. The product watched the same mistake twice and said nothing — while
+`CommitmentInstanceView.settledFromAccount` ("where the money actually left from, when that is
+not the bill's own account") was computed and displayed on screen the whole time, and never
+reasoned about.
+
+**Built**
+
+- `commitment/PlanAccountDrift.java` — the finding: bill, both accounts, run length, last date.
+- `commitment/PlanAccountDriftCalculator.java` — `@Component`, in the
+  `GoalWithdrawalCalculator` mould so rules stay pure and never query. One existing
+  `findTop6ByCommitmentIdAndUserIdOrderByDueDateDesc` per bill, bounded by the cycle's own
+  commitments, then **one** batched `settlementFactsByIds` for every payment behind them.
+- `insight/rules/PlanAccountDriftRule.java` — ATTENTION, undated, no rupee impact, so it can
+  never outrank a bill about to bounce.
+- `InsightType.PLAN_ACCOUNT_DRIFT` + the frontend union member.
+- `FinancialContext.planAccountDrifts`, wired in `InsightService.buildContext`.
+
+**Three decisions worth keeping**
+
+- **Two in a row, never one.** The Settle sheet allows any account deliberately — *"Paid from
+  is the plan, not a record"* — so a bill paid elsewhere once is ordinary. A warning on a
+  one-off is noise, and noise is how a reader learns to skip the warning that matters. Paying
+  from the planned account breaks the run, so correcting course clears the finding rather than
+  leaving a standing accusation — the principle `GoalWithdrawalCalculator` applies by netting
+  deposits against withdrawals.
+- **The action opens the plan, it does not rewrite it.** Changing where a bill is paid from is
+  a plan revision (ADR-0015) and belongs to the user on the page that records it, not to a
+  button inside a warning. The engine suggests; the user acts.
+- **A settled instance with no readable payment breaks the run.** Unknown is not agreement,
+  the same way null is never zero.
+
+**Found while wiring it:** `buildContext` was calling `instanceService.listForCycle` twice —
+the cycle's whole worklist, the most expensive read in the insight context. Now read once and
+shared.
+
+---
+
+## 2026-11-07 — `PlanAdherence` no longer counts a salary as a promise kept (`FIX_BACKLOG` 1.15)
+
+Fixed **before any cycle was closed**, which was the entire reason it had a deadline: `close`
+writes into `CycleSnapshot`, which is immutable.
+
+**The real defect was where the filter lived.** `ReviewServiceImpl` had its own `billsOnly`,
+so Summary read the right figure while `CycleServiceImpl.close` called the unfiltered
+`PlanAdherence.from`. Two places had to remember the same rule and only one did.
+
+- `PlanAdherence.billsOnly(instances, commitments)` is now the single implementation, and
+  `PlanAdherence.from` **requires** the commitments — there is no overload that skips the
+  filter, so the unfiltered call does not compile and a later caller cannot reintroduce the
+  bug by forgetting it.
+- `CycleServiceImpl` gained `CommitmentRepository` (a repository, not a service — no bean
+  cycle through `PositionService`).
+- `ReviewServiceImpl.billsOnly` delegates; its local income-id set and `java.util.Set` import
+  are gone. `MonthReview`'s javadoc no longer calls the defect open.
+
+**Verified by what did *not* change.** Summary was already filtering, so the correct outcome
+was identical figures. `/review/months` before and after the restart: **4 months compared, 0
+differences** — 28 Sept–27 Oct still 16 of 16 / ₹67,022, 28 Oct–27 Nov still 13 of 17 /
+₹92,962. The filter moved; behaviour did not.
+
+---
+
+## 2026-11-05 — `CardCreditBalanceRule`: the first impossible-state check (`FIX_BACKLOG` 1.18)
+
+A credit card cannot owe you money. On 2026-11-04 this user's card sat at **+₹12,411** for
+hours — paid ₹21,430 against ₹9,019 of recorded charges — and Money, Cards and the Pulse all
+reported it calmly while net worth counted it as an asset.
+
+`CreditCardView.outstanding()` is already `-balance(card)`, so the test is
+`outstanding().signum() < 0`. No schema, no query, no new endpoint.
+
+**Observed firing on real data 2026-11-07**, with a ₹1 overpayment the user approved and which
+was deleted immediately after:
+
+> **HDFC Money back is ₹1 in credit** · ATTENTION · impact ₹1 · action *Open card* → `/cards/15`
+> *"The card has been paid ₹1 more than the charges recorded on it. Usually that means a
+> purchase hasn't been entered yet — a bill often covers things bought before you started
+> recording them. It can also be a refund, or a payment larger than the bill. Until it is one
+> or the other, this ₹1 is counted as money you have."*
+
+Cleanup confirmed: transaction deleted, card ₹0.00, insight gone, HDFC Salary untouched.
+
+**Worded "nearly always", not "impossible", deliberately.** A card really can sit in credit —
+overpay, or take a refund after paying — so it names both causes and leads with the likelier.
+Telling someone their refund is an error is how a warning gets dismissed, and the dismissal
+would carry to the case that matters.
+
+**The family this opens** is the point: the product had no concept of a figure that *cannot be
+true*, only of one that is concerning. Next in it — a bank account below zero that is not an
+overdraft, a bill settled for many times its plan, a goal holding more than its target.
 
 ---
 

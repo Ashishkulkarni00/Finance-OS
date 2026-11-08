@@ -21,7 +21,11 @@ export type InsightType =
   /** Money set aside while debt costing more than it can earn is still running. */
   | 'RATE_MISMATCH'
   /** Money taken back out of a goal this cycle, with no plan asking for it. */
-  | 'GOAL_RAIDED';
+  | 'GOAL_RAIDED'
+  /** A bill's recent payments keep coming from an account other than the planned one. */
+  | 'PLAN_ACCOUNT_DRIFT'
+  /** Money is still set aside for a goal that has been archived or deleted. */
+  | 'RESERVATION_STRANDED';
 
 /** CRITICAL = money is lost if nothing happens. Shown in attention tone, never red. */
 export type InsightSeverity = 'CRITICAL' | 'ATTENTION' | 'OPPORTUNITY' | 'INFO';

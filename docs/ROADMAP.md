@@ -133,12 +133,12 @@ exclusion set to use later are in `CONTINUE_HERE.md`.
 
 ## Phase 4 — Decision engine *(the differentiator)*
 
-| # | Item | Impact |
-|---|---|---|
-| 4.1 | **`decision` entity** + follow-through tracking | DB (1 table), backend, UI |
-| 4.2 | **"Can I afford this?"** — consequence preview before a spend | Backend simulation over state, UI at entry point |
-| 4.3 | **Prepay vs save vs invest** — the ₹50,000 question, with interest saved, liquidity cost, goal impact side by side | Backend simulation, UI comparison |
-| 4.4 | **Unlock redirection** — at an EMI's end, a decision with options, not a notification | Backend + UI |
+| # | Item | Impact | Status |
+|---|---|---|---|
+| 4.1 | **`decision` entity** + follow-through tracking | DB (1 table), backend, UI | ⛔ **Blocked by the migration freeze.** `ddl-auto=validate`, so a new `@Entity` stops the backend booting. Until this lands Phase 4 can make a trade-off legible but cannot remember the choice — which is half its own exit criterion |
+| 4.2 | **"Can I afford this?"** — consequence preview before a spend | Backend simulation over state, UI at entry point | 🔨 **Built 2026-11-08.** `GET /decisions/afford`, no schema. Five states, and the answer sits under the amount in the Add sheet while it is being typed. **Never run** — see `CONTINUE_HERE` |
+| 4.3 | **Prepay vs save vs invest** — the ₹50,000 question, with interest saved, liquidity cost, goal impact side by side | Backend simulation, UI comparison | Waits on **5.1**: goal impact needs the goal engine to read cash flow, which is still half done |
+| 4.4 | **Unlock redirection** — at an EMI's end, a decision with options, not a notification | Backend + UI | Not started. `ForecastService` already computes the unlocks |
 
 **Exit:** for the three decisions this user actually faces, the trade-off is legible and the
 choice is remembered.

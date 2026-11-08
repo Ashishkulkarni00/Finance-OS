@@ -4,6 +4,7 @@ import { Amount } from '@/components/Amount';
 import { Select } from '@/components/Select';
 import { FormRow, FORM_ROW_CONTROL as ROW_CONTROL } from '@/components/FormRow';
 import { AmountInput } from './AmountInput';
+import { AffordNote } from './AffordNote';
 import { CategorySelect } from './CategorySelect';
 import {
   TRANSACTION_TYPES,
@@ -196,6 +197,12 @@ export function TransactionFormFields({ register, control, watch, setValue, erro
       <div className="flex flex-col items-center gap-space-2 py-space-2">
         <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">Amount</span>
         <AmountInput {...register('amount')} error={errors.amount?.message} valueClassName={amountTintClass} autoFocus />
+        {/* What this would cost, while it is still being typed (ROADMAP 4.2). Only for
+            money actually leaving: a transfer moves money between accounts the user owns
+            and an income does not spend anything, so neither has a consequence to state -
+            and a line that appears on all five types would stop being read on the one
+            where it matters. */}
+        {activeType.tint === 'critical' && <AffordNote amount={watch('amount')} accountId={accountId} />}
       </div>
 
       <div className="rounded-lg border border-line">

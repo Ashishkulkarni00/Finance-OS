@@ -10334,6 +10334,232 @@
 					]
 				}
 			]
+		},
+		{
+			"name": "Decisions",
+			"description": "The decision engine (ROADMAP Phase 4). **Read-only**: asking what something would cost changes nothing and must never appear in the Ledger, which is why this is a GET and is safe to call on every keystroke behind a debounce.\n\n4.1 (remembering the decision) needs a table and is blocked behind the migration freeze, so nothing here is persisted.",
+			"item": [
+				{
+					"name": "Can I afford this - comfortably",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+									"const b = pm.response.json();",
+									"pm.test(\"state is one of the five\", () => pm.expect([\"FITS\",\"TIGHTENS\",\"SHORTFALL\",\"EXCEEDS_ACCOUNT\",\"INCOMPLETE\"]).to.include(b.state));",
+									"pm.test(\"money is strings\", () => [\"amount\",\"freeBefore\",\"freeAfter\",\"perDayBefore\",\"perDayAfter\"].forEach((k) => { if (b[k] !== null) pm.expect(b[k]).to.be.a(\"string\"); }));",
+									"pm.test(\"both sides of the comparison are present\", () => { pm.expect(b.perDayBefore).to.be.a(\"string\"); pm.expect(b.perDayAfter).to.be.a(\"string\"); });",
+									"pm.test(\"a day rate is never negative\", () => pm.expect(Number(b.perDayAfter)).to.be.at.least(0));",
+									"pm.test(\"free falls by exactly the amount\", () => pm.expect(Number(b.freeBefore) - Number(b.freeAfter)).to.be.closeTo(Number(b.amount), 0.01));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/decisions/afford?amount=200&accountId=2",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"decisions",
+								"afford"
+							],
+							"query": [
+								{
+									"key": "amount",
+									"value": "200"
+								},
+								{
+									"key": "accountId",
+									"value": "2"
+								}
+							]
+						},
+						"description": "A small spend against a healthy day rate. Expect `FITS`: nothing about the shape of the month changes, so the answer is simply the rate left afterwards.\n\n`perDayAfter` is `freeAfter / daysToSalary`, **floored at zero** - \"-\u20b934 a day\" is not a rate anyone can spend to."
+					},
+					"response": []
+				},
+				{
+					"name": "Can I afford this - tightens the month",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+									"const b = pm.response.json();",
+									"pm.test(\"state is one of the five\", () => pm.expect([\"FITS\",\"TIGHTENS\",\"SHORTFALL\",\"EXCEEDS_ACCOUNT\",\"INCOMPLETE\"]).to.include(b.state));",
+									"pm.test(\"money is strings\", () => [\"amount\",\"freeBefore\",\"freeAfter\",\"perDayBefore\",\"perDayAfter\"].forEach((k) => { if (b[k] !== null) pm.expect(b[k]).to.be.a(\"string\"); }));",
+									"pm.test(\"says something happened - not silent\", () => pm.expect([\"TIGHTENS\",\"SHORTFALL\",\"EXCEEDS_ACCOUNT\"]).to.include(b.state));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/decisions/afford?amount=3000&accountId=2",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"decisions",
+								"afford"
+							],
+							"query": [
+								{
+									"key": "amount",
+									"value": "3000"
+								},
+								{
+									"key": "accountId",
+									"value": "2"
+								}
+							]
+						},
+						"description": "More than a third of the remaining day rate, so the answer says what the rate drops *from* as well as to. Expect `TIGHTENS`.\n\nThe threshold is a **proportion of the user's own rate**, never a rupee figure: \u20b95,000 is nothing on one month and everything on another, and a fixed threshold would be loud on a lean month and silent on a flush one."
+					},
+					"response": []
+				},
+				{
+					"name": "Can I afford this - breaks a dated payment",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+									"const b = pm.response.json();",
+									"pm.test(\"state is one of the five\", () => pm.expect([\"FITS\",\"TIGHTENS\",\"SHORTFALL\",\"EXCEEDS_ACCOUNT\",\"INCOMPLETE\"]).to.include(b.state));",
+									"pm.test(\"money is strings\", () => [\"amount\",\"freeBefore\",\"freeAfter\",\"perDayBefore\",\"perDayAfter\"].forEach((k) => { if (b[k] !== null) pm.expect(b[k]).to.be.a(\"string\"); }));",
+									"pm.test(\"a shortfall names what breaks, when, and by how much\", () => { if (b.state === \"SHORTFALL\") { pm.expect(b.shortfallName).to.be.a(\"string\"); pm.expect(b.shortfallOn).to.match(/^\\d{4}-\\d{2}-\\d{2}$/); pm.expect(Number(b.shortBy)).to.be.above(0); } });"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/decisions/afford?amount=9000&accountId=4",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"decisions",
+								"afford"
+							],
+							"query": [
+								{
+									"key": "amount",
+									"value": "9000"
+								},
+								{
+									"key": "accountId",
+									"value": "4"
+								}
+							]
+						},
+						"description": "Enough to leave a bill uncovered later in the cycle. Expect `SHORTFALL`, naming the payment, its date and the gap.\n\n**Found by re-walking the account's projection, not by comparing totals** - an account can hold plenty today and still fail on the 27th. A payment that was *already* uncovered before this spend is skipped: that is `ShortfallRule`'s warning, and blaming this decision for a hole that predates it would be wrong."
+					},
+					"response": []
+				},
+				{
+					"name": "Can I afford this - more than the account holds",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+									"const b = pm.response.json();",
+									"pm.test(\"state is one of the five\", () => pm.expect([\"FITS\",\"TIGHTENS\",\"SHORTFALL\",\"EXCEEDS_ACCOUNT\",\"INCOMPLETE\"]).to.include(b.state));",
+									"pm.test(\"money is strings\", () => [\"amount\",\"freeBefore\",\"freeAfter\",\"perDayBefore\",\"perDayAfter\"].forEach((k) => { if (b[k] !== null) pm.expect(b[k]).to.be.a(\"string\"); }));",
+									"pm.test(\"exceeds the account\", () => pm.expect(b.state).to.eql(\"EXCEEDS_ACCOUNT\"));",
+									"pm.test(\"says what the account actually holds\", () => pm.expect(b.accountBalanceBefore).to.be.a(\"string\"));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/decisions/afford?amount=999999&accountId=4",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"decisions",
+								"afford"
+							],
+							"query": [
+								{
+									"key": "amount",
+									"value": "999999"
+								},
+								{
+									"key": "accountId",
+									"value": "4"
+								}
+							]
+						},
+						"description": "Beyond what the account holds today, whatever the month looks like. Expect `EXCEEDS_ACCOUNT` - checked before the projection walk, because which bill breaks first is not the useful answer when the money is not there at all."
+					},
+					"response": []
+				},
+				{
+					"name": "Rejected - amount must be positive",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test(\"400\", () => pm.response.to.have.status(400));",
+									"pm.test(\"error contract\", () => { const e = pm.response.json(); pm.expect(e.code).to.be.a(\"string\"); });"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/decisions/afford?amount=0&accountId=2",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"decisions",
+								"afford"
+							],
+							"query": [
+								{
+									"key": "amount",
+									"value": "0"
+								},
+								{
+									"key": "accountId",
+									"value": "2"
+								}
+							]
+						},
+						"description": "Structural validation, 400. Zero is not a decision."
+					},
+					"response": []
+				}
+			]
 		}
 	]
 }

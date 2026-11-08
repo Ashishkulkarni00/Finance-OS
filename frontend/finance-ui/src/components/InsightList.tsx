@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react';
+import type { CSSProperties, KeyboardEvent, ReactNode } from 'react';
 import { AlertTriangle, CheckCircle2, Sparkles } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/Button';
@@ -109,9 +109,27 @@ export function InsightRow({
     <div
       data-insight=""
       {...docAnchor}
+      // `role="button"` with a keydown handler rather than a real <button> wrapper. The
+      // card already contains an action button and "I know", and a <button> inside a
+      // <button> is invalid HTML: React warns, screen readers announce one control, and
+      // the inner button is not reliably reachable by keyboard. `LedgerRow` solved exactly
+      // this the same way and says so in its own class comment (FIX_BACKLOG 4.7).
+      {...(destination
+        ? {
+            role: 'button' as const,
+            tabIndex: 0,
+            onClick: () => navigate(destination),
+            onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                navigate(destination);
+              }
+            },
+          }
+        : {})}
       className={[
         'flex items-start gap-space-3 rounded-xl p-space-4 text-left',
-        destination ? 'w-full transition-opacity duration-150 hover:opacity-90' : '',
+        destination ? 'w-full cursor-pointer transition-opacity duration-150 hover:opacity-90' : '',
         revealDelay != null ? 'reveal' : '',
       ].join(' ')}
       style={
@@ -167,12 +185,9 @@ export function InsightRow({
     </div>
   );
 
-  if (!destination) return body;
-  return (
-    <button type="button" onClick={() => navigate(destination)} className="w-full text-left">
-      {body}
-    </button>
-  );
+  // No wrapper at all now: the row carries its own role, so the action buttons inside it
+  // are siblings of the text rather than descendants of another control.
+  return body;
 }
 
 /**
