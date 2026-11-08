@@ -4,6 +4,11 @@ import com.finance.account.AccountService;
 import com.finance.account.domain.Account;
 import com.finance.card.CreditCardService;
 import com.finance.commitment.CommitmentInstanceService;
+import com.finance.commitment.CommitmentRepository;
+import com.finance.commitment.PlanAccountDriftCalculator;
+import com.finance.reservation.StrandedReservationCalculator;
+import com.finance.commitment.domain.Commitment;
+import com.finance.commitment.CommitmentInstanceView;
 import com.finance.cycle.CycleService;
 import com.finance.cycle.domain.Cycle;
 import com.finance.goal.GoalService;
@@ -58,6 +63,10 @@ public class InsightService {
     private final CreditCardService creditCardService;
     private final GoalService goalService;
     private final GoalWithdrawalCalculator goalWithdrawals;
+    private final PlanAccountDriftCalculator planAccountDrifts;
+    private final StrandedReservationCalculator strandedReservations;
+    /** Read for one thing: the rules behind this cycle's occurrences, to scope drift. */
+    private final CommitmentRepository commitmentRepository;
     private final LoanService loanService;
     private final InsightSilencer silencer;
     private final Clock clock;
@@ -66,6 +75,9 @@ public class InsightService {
                           AccountService accountService, ProjectionService projectionService,
                           CreditCardService creditCardService, GoalService goalService,
                           GoalWithdrawalCalculator goalWithdrawals,
+                          PlanAccountDriftCalculator planAccountDrifts,
+                          StrandedReservationCalculator strandedReservations,
+                          CommitmentRepository commitmentRepository,
                           LoanService loanService, InsightSilencer silencer, Clock clock) {
         this.rules = rules;
         this.cycleService = cycleService;
@@ -75,6 +87,9 @@ public class InsightService {
         this.creditCardService = creditCardService;
         this.goalService = goalService;
         this.goalWithdrawals = goalWithdrawals;
+        this.planAccountDrifts = planAccountDrifts;
+        this.strandedReservations = strandedReservations;
+        this.commitmentRepository = commitmentRepository;
         this.loanService = loanService;
         this.silencer = silencer;
         this.clock = clock;
@@ -145,9 +160,22 @@ public class InsightService {
             }
         }
         List<GoalView> goals = goalService.list(false, Pageable.unpaged()).getContent();
-        return new FinancialContext(today, cycle, instanceService.listForCycle(cycle.getId()), projections,
+        // Read once and passed on. This is the cycle's whole worklist and two rules want it;
+        // fetching it a second time for the drift scope would double the most expensive read
+        // in the context for nothing.
+        List<CommitmentInstanceView> instances = instanceService.listForCycle(cycle.getId());
+
+        // Drift is scoped to the rules behind this cycle's own occurrences: a bill that is
+        // not running any more cannot drift, and bounding it here keeps the per-bill history
+        // lookup proportional to the month rather than to all time.
+        List<Commitment> cycleCommitments = commitmentRepository.findByIdInAndUserId(
+                instances.stream().map(v -> v.commitment().getId()).distinct().toList(), cycle.getUserId());
+
+        return new FinancialContext(today, cycle, instances, projections,
                 creditCardService.list().cards(), goals,
                 loanService.list(Pageable.unpaged()).getContent(), accounts,
-                goalWithdrawals.forCycle(goals, accounts, cycle, cycle.getUserId()));
+                goalWithdrawals.forCycle(goals, accounts, cycle, cycle.getUserId()),
+                planAccountDrifts.forCommitments(cycleCommitments, accounts, cycle.getUserId()),
+                strandedReservations.forUser(cycle.getUserId(), accounts));
     }
 }

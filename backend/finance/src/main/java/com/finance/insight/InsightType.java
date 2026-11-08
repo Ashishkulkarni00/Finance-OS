@@ -35,5 +35,17 @@ public enum InsightType {
     /** Money is set aside while debt costing more than it can earn is still running. */
     RATE_MISMATCH,
     /** Money was taken back out of a goal this cycle, and no plan asked for it. */
-    GOAL_RAIDED
+    GOAL_RAIDED,
+    /**
+     * A bill's recent payments keep coming from an account other than the one the plan
+     * names, so the projection and its shortfall warnings reason about the wrong account.
+     * See {@code PlanAccountDriftRule}.
+     */
+    PLAN_ACCOUNT_DRIFT,
+    /**
+     * Money is still set aside for a goal that has been archived or deleted, so it is being
+     * held out of Real Balance for something nobody is saving for. See
+     * {@code StrandedReservationRule}.
+     */
+    RESERVATION_STRANDED
 }
