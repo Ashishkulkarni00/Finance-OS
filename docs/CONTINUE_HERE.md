@@ -59,10 +59,7 @@ to wrap `fetch` instead; and match text case-insensitively, section headers are 
 **Waiting on the user:**
 1. **Reconcile run 2026-11-09 for loans 1, 2, 5 (user approved those three).** 6 EMIs recorded
    (Bike needed a second pass - see below); re-runs return 0. Net worth −2,36,935 → **−2,15,314**,
-   owed 3,34,442 → 3,12,821. **Loans 6 and 7 (Mobile Mom, Health Insurance) each still have
-   the 7 Nov card EMI paid but unrecorded** - the auto-mode classifier blocked running it for
-   them since the approval named three loans. Ask the user once; until then Momentum's debt line
-   stays UNKNOWN ("2 EMIs ... nothing recorded").
+   owed 3,34,442 → 3,12,821. Loans 6 and 7 reconciled too (user approved), 1 each. **Every loan now 0 unrecorded**; net worth **-2,09,564**, owed 3,07,071; Momentum debt = BETTER, "₹33,021 of principal repaid since 14 Sep". Nothing pending here.
    **Second bug found doing it:** `findTop6ByCommitmentIdAndUserIdOrderByDueDateDesc` returns
    *future* months for long-running bills once future cycles exist (stray 2029 cycles), so
    history read as empty. Replaced with `findTop6...AndDueDateLessThanEqual...` in both drift
