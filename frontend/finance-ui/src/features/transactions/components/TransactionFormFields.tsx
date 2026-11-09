@@ -206,8 +206,8 @@ export function TransactionFormFields({ register, control, watch, setValue, erro
       </div>
 
       <div className="rounded-lg border border-line">
-        <FormRow label="What for" error={errors.description?.message}>
-          <input {...register('description')} autoComplete="off" placeholder="Coffee, rent, groceries…" className={ROW_CONTROL} />
+        <FormRow label={activeType.words.description} error={errors.description?.message}>
+          <input {...register('description')} autoComplete="off" placeholder={activeType.words.placeholder} className={ROW_CONTROL} />
         </FormRow>
 
         {activeType.needsCategory && (
@@ -222,7 +222,7 @@ export function TransactionFormFields({ register, control, watch, setValue, erro
           </FormRow>
         )}
 
-        <FormRow label={activeType.needsDestination ? 'From' : 'Account'} error={errors.accountId?.message}>
+        <FormRow label={activeType.words.account} error={errors.accountId?.message}>
           <RowSelect
             value={accountId ?? ''}
             onChange={(v) => v != null && setValue('accountId', v, { shouldValidate: true })}
@@ -236,7 +236,7 @@ export function TransactionFormFields({ register, control, watch, setValue, erro
             control={control}
             name="toAccountId"
             render={({ field }) => (
-              <FormRow label="To" error={errors.toAccountId?.message}>
+              <FormRow label={activeType.words.to ?? 'To'} error={errors.toAccountId?.message}>
                 <RowSelect value={field.value ?? ''} onChange={field.onChange} placeholder="Choose one" options={destinationAccounts} />
                 {selectedToAccount && <AvailableNote account={selectedToAccount} />}
               </FormRow>

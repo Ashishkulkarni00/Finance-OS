@@ -35,6 +35,13 @@ export const TRANSACTION_TYPES: {
    * *did*, with the one case people get wrong named explicitly.
    */
   guidance: string;
+  /**
+   * The form's own words for this type (user, 2026-11-09: "What for" and a bare "Account"
+   * weren't friendly). Said as what the money did - "Paid from", "Received into" - so the
+   * label answers the question the user is already asking, and it changes with the type
+   * because "the account" means something different when money arrives than when it leaves.
+   */
+  words: { description: string; placeholder: string; account: string; to?: string };
 }[] = [
   {
     value: 'EXPENSE',
@@ -44,6 +51,7 @@ export const TRANSACTION_TYPES: {
     needsDestination: false,
     tint: 'critical',
     guidance: 'Money that left you for good. A card swipe goes here on the day you swiped it - not when the bill is paid.',
+    words: { description: 'Spent on', placeholder: 'Groceries, Swiggy, petrol…', account: 'Paid from' },
   },
   {
     value: 'INCOME',
@@ -53,6 +61,7 @@ export const TRANSACTION_TYPES: {
     needsDestination: false,
     tint: 'positive',
     guidance: 'Money that arrived from outside - salary, a client, interest. Not money you moved between your own accounts.',
+    words: { description: 'Received for', placeholder: 'Salary, freelance, interest…', account: 'Received into' },
   },
   {
     value: 'TRANSFER',
@@ -62,6 +71,7 @@ export const TRANSACTION_TYPES: {
     needsDestination: true,
     tint: 'neutral',
     guidance: 'Money moving between accounts you already own: paying a card bill, taking out cash, paying down a loan. Never spending.',
+    words: { description: 'Reason', placeholder: 'Card bill, to savings, ATM cash…', account: 'Move from', to: 'Move to' },
   },
   {
     value: 'INVESTMENT',
@@ -71,6 +81,7 @@ export const TRANSACTION_TYPES: {
     needsDestination: true,
     tint: 'neutral',
     guidance: 'Money moving into something you still hold - a SIP instalment, an RD. You keep it, so it is not spending.',
+    words: { description: 'Invested in', placeholder: 'SIP, RD instalment, stocks…', account: 'Paid from', to: 'Held in' },
   },
   {
     value: 'REFUND',
@@ -80,6 +91,7 @@ export const TRANSACTION_TYPES: {
     needsDestination: false,
     tint: 'positive',
     guidance: 'Money coming back against something you already spent on. It uses the spending category it reverses, not an income one.',
+    words: { description: 'Refund of', placeholder: 'Myntra return, cancelled ticket…', account: 'Credited to' },
   },
 ];
 

@@ -64,6 +64,7 @@ public class InsightService {
     private final GoalService goalService;
     private final GoalWithdrawalCalculator goalWithdrawals;
     private final PlanAccountDriftCalculator planAccountDrifts;
+    private final com.finance.commitment.PlanAmountDriftCalculator planAmountDrifts;
     private final StrandedReservationCalculator strandedReservations;
     /** Read for one thing: the rules behind this cycle's occurrences, to scope drift. */
     private final CommitmentRepository commitmentRepository;
@@ -76,6 +77,7 @@ public class InsightService {
                           CreditCardService creditCardService, GoalService goalService,
                           GoalWithdrawalCalculator goalWithdrawals,
                           PlanAccountDriftCalculator planAccountDrifts,
+                          com.finance.commitment.PlanAmountDriftCalculator planAmountDrifts,
                           StrandedReservationCalculator strandedReservations,
                           CommitmentRepository commitmentRepository,
                           LoanService loanService, InsightSilencer silencer, Clock clock) {
@@ -88,6 +90,7 @@ public class InsightService {
         this.goalService = goalService;
         this.goalWithdrawals = goalWithdrawals;
         this.planAccountDrifts = planAccountDrifts;
+        this.planAmountDrifts = planAmountDrifts;
         this.strandedReservations = strandedReservations;
         this.commitmentRepository = commitmentRepository;
         this.loanService = loanService;
@@ -176,6 +179,7 @@ public class InsightService {
                 loanService.list(Pageable.unpaged()).getContent(), accounts,
                 goalWithdrawals.forCycle(goals, accounts, cycle, cycle.getUserId()),
                 planAccountDrifts.forCommitments(cycleCommitments, accounts, cycle.getUserId()),
-                strandedReservations.forUser(cycle.getUserId(), accounts));
+                strandedReservations.forUser(cycle.getUserId(), accounts),
+                planAmountDrifts.forCommitments(cycleCommitments, cycle.getUserId()));
     }
 }

@@ -62,6 +62,17 @@ public class RunwayCalculator {
         this.currentUser = currentUser;
     }
 
+    /**
+     * The runway every screen should show: measured against the cycle <strong>after</strong>
+     * {@code current}. The one rule, in one place - on 2026-11-09 Today said 2.5 months while
+     * the suggested order and lump-sum screens, measuring against the current cycle, said 1.9
+     * (₹37,564 vs ₹49,564 of must-pay bills, the difference being this month's one-offs). See
+     * {@code FinancialStateServiceImpl} for why the cycle ahead is the right one.
+     */
+    public Runway calculateAhead(Cycle current, com.finance.cycle.CurrentCycleResolver resolver) {
+        return calculate(resolver.resolve(currentUser.currentUserId(), current.getEndDate().plusDays(1)));
+    }
+
     public Runway calculate(Cycle cycle) {
         Provenance.Builder basis = Provenance.of("what you could reach ÷ must-pay bills a month");
         BigDecimal liquid = reachableTotal(basis);

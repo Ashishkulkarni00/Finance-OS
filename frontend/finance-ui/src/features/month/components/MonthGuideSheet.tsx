@@ -16,14 +16,14 @@ const FIELDS: { name: string; means: string }[] = [
   },
   {
     name: 'Amount',
-    means: 'Fixed if it’s the same every time. Changes each month if not - you can enter the first one straight away, and each later one when you know it.',
+    means: '“Same every time” and the figure, or “Changes every time” - then you can give the first one straight away, and each later one when it comes.',
   },
   { name: 'Due on', means: 'The day of the month it’s paid.' },
   {
-    name: 'First payment',
-    means: 'The month of the first one; the exact date is shown beside it. Pick an earlier month if it’s already been running.',
+    name: 'Starts',
+    means: 'The month of the first one your plan should count; its due date is in the list.',
   },
-  { name: 'Last payment', means: 'Only if it ends, like your final EMI. Otherwise leave it as “No end”.' },
+  { name: 'Ends', means: 'Only if it ends, like your final EMI - each month shows how many payments that makes. Otherwise “Keeps going”.' },
   { name: 'Must pay?', means: 'Yes if missing it costs you (a fee, a penalty). No if you could skip it in a tight month.' },
 ];
 

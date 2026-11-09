@@ -1,13 +1,14 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
+import { ChevronDown } from 'lucide-react';
+import { cn } from '@/lib/cn';
 import type { UseFormReturn } from 'react-hook-form';
 import { Select } from '@/components/Select';
 import { FormRow, FORM_ROW_CONTROL } from '@/components/FormRow';
 import { CategorySelect } from '@/features/transactions/components/CategorySelect';
-import { formatDayMonthYear } from '@/lib/dates';
 import type { AccountResponse, AccountType } from '@/types/api';
 import type { CategoryResponse } from '@/types/category';
 import type { CommitmentAmountType, CommitmentFrequency, SettleAs } from '@/types/commitmentRule';
-import { MONTH_NAMES, type CommitmentFormValues, type LastPayment } from './commitmentForm';
+import { addMonths, monthLabel, type CommitmentFormValues, type LastPayment } from './commitmentForm';
 
 interface CommitmentFieldsProps {
   form: UseFormReturn<CommitmentFormValues>;
@@ -31,7 +32,14 @@ interface CommitmentFieldsProps {
   /** When the bill funds a goal: replaces "Paid as" and "Into" - the money goes to the
    *  goal's account, as a transfer. The amount and day stay the bill's own. */
   lockedSettlement?: ReactNode;
+  /** Open "More details" from the start - Edit does when the bill already has a note. */
+  detailsOpen?: boolean;
 }
+
+const AMOUNT_CHOICES: [CommitmentAmountType, string][] = [
+  ['FIXED', 'Same every time'],
+  ['VARIABLE', 'Changes every time'],
+];
 
 const SETTLE_OPTIONS: { value: SettleAs; label: string }[] = [
   { value: 'EXPENSE', label: 'Payment - rent, EMI, a bill, family support' },
@@ -67,6 +75,49 @@ export function sourceAccountsFor(settleAs: SettleAs, accounts: AccountResponse[
 }
 
 /**
+ * When it ends, as one dropdown: "Keeps going", or "March 2027 · 5 payments".
+ *
+ * <p>Replaced a month select plus a year select (user, 2026-11-09: "first payment last payment
+ * too complicated"). The count is what people actually know about an EMI - "17 left" - so
+ * the option that matches it is findable without date arithmetic. Only months a payment
+ * actually falls in are offered, so a quarterly bill can't end in a month it skips.
+ */
+export function LastPaymentPicker({
+  lastPayment,
+  frequency,
+  ariaLabel,
+}: {
+  lastPayment: LastPayment;
+  frequency: string;
+  ariaLabel: string;
+}) {
+  const start = (lastPayment.firstDue ?? new Date().toISOString()).slice(0, 7);
+  const step = frequency === 'QUARTERLY' ? 3 : frequency === 'ANNUAL' ? 12 : 1;
+  const count = frequency === 'ANNUAL' ? 30 : frequency === 'QUARTERLY' ? 40 : 72;
+  const current = lastPayment.endYear && lastPayment.endMonth ? `${lastPayment.endYear}-${lastPayment.endMonth}` : '';
+  const options = Array.from({ length: count }, (_, i) => {
+    const ym = addMonths(start, i * step);
+    return { value: ym, label: `${monthLabel(ym)} · ${i + 1} ${i === 0 ? 'payment' : 'payments'}` };
+  });
+  // A saved end that isn't on the grid (edited terms, an old rule) must still show as chosen.
+  if (current && !options.some((o) => o.value === current)) {
+    options.unshift({ value: current, label: monthLabel(current) });
+  }
+  return (
+    <Select
+      variant="row"
+      className="-ml-space-1 max-w-full"
+      ariaLabel={ariaLabel}
+      value={current}
+      placeholder="Keeps going"
+      clearable
+      options={options}
+      onChange={(v) => lastPayment.setEnd(v ?? '')}
+    />
+  );
+}
+
+/**
  * Every field of a commitment, shared by "Add a commitment" and "Edit" so the two can't drift -
  * the add form's rows used to be inline in its sheet.
  *
@@ -86,7 +137,9 @@ export function CommitmentFields({
   allowOnce,
   lockedTerms,
   lockedSettlement,
+  detailsOpen = false,
 }: CommitmentFieldsProps) {
+  const [moreOpen, setMoreOpen] = useState(detailsOpen);
   const {
     register,
     watch,
@@ -123,7 +176,7 @@ export function CommitmentFields({
 
   return (
     <div className="rounded-lg border border-line">
-      <FormRow label="What" error={errors.name?.message}>
+      <FormRow label="Name" error={errors.name?.message}>
         <input {...register('name')} autoComplete="off" placeholder="Rent, Netflix, family support…" className={FORM_ROW_CONTROL} autoFocus={autoFocus} />
       </FormRow>
 
@@ -146,44 +199,51 @@ export function CommitmentFields({
             </FormRow>
           )}
 
-          {/* The question, not the noun: this row picks whether the amount is knowable up
-              front, and the next row ("How much") is the amount. Labelling both "Amount"
-              made the first one unreadable - and once the label asks the question, the
-              options answer it, so the hint had nothing left to add. */}
-          <FormRow label="Same every time?">
-            <Select
-              variant="row"
-              className="-ml-space-1 max-w-full"
-              ariaLabel="Whether the amount is the same every time"
-              value={amountType}
-              options={[
-                { value: 'FIXED', label: 'Yes - it’s the same amount' },
-                { value: 'VARIABLE', label: 'No - it changes, like electricity' },
-              ]}
-              onChange={(v) => setValue('amountType', v as CommitmentAmountType, { shouldValidate: true })}
-            />
-          </FormRow>
-
-          {amountType === 'VARIABLE' && amountSlot}
-
-          {amountType === 'FIXED' && (
-            <>
-              <FormRow label="How much" error={errors.fixedAmount?.message} hint="Every month, until you change it.">
+          {/* One row for the amount, where there were two ("Same every time?" then "How much").
+              The choice sits beside the figure it governs, worded as the user would say it
+              (2026-11-09: "No - it changes, like electricity" read as a riddle). */}
+          <FormRow label="Amount" error={errors.fixedAmount?.message}>
+            <span className="flex flex-col gap-space-2">
+              <span
+                className="inline-flex self-start overflow-hidden rounded-md border border-border text-caption"
+                role="radiogroup"
+                aria-label="Whether the amount is the same every time"
+              >
+                {AMOUNT_CHOICES.map(([value, label], i) => (
+                  <button
+                    key={value}
+                    type="button"
+                    role="radio"
+                    aria-checked={amountType === value}
+                    onClick={() => setValue('amountType', value, { shouldValidate: true })}
+                    className={cn(
+                      'px-space-3 py-space-1 transition-colors duration-150',
+                      i > 0 && 'border-l border-border',
+                      amountType === value ? 'bg-sunken text-ink' : 'text-ink-muted hover:text-ink-soft',
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </span>
+              {amountType === 'FIXED' ? (
                 <span className="flex items-center gap-space-1">
                   <span className="num text-ink-muted">₹</span>
-                  <input {...register('fixedAmount')} inputMode="decimal" placeholder="0" className={FORM_ROW_CONTROL + ' num'} />
+                  <input
+                    {...register('fixedAmount')}
+                    inputMode="decimal"
+                    placeholder="0"
+                    aria-label="Amount every time"
+                    className={FORM_ROW_CONTROL + ' num'}
+                  />
                 </span>
-              </FormRow>
-              {/* A fixed bill can now differ for one month (V22, FIX_BACKLOG 2.9), so it
-                  gets the same slot a varying one always had. Two labelled fields one above
-                  the other - "How much / every month" then "This time / this month only" -
-                  say which is which by sitting next to each other. An earlier attempt put a
-                  "Just this month / From now on" radio behind an "Amount" button on the row
-                  instead; the button gave no clue what it did, and the choice was invisible
-                  until you pressed it. */}
-              {amountSlot}
-            </>
-          )}
+              ) : (
+                <span className="text-caption text-ink-muted">You give the amount each time, when the bill comes.</span>
+              )}
+            </span>
+          </FormRow>
+
+          {amountSlot}
 
           <FormRow label="How often">
             <Select
@@ -214,36 +274,13 @@ export function CommitmentFields({
           {startSlot}
 
           {!once && (
-          <FormRow
-            label={isIncome ? 'Last one' : 'Last payment'}
-            error={lastPayment.error ?? undefined}
-            hint="The month of the final one. Leave blank if it keeps going."
-          >
-            <span className="flex flex-wrap items-center gap-space-2">
-              <Select
-                variant="row"
-                className="-ml-space-1"
-                ariaLabel="Month of the last payment"
-                value={lastPayment.endMonth}
-                placeholder="No end"
-                clearable
-                options={MONTH_NAMES.map((name, i) => ({ value: String(i + 1).padStart(2, '0'), label: name }))}
-                onChange={lastPayment.setEndMonth}
+            <FormRow label="Ends" error={lastPayment.error ?? undefined}>
+              <LastPaymentPicker
+                lastPayment={lastPayment}
+                frequency={watch('frequency')}
+                ariaLabel={isIncome ? 'When the last one arrives' : 'When the last payment is'}
               />
-              <Select
-                variant="row"
-                ariaLabel="Year of the last payment"
-                value={lastPayment.endYear}
-                placeholder="Year"
-                clearable
-                options={lastPayment.yearOptions}
-                onChange={lastPayment.setEndYear}
-              />
-              {lastPayment.lastDue && !lastPayment.error && (
-                <span className="num text-caption text-ink-muted">on {formatDayMonthYear(lastPayment.lastDue)}</span>
-              )}
-            </span>
-          </FormRow>
+            </FormRow>
           )}
 
           {!once && afterEndSlot}
@@ -278,8 +315,10 @@ export function CommitmentFields({
         </>
       )}
 
+      {/* Category stays out of the fold: a payment or income needs one (each time it's paid, the
+          Ledger entry takes it from here), so it can't hide behind "More details". */}
       {settleAs !== 'TRANSFER' && settleAs !== 'INVESTMENT' && (
-        <FormRow label="Category">
+        <FormRow label="Category" error={errors.categoryId?.message}>
           <CategorySelect
             className="-ml-space-1 max-w-full"
             value={watch('categoryId') ?? ''}
@@ -290,6 +329,31 @@ export function CommitmentFields({
         </FormRow>
       )}
 
+      {/* Optional details, folded: Must pay? and Note change nothing about when or how much.
+          Must pay defaults to Yes, so saving without opening this is a real answer, not a
+          skipped one. The closed row says what's currently chosen. */}
+      <button
+        type="button"
+        onClick={() => setMoreOpen((v) => !v)}
+        aria-expanded={moreOpen}
+        className="flex w-full items-center justify-between gap-space-3 border-t border-line px-space-4 py-space-3 text-left"
+      >
+        <span className="text-label text-ink-soft">More details</span>
+        <span className="flex min-w-0 items-center gap-space-2 text-caption text-ink-muted">
+          <span className="truncate">
+            {[
+              !isIncome ? (watch('mandatory') ? 'Must pay' : 'Can skip') : null,
+              watch('why') ? 'Note' : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </span>
+          <ChevronDown size={14} strokeWidth={1.75} aria-hidden className={cn('shrink-0 transition-transform duration-150', moreOpen && 'rotate-180')} />
+        </span>
+      </button>
+
+      {moreOpen && (
+        <>
       {!isIncome && (
         <FormRow
           label="Must pay?"
@@ -312,6 +376,9 @@ export function CommitmentFields({
       <FormRow label="Note">
         <input {...register('why')} placeholder="Optional - what it's for" className={FORM_ROW_CONTROL} />
       </FormRow>
+
+        </>
+      )}
 
       {/* "If skipped" was here. Removed by the user 2026-09-21 after living with it: in
           practice it filled up with restatements of the bill's own name ("TV + WiFi will

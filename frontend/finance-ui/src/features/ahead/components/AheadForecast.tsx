@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Sparkles } from 'lucide-react';
 import { Amount } from '@/components/Amount';
 import { GroupBand } from '@/components/GroupBand';
@@ -8,6 +8,8 @@ import { cn } from '@/lib/cn';
 import { cycleMonthName, formatShortDate } from '@/lib/dates';
 import { useGetForecastQuery } from '@/services/forecastService';
 import type { ForecastMonth, ForecastUnlock } from '@/types/forecast';
+import { UnlockOptions } from './UnlockOptions';
+import { LumpSumPlanner } from './LumpSumPlanner';
 
 const HORIZON = 12;
 
@@ -20,10 +22,16 @@ const HORIZON = 12;
  * lone unlock is said once, as a sentence; several get a headline figure with the list as
  * its breakdown under a band.
  */
-function UnlockCalendar({ months, total }: { months: ForecastMonth[]; total: string }) {
-  const items = months.flatMap((m) => m.unlocks.map((u) => ({ ...u, monthEnd: m.cycleEnd })));
-  if (items.length === 0) return null;
+function unlocksOf(months: ForecastMonth[]) {
+  return months.flatMap((m) => m.unlocks.map((u) => ({ ...u, monthEnd: m.cycleEnd, monthStart: m.cycleStart })));
+}
+const keyOf = (u: { commitmentId: number; monthEnd: string }) => `${u.commitmentId}-${u.monthEnd}`;
 
+/** The headline: what frees up, and what ends. The choices about it sit further down, after
+ *  the goals they would feed (user, 2026-11-09: highlight, then goals, then where it goes). */
+function UnlockCalendar({ months, total }: { months: ForecastMonth[]; total: string }) {
+  const items = unlocksOf(months);
+  if (items.length === 0) return null;
   const single = items.length === 1 ? items[0]! : null;
 
   return (
@@ -56,10 +64,7 @@ function UnlockCalendar({ months, total }: { months: ForecastMonth[]; total: str
           <GroupBand label="What ends" count={items.length} />
           <ul className="flex flex-col">
             {items.map((u: ForecastUnlock & { monthEnd: string }) => (
-              <li
-                key={`${u.commitmentId}-${u.monthEnd}`}
-                className="flex items-baseline justify-between gap-space-3 border-b border-line py-space-2 last:border-b-0"
-              >
+              <li key={keyOf(u)} className="flex items-baseline justify-between gap-space-3 border-b border-line py-space-2 last:border-b-0">
                 <span className="min-w-0 text-label text-ink">
                   {u.name}
                   <span className="block text-caption text-ink-muted">from {cycleMonthName(u.monthEnd)}</span>
@@ -70,10 +75,51 @@ function UnlockCalendar({ months, total }: { months: ForecastMonth[]; total: str
           </ul>
         </div>
       )}
+    </section>
+  );
+}
 
-      <p className="mt-space-3 text-caption text-ink-muted">
-        Nothing moves on its own — decide where it should go before it arrives, or it becomes day-to-day spending.
+/**
+ * Where the freed money could go - ROADMAP 4.4's options, below the goals they would feed.
+ * With several unlocks, a chip per unlock picks which one is being costed; the first to end is
+ * the first decision due, so it is shown unprompted.
+ */
+function UnlockChoices({ months }: { months: ForecastMonth[] }) {
+  const items = unlocksOf(months);
+  const [pickedKey, setPickedKey] = useState<string | null>(null);
+  if (items.length === 0) return null;
+  const picked = items.find((u) => keyOf(u) === pickedKey) ?? items[0]!;
+
+  return (
+    <section>
+      <SectionHeader>Where the freed money could go</SectionHeader>
+      <p className="mb-space-3 max-w-[40rem] text-caption text-ink-muted">
+        Nothing moves on its own. Each option is costed from when the money is actually free, with everything else carried
+        forward to then.
       </p>
+      {items.length > 1 && (
+        <div className="mb-space-4 flex flex-wrap gap-space-2" role="radiogroup" aria-label="Which freed-up amount">
+          {items.map((u) => {
+            const active = keyOf(u) === keyOf(picked);
+            return (
+              <button
+                key={keyOf(u)}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                onClick={() => setPickedKey(keyOf(u))}
+                className={cn(
+                  'rounded-full border px-space-3 py-space-1 text-caption transition-colors duration-150',
+                  active ? 'border-ink bg-sunken text-ink' : 'border-border text-ink-muted hover:text-ink-soft',
+                )}
+              >
+                {u.name} · from {cycleMonthName(u.monthEnd)}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <UnlockOptions amount={picked.amount} startsOn={picked.monthStart} />
     </section>
   );
 }
@@ -155,20 +201,30 @@ function MonthRow({ month, notes }: { month: ForecastMonth; notes: Note[] }) {
  * pure projection cannot - so showing it here only produced a second, worse answer to
  * "what's free". This page starts where Months stops being the better source.
  */
-export function AheadForecast() {
+export function AheadForecast({ goals }: { goals?: ReactNode } = {}) {
   const [expanded, setExpanded] = useState(false);
   const { data, isLoading, isError } = useGetForecastQuery(HORIZON);
 
+  // The goals are handed in to sit mid-page, so they must render whatever the forecast does -
+  // a failed forecast must not take the user's goals off the screen with it.
   if (isLoading) {
     return (
-      <div className="flex flex-col gap-space-3">
-        <Skeleton className="h-6 w-48" />
-        <Skeleton className="h-32 w-full" />
+      <div className="flex flex-col gap-space-8">
+        <div className="flex flex-col gap-space-3">
+          <Skeleton className="h-6 w-48" />
+          <Skeleton className="h-32 w-full" />
+        </div>
+        {goals}
       </div>
     );
   }
   if (isError || !data) {
-    return <p className="text-body text-ink-soft">We couldn’t load what’s ahead. Refresh to try again.</p>;
+    return (
+      <div className="flex flex-col gap-space-8">
+        <p className="text-body text-ink-soft">We couldn’t load what’s ahead. Refresh to try again.</p>
+        {goals}
+      </div>
+    );
   }
 
   // months[0] is the current cycle - Months owns it. See the class note above.
@@ -236,6 +292,14 @@ export function AheadForecast() {
       </div>
 
       <UnlockCalendar months={data.months} total={data.unlockedMonthlyTotal} />
+
+      {/* The goals sit between what frees up and where it could go: the options below are
+          costed against these goals, so the reader should have just seen them. */}
+      {goals}
+
+      <UnlockChoices months={data.months} />
+
+      <LumpSumPlanner />
 
       <section>
         <SectionHeader

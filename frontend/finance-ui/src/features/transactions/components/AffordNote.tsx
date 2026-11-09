@@ -50,14 +50,30 @@ export function AffordNote({ amount, accountId }: { amount: string | undefined; 
   }, [amount]);
 
   const usable = VALID.test(settled) && Number(settled) > 0 && accountId != null;
-  const { data, isFetching } = useGetAffordabilityQuery(
+  const { data, isFetching, isError } = useGetAffordabilityQuery(
     { amount: settled, accountId: accountId as number },
     { skip: !usable },
   );
 
+  // **Silence on failure would be a lie by omission.** If this cannot be checked, an empty
+  // space under the amount reads exactly like "nothing to worry about" - so someone about
+  // to spend money that breaks a bill would take the absence as reassurance. Saying so
+  // costs one quiet line and is the same refusal the rest of the product makes: missing
+  // data says it is missing, it never renders as fine (CLAUDE.md rule 3).
+  if (usable && isError) {
+    return <Note muted>Couldn&rsquo;t check what this would cost just now.</Note>;
+  }
+
   // Stale data from a previous amount is worse than nothing: it would state a consequence
   // for a figure the user is no longer looking at.
-  if (!usable || !data || isFetching || data.amount !== settled) {
+  //
+  // Compared as numbers, not as strings. The server normalises money to two decimals, so
+  // typing "9000" comes back as "9000.00" - and a string comparison here never matched,
+  // which silently suppressed the whole note on every amount that wasn't typed with its
+  // paise. A guard that can only ever fail closed is worse than no guard: it fails
+  // invisibly, and looks exactly like the feature not being wired up.
+  const stale = data != null && Number(data.amount) !== Number(settled);
+  if (!usable || !data || isFetching || stale) {
     return null;
   }
 

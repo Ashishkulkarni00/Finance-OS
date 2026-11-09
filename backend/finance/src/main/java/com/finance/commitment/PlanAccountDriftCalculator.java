@@ -83,7 +83,8 @@ public class PlanAccountDriftCalculator {
                 continue;
             }
             List<CommitmentInstance> recent =
-                    instances.findTop6ByCommitmentIdAndUserIdOrderByDueDateDesc(commitment.getId(), userId);
+                    instances.findTop6ByCommitmentIdAndUserIdAndDueDateLessThanEqualOrderByDueDateDesc(
+                            commitment.getId(), userId, java.time.LocalDate.now());
             if (recent.isEmpty()) {
                 continue;
             }

@@ -1,116 +1,139 @@
-import { ColumnChart, type ColumnDatum } from '@/components/charts/ColumnChart';
+import { useState } from 'react';
 import { SectionHeader } from '@/components/SectionHeader';
+import { Skeleton } from '@/components/Skeleton';
+import { cn } from '@/lib/cn';
 import { cycleMonthName } from '@/lib/dates';
-import { formatPercent } from '@/lib/money';
+import { formatMoney, formatPercent } from '@/lib/money';
+import { useGetReviewMonthCategoriesQuery } from '@/services/reviewService';
 import type { ReviewMonth } from '@/types/review';
-import { MonthFigureTable } from './MonthFigureTable';
+import { CategoryBars } from './CategoryBars';
+import { SplitBar } from './SplitBar';
+import { FiguresToggle, Legend, SERIES } from './viz';
 
-interface WhereItWentProps {
-  months: ReviewMonth[];
-}
+/** Categories shown as bars before the rest fold into "Everything else". */
+const TOP = 8;
 
 /**
- * The same months, broken into what the money was doing.
+ * Where one month's money went - the month's whole first, then its parts.
  *
- * <p>Committed and flexible are two steps of one grey because both are money going out;
- * invested is a different hue because it is money kept. The stack can break through the
- * income rule, and when it does that is the whole message - more left than arrived.
- *
- * <p><strong>The committed share is the point of this section.</strong> A month's flexible
- * spending is mostly weather; the share of income already promised before the month starts
- * is the structure, and it is the only number here that can be improved by a decision
- * rather than by restraint. At three-quarters of income there is no room for anything else
- * to matter, which is why it is the takeaway and the last column of the table.
- *
- * <p>No per-category breakdown and no budgets: that is a settled question (`CLAUDE.md`), and
- * flexible spending already has its own section against the user's own baseline on Months.
+ * <ul>
+ *   <li><strong>A tall segmented bar</strong>: committed · day-to-day · invested. One whole,
+ *       three parts, read at a glance - what a pie is usually asked to do, done on one
+ *       baseline-free bar whose parts can be compared by length.</li>
+ *   <li><strong>Ranked category bars</strong>, largest first, each split into the part that
+ *       paid a planned bill and the part that was day-to-day. Bars, not a pie, because the
+ *       reader's job here is to compare categories with each other, and a dozen pie slices
+ *       can't be compared.</li>
+ * </ul>
+ * A chip per recorded month picks which month; the newest is shown first.
  */
-export function WhereItWent({ months }: WhereItWentProps) {
-  const data: ColumnDatum[] = months.map((month) => ({
-    key: String(month.cycleId),
-    label: cycleMonthName(month.endDate),
-    recorded: month.recorded,
-    current: month.current,
-    // A month from before the plan was running has no split to draw - nothing in it was
-    // linked to a bill because there were no bills. Drawn as one undivided band rather than
-    // as a column that is 100% day-to-day, which would be a claim about the person.
-    segments: month.planTracked
-      ? [
-          { key: 'committed', label: 'Committed', value: month.committed, tone: 'committed' as const },
-          { key: 'flexible', label: 'Day to day', value: month.flexible, tone: 'flexible' as const },
-          { key: 'invested', label: 'Invested', value: month.invested, tone: 'invest' as const },
-        ]
-      : [
-          { key: 'spend', label: 'Out, plan not running yet', value: month.spend, tone: 'neutral' as const },
-          { key: 'invested', label: 'Invested', value: month.invested, tone: 'invest' as const },
-        ],
-    reference: { value: month.income, label: 'In' },
-  }));
+export function WhereItWent({ months }: { months: ReviewMonth[] }) {
+  const recorded = months.filter((m) => m.recorded && m.planTracked);
+  const [picked, setPicked] = useState<number | null>(null);
+  const month = recorded.find((m) => m.cycleId === picked) ?? recorded[recorded.length - 1];
+  const { data, isLoading } = useGetReviewMonthCategoriesQuery(month?.cycleId ?? 0, { skip: !month });
 
-  const untracked = months.filter((month) => month.recorded && !month.planTracked);
+  if (!month) return null;
 
-  const current = months.find((month) => month.current);
-  // The most recent month that has ended - the only fair thing to read a share against,
-  // since a share of a month still running is a share of a part month.
-  const lastComplete = [...months].reverse().find((month) => month.recorded && !month.current);
+  const parts = [
+    // Ink inside a fill goes by the fill's luminance: white on the blue, near-black on the
+    // lighter orange and aqua (white there falls under 3.5:1).
+    { key: 'committed', label: 'Committed — bills & EMIs', value: month.committed, colour: SERIES.committed, ink: '#ffffff' },
+    { key: 'flexible', label: 'Day to day', value: month.flexible, colour: SERIES.flexible, ink: '#0b0b0b' },
+    { key: 'invested', label: 'Invested', value: month.invested, colour: SERIES.invested, ink: '#0b0b0b' },
+  ].filter((p) => p.value != null && Number(p.value) > 0);
+
+  const cats = data?.categories ?? [];
+  const shown = cats.slice(0, TOP);
+  const rest = cats.slice(TOP);
 
   return (
-    <section className="flex flex-col gap-space-6">
-      <div>
-        <SectionHeader trailing="committed · day to day · invested">Where it went</SectionHeader>
+    <section className="flex flex-col gap-space-5">
+      <SectionHeader trailing={month.current ? 'so far' : undefined}>Where it went</SectionHeader>
+
+      {recorded.length > 1 && (
+        <div className="flex flex-wrap gap-space-2" role="radiogroup" aria-label="Which month">
+          {[...recorded].reverse().map((m) => {
+            const active = m.cycleId === month.cycleId;
+            return (
+              <button
+                key={m.cycleId}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                onClick={() => setPicked(m.cycleId)}
+                className={cn(
+                  'rounded-full border px-space-3 py-space-1 text-caption transition-colors duration-150',
+                  active ? 'border-ink bg-sunken text-ink' : 'border-border text-ink-muted hover:text-ink-soft',
+                )}
+              >
+                {cycleMonthName(m.endDate)}
+                {m.current ? ' · so far' : ''}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* The whole: a tall segmented bar, each part's share printed on it where it fits. */}
+      <div className="flex flex-col gap-space-2">
+        <p className="text-body text-ink-soft">
+          <span className="text-ink">{formatMoney(month.spend)}</span> went out in {cycleMonthName(month.endDate)}
+          {month.committedShare != null && (
+            <>
+              {' '}
+              — <span className="text-ink">{formatPercent(month.committedShare)}</span> of the income was already promised
+              before a rupee of day-to-day.
+            </>
+          )}
+        </p>
+        <SplitBar title={`${cycleMonthName(month.endDate)}${month.current ? ' so far' : ''}`} parts={parts.map((p) => ({ key: p.key, label: p.label, value: p.value!, colour: p.colour, ink: p.ink }))} />
+        <Legend items={parts.map((p) => ({ label: `${p.label} · ${formatMoney(p.value)}`, colour: p.colour }))} />
       </div>
 
-      <ColumnChart
-        data={data}
-        takeaway={
-          current?.committedShare != null ? (
-            <>
-              <span className="text-ink">{formatPercent(current.committedShare)}</span> of this month&rsquo;s income
-              was already promised to commitments
-              {lastComplete?.committedShare != null && <> — it was {formatPercent(lastComplete.committedShare)} in {cycleMonthName(lastComplete.endDate)}</>}.
-              That share is the thing worth moving: day-to-day spending is what is left after it, not instead of it.
-            </>
-          ) : (
-            <>
-              Each column splits a month into what was promised, what was day-to-day, and what was invested. The
-              rule is income — a stack above it is a month that spent money which did not arrive in it.
-            </>
-          )
-        }
-        description="A column per salary month, stacked into committed spending, day-to-day spending and money invested, with a rule marking income. Exact figures follow in the table below."
-      />
-
-      <MonthFigureTable
-        months={months}
-        columns={[
-          { key: 'committed', head: 'Committed', money: (month) => month.committed },
-          { key: 'flexible', head: 'Day to day', money: (month) => month.flexible },
-          { key: 'invested', head: 'Invested', money: (month) => month.invested },
-          { key: 'leftOver', head: 'Left liquid', money: (month) => month.leftOver },
-          {
-            key: 'share',
-            head: 'Committed %',
-            emphasis: true,
-            node: (month) => <span className="num text-row text-ink">{formatPercent(month.committedShare)}</span>,
-          },
-        ]}
-      />
-
-      <p className="max-w-[72ch] text-caption text-ink-muted">
-        <span className="text-ink-soft">Committed</span> is spending that settled a planned commitment — decided by
-        the bill it was linked to, not by its category, so a fixed-looking expense that no commitment covers
-        correctly counts as day-to-day.{' '}
-        <span className="text-ink-soft">Left liquid</span> is what came in, less what went out, less what was moved
-        into an investment.
-        {untracked.length > 0 && (
-          <>
-            {' '}
-            {untracked.map((month) => cycleMonthName(month.endDate)).join(' and ')}{' '}
-            {untracked.length === 1 ? 'has' : 'have'} no split: no commitments were set up yet, so none of that
-            spending could be linked to one. It is shown undivided rather than counted as entirely day-to-day.
-          </>
+      {/* The parts: ranked bars by category, committed vs day-to-day inside each. */}
+      <div className="flex flex-col gap-space-2">
+        <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">By category</span>
+        {isLoading ? (
+          <Skeleton className="h-48 w-full" />
+        ) : (
+          <CategoryBars categories={shown} />
         )}
-      </p>
+        {rest.length > 0 && (
+          <p className="text-caption text-ink-muted">
+            + {rest.length} more {rest.length === 1 ? 'category' : 'categories'}, each smaller — in the figures below.
+          </p>
+        )}
+        <Legend
+          items={[
+            { label: 'Paid a planned bill', colour: SERIES.committed },
+            { label: 'Day to day', colour: SERIES.flexible },
+          ]}
+        />
+      </div>
+
+      <FiguresToggle>
+        <table className="w-full text-left">
+          <thead>
+            <tr className="border-b border-line text-micro uppercase tracking-[0.08em] text-ink-muted">
+              <th className="py-space-2 font-normal">Category</th>
+              <th className="py-space-2 text-right font-normal">Planned bills</th>
+              <th className="py-space-2 text-right font-normal">Day to day</th>
+              <th className="py-space-2 text-right font-normal">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {cats.map((c) => (
+              <tr key={c.categoryId} className="border-b border-line last:border-b-0">
+                <td className="py-space-2 text-label text-ink">{c.name}</td>
+                <td className="num py-space-2 text-right text-caption text-ink-soft">{formatMoney(c.committed)}</td>
+                <td className="num py-space-2 text-right text-caption text-ink-soft">{formatMoney(c.flexible)}</td>
+                <td className="num py-space-2 text-right text-label text-ink">{formatMoney(c.total)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </FiguresToggle>
     </section>
   );
 }

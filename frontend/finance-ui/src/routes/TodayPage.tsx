@@ -1,3 +1,4 @@
+import { WayBack } from '@/features/today/components/WayBack';
 import { useState, type CSSProperties } from 'react';
 import { CircleHelp, Wallet } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -139,6 +140,7 @@ export default function TodayPage() {
           wide enough to read as two unrelated pages.
           Both land after the summary has settled, so the eye reaches "what is coming" only
           once "what can I spend" has been read. */}
+      {/* 26rem right track: must match SpendToday's, so the band's divider and this one are one line. */}
       <div className="grid grid-cols-1 gap-space-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] xl:gap-0">
         <section className="reveal xl:pr-space-8" style={{ '--reveal-delay': '420ms' } as CSSProperties}>
           <SectionHeader
@@ -173,6 +175,7 @@ export default function TodayPage() {
           className="reveal flex flex-col gap-space-8 border-t border-line pt-space-8 xl:border-l xl:border-t-0 xl:pl-space-8 xl:pt-0"
           style={{ '--reveal-delay': '500ms' } as CSSProperties}
         >
+          <WayBack />
           <InsightList surface="TODAY" title="Also worth a look" hideKeys={railHidden} hideWhenEmpty />
           {financialState && <StandingPanel state={financialState} />}
         </div>

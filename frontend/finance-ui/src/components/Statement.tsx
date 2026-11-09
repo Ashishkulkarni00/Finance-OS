@@ -7,6 +7,7 @@ import type { Money } from '@/lib/money';
  *  tracks shift and the whole point (alignment) is lost. */
 const NotesColumn = createContext(false);
 const Leaders = createContext(false);
+const Dense = createContext(false);
 
 interface StatementProps {
   children: ReactNode;
@@ -28,6 +29,12 @@ interface StatementProps {
    * a narrow one, where the run is short enough to cross unaided.
    */
   leaders?: boolean;
+  /**
+   * Tighter rows, for a statement sitting beside something else in a card - where full
+   * spacing made it the tallest thing in the band and dragged the card's height
+   * (Months' "So far this cycle", 2026-11-09).
+   */
+  dense?: boolean;
   className?: string;
 }
 
@@ -40,16 +47,18 @@ interface StatementProps {
  * ("Precise - tabular figures, aligned decimals") and §12: a derivation the user can
  * follow is what makes a number trustworthy rather than merely displayed.
  */
-export function Statement({ children, notes, leaders, className }: StatementProps) {
+export function Statement({ children, notes, leaders, dense, className }: StatementProps) {
   return (
     <NotesColumn.Provider value={notes ?? false}>
       <Leaders.Provider value={leaders ?? false}>
+        <Dense.Provider value={dense ?? false}>
         <div
           className={cn('grid w-full', className)}
           style={{ gridTemplateColumns: notes ? '1fr auto minmax(0, 22rem)' : '1fr auto' }}
         >
           {children}
         </div>
+        </Dense.Provider>
       </Leaders.Provider>
     </NotesColumn.Provider>
   );
@@ -132,7 +141,9 @@ export function StatementRow({
   // A constituent line is already stepped in and sits directly under its parent, so it has
   // no long run to cross - a leader there would be decoration.
   const hasLeader = useContext(Leaders) && !indent;
-  const cell = cn(EDGE[variant], indent ? 'py-space-2' : PAD[variant], revealDelay != null && 'reveal');
+  const dense = useContext(Dense);
+  const pad = indent || (dense && (variant === 'row' || variant === 'subtotal')) ? 'py-space-2' : PAD[variant];
+  const cell = cn(EDGE[variant], pad, revealDelay != null && 'reveal');
   const cellStyle = revealDelay != null ? ({ '--reveal-delay': `${revealDelay}ms` } as CSSProperties) : undefined;
   const valueRole = indent ? 'caption' : VALUE_ROLE[variant];
   const labelClass = indent ? 'text-caption text-ink-muted' : LABEL_CLASSES[variant];

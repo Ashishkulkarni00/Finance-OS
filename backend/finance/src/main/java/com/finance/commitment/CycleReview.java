@@ -33,6 +33,31 @@ public record CycleReview(
         List<Difference> differences,
         List<Spend> largestUnplanned
 ) {
+    /**
+     * Must-pay bills that didn't happen and so carry into the next month - the loop ROADMAP 6.4
+     * closes: what this month leaves the next one to absorb. Savings that didn't happen are not
+     * carried (a missed SIP isn't owed to anyone). <strong>Null when any such bill has no
+     * amount</strong> - a total that dropped it would read as the whole of it (ADR-0006).
+     */
+    public BigDecimal carryOver() {
+        BigDecimal total = BigDecimal.ZERO;
+        for (Item i : notDone) {
+            if (!i.mandatory() || i.savings()) {
+                continue;
+            }
+            if (i.amount() == null) {
+                return null;
+            }
+            total = total.add(i.amount());
+        }
+        return com.finance.common.money.MoneyScale.normalise(total);
+    }
+
+    /** How many must-pay bills {@link #carryOver} covers. */
+    public int carryOverCount() {
+        return (int) notDone.stream().filter(i -> i.mandatory() && !i.savings()).count();
+    }
+
     /** A plan item that didn't happen (or was skipped) - its amount still owed/planned. */
     public record Item(Long instanceId, String name, BigDecimal amount, LocalDate dueDate, boolean mandatory,
                        boolean savings) {

@@ -16,6 +16,28 @@ real use and solved as one pass. Cross-reference between the two; never copy an 
 
 ## 1. Correctness: numbers the user sees are wrong
 
+### 1.20 An auto-matched EMI never reached its loan — 🔨 **fixed forward 2026-11-09; backfill needs the user**
+
+**Seen** on `/momentum` 2026-11-09: *"8 EMIs have fallen due with nothing recorded"* - while the
+user had paid every one. Bike, Education and Coding Ninjas each showed 2 unrecorded EMIs
+(Oct + Nov); only the card EMIs (settled through the Settle sheet) had reached their loans.
+
+**Cause.** `CommitmentAutoMatcher.link` - the path taken when a bank debit is recorded as an
+expense and matched to the bill - set the instance PAID and stopped. The manual path,
+`CommitmentInstanceServiceImpl.settle`, also writes a `CommitmentInstancePayment` row and calls
+`LoanPaymentRecorder.record` (ROADMAP 1.2). So every bank-paid EMI marked the bill paid while
+the loan's outstanding, net worth, the debt-free curve and Momentum all believed it unpaid.
+
+**Fix (forward).** `link` now writes both records under the same conditions as `settle`.
+
+**Backfill.** `POST /loans/{id}/reconcile-payments` (`commitment/LoanPaymentReconciler`) rebuilds
+loan payments from PAID instances of the loan's EMI commitment and their linked transactions.
+Idempotent. **Not yet run - it writes real data, so the user approves it.** Expect net worth
+and each loan's outstanding to drop by the principal part of six bank EMIs.
+
+**Not backfilled:** `commitment_instance_payments` rows for old auto-matched instances. Only
+part-payment history reads them; old auto-matches were full payments, so nothing visible.
+
 ### 1.17 "Free this month" shows an income figure the user will not recognise
 
 Found 2026-11-01 while rebuilding Today. The note under "Free this month" reads

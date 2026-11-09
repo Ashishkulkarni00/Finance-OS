@@ -70,17 +70,23 @@ function ProjectedShortfallCard({ account }: { account: AccountResponse }) {
   if (isLoading) return <Skeleton {...ITEM} className="h-20 w-full rounded-xl" />;
   if (!data || !data.shortfall || Number(account.currentBalance) < 0) return null;
 
-  const nextDeduction = [...data.deductions].sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
+  // Name the payment that actually breaks, not merely the next one. The card used to say
+  // "Mobile recharges takes ₹600 on 10 Nov" - a payment that is covered - while the one it
+  // can't cover was Petrol on the 27th (user, 2026-11-09). The server marks each deduction
+  // covered or not; the first uncovered one is the fact worth stating.
+  const ordered = [...data.deductions].sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+  const breaking = ordered.find((d) => d.covered === false);
+  const below = breaking && Number(breaking.balanceAfter) < 0;
 
   return (
     <AttentionCard
-      title={`${account.name} won't cover what's coming`}
+      title={breaking ? `${account.name} won't cover ${breaking.name} on ${formatShortDate(breaking.dueDate)}` : `${account.name} won't cover what's coming`}
       because={
-        nextDeduction
-          ? `Holds ${formatMoney(account.currentBalance)}. ${nextDeduction.name} takes ${formatMoney(nextDeduction.amount)} on ${formatShortDate(nextDeduction.dueDate)}.`
+        breaking
+          ? `Holds ${formatMoney(account.currentBalance)}; by then it would be ${below ? `${formatMoney(breaking.balanceAfter.replace('-', ''))} short` : 'below the balance it must keep'}.`
           : `Holds ${formatMoney(account.currentBalance)}, against what's already scheduled to leave.`
       }
-      consequence={`Projected short by ${formatShortDate(data.projectionDate)}. Open it to see every upcoming debit and move money in before it bounces.`}
+      consequence={`Move money in by ${formatShortDate(breaking?.dueDate ?? data.projectionDate)}. Open it to see every payment leaving before salary.`}
       accountId={account.id}
     />
   );

@@ -112,7 +112,7 @@ export default function InvestmentsPage() {
 
           <Divided>{isLoading ? <Skeleton className="h-16 w-full rounded-xl" /> : <InvestmentsCheckIn investments={investments} />}</Divided>
 
-          {!isLoading && investments.some((i) => i.monthlyContribution != null && i.payFromAccount != null && i.planCommitmentId == null) && (
+          {!isLoading && investments.some((i) => i.monthlyContribution != null && Number(i.monthlyContribution) > 0 && i.payFromAccount != null && i.planCommitmentId == null) && (
             <Divided>
               <InvestmentPlanPrompt investments={investments} />
             </Divided>

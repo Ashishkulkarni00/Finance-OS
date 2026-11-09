@@ -43,6 +43,12 @@ public enum InsightType {
      */
     PLAN_ACCOUNT_DRIFT,
     /**
+     * A fixed bill whose last two payments both differed from its plan the same way - the plan's
+     * amount is out of date, so every forward figure is off by the difference (ROADMAP 3.1,
+     * "subscription drift"). See {@code PlanAmountDriftRule}.
+     */
+    PLAN_AMOUNT_DRIFT,
+    /**
      * Money is still set aside for a goal that has been archived or deleted, so it is being
      * held out of Real Balance for something nobody is saving for. See
      * {@code StrandedReservationRule}.
