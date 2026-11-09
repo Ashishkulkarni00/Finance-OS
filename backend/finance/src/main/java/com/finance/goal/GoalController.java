@@ -4,6 +4,7 @@ import com.finance.common.web.PageResponse;
 import com.finance.effect.WriteEffects;
 import com.finance.effect.dto.WriteEffectResponse;
 import com.finance.goal.dto.CreateGoalRequest;
+import com.finance.goal.dto.GoalFeasibilityResponse;
 import com.finance.goal.dto.GoalResponse;
 import com.finance.goal.dto.UpdateGoalRequest;
 import jakarta.validation.Valid;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
+import java.util.List;
 import java.util.function.Supplier;
 
 @RestController
@@ -30,11 +32,34 @@ public class GoalController {
     private final GoalService service;
     private final GoalMapper mapper;
     private final WriteEffects effects;
+    private final GoalFeasibilityService feasibility;
+    private final SuggestedOrderService suggestedOrder;
 
-    public GoalController(GoalService service, GoalMapper mapper, WriteEffects effects) {
+    public GoalController(GoalService service, GoalMapper mapper, WriteEffects effects,
+                          GoalFeasibilityService feasibility, SuggestedOrderService suggestedOrder) {
+        this.suggestedOrder = suggestedOrder;
         this.service = service;
         this.mapper = mapper;
         this.effects = effects;
+        this.feasibility = feasibility;
+    }
+
+    /**
+     * Which goals the months ahead can actually carry (ROADMAP 5.1/5.2) - judged in priority
+     * order against free money after usual spending, each taking its share before the next.
+     */
+    /**
+     * A suggested order for spare money - buffer, dear debt, full cushion, dated goals, then
+     * cheap debt or investing - and where the user stands on it (ROADMAP 5.3). Never enforced.
+     */
+    @GetMapping("/suggested-order")
+    public List<SuggestedOrderService.Step> suggestedOrder() {
+        return suggestedOrder.steps();
+    }
+
+    @GetMapping("/feasibility")
+    public List<GoalFeasibilityResponse> feasibility() {
+        return GoalFeasibilityResponse.from(feasibility.assess());
     }
 
     @PostMapping

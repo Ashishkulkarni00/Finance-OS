@@ -36,7 +36,7 @@ function Note({ title, detail }: { title: string; detail: string }) {
 export function InvestmentsCheckIn({ investments }: { investments: InvestmentResponse[] }) {
   const neverValued = investments.filter((i) => i.currentValue == null);
   const stale = investments.filter((i) => i.currentValue != null && (i.valuationAgeDays ?? 0) > STALE_AFTER_DAYS);
-  const sourceUnknown = investments.filter((i) => i.monthlyContribution != null && !i.payFromAccount && !i.outsideLedger);
+  const sourceUnknown = investments.filter((i) => i.monthlyContribution != null && Number(i.monthlyContribution) > 0 && !i.payFromAccount && !i.outsideLedger);
 
   const names = (list: InvestmentResponse[]) => list.map((i) => i.name).join(', ');
   const hasAny = neverValued.length > 0 || stale.length > 0 || sourceUnknown.length > 0;

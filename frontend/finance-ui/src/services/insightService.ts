@@ -1,5 +1,5 @@
 import { baseApi } from './api/baseApi';
-import type { InsightListResponse, InsightSurface } from '@/types/insight';
+import type { InsightChange, InsightListResponse, InsightSurface } from '@/types/insight';
 
 export const insightService = baseApi.injectEndpoints({
   endpoints: (build) => ({
@@ -59,6 +59,18 @@ export const insightService = baseApi.injectEndpoints({
       invalidatesTags: ['Insight'],
     }),
 
+    /** Warnings that resolved since last acknowledged (ROADMAP 3.4). */
+    getInsightChanges: build.query<InsightChange[], void>({
+      query: () => '/insights/changes',
+      providesTags: ['Insight'],
+    }),
+
+    /** "Got it" — this resolution, and any earlier unacknowledged ones for the same warning. */
+    acknowledgeInsightChange: build.mutation<void, number>({
+      query: (id) => ({ url: `/insights/changes/${id}/acknowledge`, method: 'POST' }),
+      invalidatesTags: ['Insight'],
+    }),
+
     /** Undo — it speaks again immediately. */
     restoreInsight: build.mutation<void, string>({
       query: (key) => ({ url: `/insights/${encodeURIComponent(key)}/restore`, method: 'POST' }),
@@ -73,4 +85,6 @@ export const {
   useDismissInsightMutation,
   useSnoozeInsightMutation,
   useRestoreInsightMutation,
+  useGetInsightChangesQuery,
+  useAcknowledgeInsightChangeMutation,
 } = insightService;

@@ -48,23 +48,34 @@ export function CycleInOut({ cycle }: { cycle: CycleResponse | undefined }) {
         <p className="text-body text-ink-soft">We couldn’t load this cycle’s totals. Refresh to try again.</p>
       ) : (
         <>
-          <Statement>
+          <Statement dense>
             <StatementRow label={<LedgerLink to={ledger('INCOME')}>Money in</LedgerLink>} value={data.incomeTotal} />
-            <StatementRow label={<LedgerLink to={ledger('EXPENSE')}>Money out</LedgerLink>} value={data.expenseTotal} deduct />
-            <StatementRow variant="subtotal" label="Left over" value={data.net} emphasiseNegative />
-            {data.savingsRate != null && (
-              <StatementRow
-                label="Saved"
-                valueNode={<span className="num text-row text-ink">{formatPercent(data.savingsRate)}</span>}
-              />
-            )}
+            <StatementRow
+              label={<LedgerLink to={ledger('EXPENSE')}>Money out</LedgerLink>}
+              value={data.expenseTotal}
+              deduct
+            />
+            {/* The saved share rides on the Left over line rather than taking a row of its own:
+                it is a property of that figure, and the extra row made this the tallest half
+                of the card. */}
+            <StatementRow
+              variant="subtotal"
+              label={
+                <>
+                  Left over
+                  {data.savingsRate != null && (
+                    <span className="ml-space-2 text-caption text-ink-muted">{formatPercent(data.savingsRate)} saved</span>
+                  )}
+                </>
+              }
+              value={data.net}
+              emphasiseNegative
+            />
             {Number(data.investedTotal) > 0 && (
               <StatementRow label={<LedgerLink to={ledger('INVESTMENT')}>Invested</LedgerLink>} value={data.investedTotal} />
             )}
           </Statement>
-          <p className="text-caption text-ink-muted">
-            Money out is every expense — bills and EMIs as well as day-to-day spending.
-          </p>
+          <p className="text-caption text-ink-muted">Money out includes bills and EMIs, not just day-to-day spending.</p>
         </>
       )}
     </div>

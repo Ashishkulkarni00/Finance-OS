@@ -22,6 +22,12 @@ public enum InsightType {
     CARD_BILL_DUE,
     /** A credit card bill's due date has passed with money still owed. */
     CARD_BILL_OVERDUE,
+    /**
+     * A credit card has been paid more than the charges recorded on it, so its balance is a
+     * credit rather than a debt. Nearly always a charge that was never entered; sometimes a
+     * refund. See {@code CardCreditBalanceRule}.
+     */
+    CARD_IN_CREDIT,
     /** The top goal is behind its pace or past its date. */
     GOAL_BEHIND,
     /** A goal is funded by a bill with no set amount, so its pace cannot be judged at all. */
@@ -29,5 +35,23 @@ public enum InsightType {
     /** Money is set aside while debt costing more than it can earn is still running. */
     RATE_MISMATCH,
     /** Money was taken back out of a goal this cycle, and no plan asked for it. */
-    GOAL_RAIDED
+    GOAL_RAIDED,
+    /**
+     * A bill's recent payments keep coming from an account other than the one the plan
+     * names, so the projection and its shortfall warnings reason about the wrong account.
+     * See {@code PlanAccountDriftRule}.
+     */
+    PLAN_ACCOUNT_DRIFT,
+    /**
+     * A fixed bill whose last two payments both differed from its plan the same way - the plan's
+     * amount is out of date, so every forward figure is off by the difference (ROADMAP 3.1,
+     * "subscription drift"). See {@code PlanAmountDriftRule}.
+     */
+    PLAN_AMOUNT_DRIFT,
+    /**
+     * Money is still set aside for a goal that has been archived or deleted, so it is being
+     * held out of Real Balance for something nobody is saving for. See
+     * {@code StrandedReservationRule}.
+     */
+    RESERVATION_STRANDED
 }

@@ -108,7 +108,11 @@ export function InvestmentRow({ investment }: { investment: InvestmentResponse }
         <MetaFacts
           items={[
             { label: 'Type', value: investment.typeLabel },
-            ...(investment.monthlyContribution
+            // "0.00" is a truthy string: a stopped RD used to read "Monthly ₹0 on the 15th".
+            // Zero means contributions stopped - said in words (user, 2026-11-09).
+            ...(investment.monthlyContribution != null && Number(investment.monthlyContribution) === 0
+              ? [{ label: 'Monthly', value: 'Stopped', className: 'text-ink-soft' }]
+              : investment.monthlyContribution
               ? [
                   {
                     label: 'Monthly',

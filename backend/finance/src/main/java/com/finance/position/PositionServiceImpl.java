@@ -10,6 +10,7 @@ import com.finance.commitment.CommitmentSourceResolver;
 import com.finance.commitment.domain.Commitment;
 import com.finance.commitment.domain.CommitmentInstance;
 import com.finance.common.money.MoneyScale;
+import com.finance.loan.LoanOutstandingIndex;
 import com.finance.common.user.CurrentUserProvider;
 import com.finance.cycle.CurrentCycleResolver;
 import com.finance.cycle.domain.Cycle;
@@ -55,10 +56,16 @@ public class PositionServiceImpl implements PositionService {
     private final CommitmentSourceResolver sourceResolver;
     private final CommitmentRepository commitmentRepository;
     private final TransactionRepository transactionRepository;
+    /**
+     * What each loan still owes, derived from recorded payments. Net worth reads this for
+     * LOAN accounts rather than their stored balance - see {@code currentNetWorth}.
+     */
+    private final LoanOutstandingIndex loanOutstanding;
     private final CurrentUserProvider currentUser;
     private final Clock clock;
 
-    public PositionServiceImpl(AccountService accountService,
+    public PositionServiceImpl(LoanOutstandingIndex loanOutstanding,
+                               AccountService accountService,
                                AccountBalanceCalculator balanceCalculator,
                                ReservationRepository reservationRepository,
                                CurrentCycleResolver cycleResolver,
@@ -68,6 +75,7 @@ public class PositionServiceImpl implements PositionService {
                                TransactionRepository transactionRepository,
                                CurrentUserProvider currentUser,
                                Clock clock) {
+        this.loanOutstanding = loanOutstanding;
         this.accountService = accountService;
         this.balanceCalculator = balanceCalculator;
         this.reservationRepository = reservationRepository;
@@ -242,16 +250,27 @@ public class PositionServiceImpl implements PositionService {
     public NetWorthResult currentNetWorth() {
         List<Account> accounts = accountService.listActive();
 
+        // **A loan's account balance is not what the loan owes.** Paying an EMI posts
+        // against the bank or the card, never against the loan, so the LOAN account only
+        // moves when somebody edits it by hand - while the loan's own outstanding falls as
+        // payments are recorded (ADR-0018). Reading the account here made net worth drift
+        // further from the Debts page every month: ₹5,650.28 apart on 2026-11-08, with both
+        // figures on one screen. A stored value that should be derived is the thing ADR-0011
+        // forbids, so the derived one wins (FIX_BACKLOG 1.5).
+        Map<Long, BigDecimal> owedByLoanAccount = loanOutstanding.outstandingByAccount(currentUser.currentUserId());
+
         BigDecimal assets = BigDecimal.ZERO;
         BigDecimal liabilities = BigDecimal.ZERO;
         for (Account account : accounts) {
-            BigDecimal balance = balanceCalculator.currentBalance(account);
             if (account.getType().isAsset()) {
-                assets = assets.add(balance);
+                assets = assets.add(balanceCalculator.currentBalance(account));
             }
             if (account.getType().isLiability()) {
-                // Liability balances are negative (money owed) - negate to express as owed.
-                liabilities = liabilities.add(balance.negate());
+                BigDecimal owed = owedByLoanAccount.get(account.getId());
+                // Only a LOAN account has a loan behind it. A credit card's balance *is* its
+                // debt - every charge posts to it - so it keeps the posted figure.
+                liabilities = liabilities.add(
+                        owed != null ? owed : balanceCalculator.currentBalance(account).negate());
             }
         }
 

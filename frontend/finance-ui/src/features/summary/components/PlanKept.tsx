@@ -4,6 +4,7 @@ import { cn } from '@/lib/cn';
 import { cycleMonthName } from '@/lib/dates';
 import type { ReviewMonth } from '@/types/review';
 import { MonthFigureTable } from './MonthFigureTable';
+import { FiguresToggle } from './viz';
 
 interface PlanKeptProps {
   months: ReviewMonth[];
@@ -71,32 +72,34 @@ export function PlanKept({ months }: PlanKeptProps) {
         })}
       </div>
 
+      <FiguresToggle>
       <MonthFigureTable
-        months={withPlan}
-        columns={[
-          {
-            key: 'kept',
-            head: 'Kept',
-            node: (month) => (
-              <span className="num text-row text-ink-soft">
-                {month.commitmentsKept ?? '—'}
-                <span className="text-ink-muted"> / {month.commitmentsPlanned ?? '—'}</span>
-              </span>
-            ),
-          },
-          { key: 'planned', head: 'Plan said', money: (month) => month.plannedCommittedTotal },
-          { key: 'actual', head: 'Confirmed', money: (month) => month.actualCommittedTotal, emphasis: true },
-        ]}
-      />
-
-      <p className="max-w-[72ch] text-caption text-ink-muted">
-        <span className="text-ink-soft">Plan said</span> is everything the plan expected to leave your spending
-        money — bills <em>and</em> money set aside, such as the SIP or a top-up to the emergency fund. That is why
-        it is larger than Committed in the section above, which counts only what was spent. It shows an em dash
-        whenever any bill in that month had no amount yet: a total with the unknown parts quietly dropped would read
-        as a fact. A skipped optional bill is left out of both the count and the figures — it was never going to be
-        paid. Money coming in is left out too: a salary arriving is not a promise you keep.
-      </p>
+          months={withPlan}
+          columns={[
+            {
+              key: 'kept',
+              head: 'Kept',
+              node: (month) => (
+                <span className="num text-row text-ink-soft">
+                  {month.commitmentsKept ?? '—'}
+                  <span className="text-ink-muted"> / {month.commitmentsPlanned ?? '—'}</span>
+                </span>
+              ),
+            },
+            { key: 'planned', head: 'Plan said', money: (month) => month.plannedCommittedTotal },
+            { key: 'actual', head: 'Confirmed', money: (month) => month.actualCommittedTotal, emphasis: true },
+          ]}
+        />
+  
+        <p className="max-w-[72ch] text-caption text-ink-muted">
+          <span className="text-ink-soft">Plan said</span> is everything the plan expected to leave your spending
+          money — bills <em>and</em> money set aside, such as the SIP or a top-up to the emergency fund. That is why
+          it is larger than Committed in the section above, which counts only what was spent. It shows an em dash
+          whenever any bill in that month had no amount yet: a total with the unknown parts quietly dropped would read
+          as a fact. A skipped optional bill is left out of both the count and the figures — it was never going to be
+          paid. Money coming in is left out too: a salary arriving is not a promise you keep.
+        </p>
+      </FiguresToggle>
     </section>
   );
 }

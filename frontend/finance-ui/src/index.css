@@ -63,6 +63,25 @@
   --chart-income: #0f766e;
   /* Debt is clay, never red: it is being worked down, not an emergency (§7). */
   --chart-debt: #9a3412;
+
+  /* Summary charts (2026-11-09 revamp). Categorical order validated with the dataviz
+   * validator, light and dark: worst adjacent CVD ΔE 9.1-9.4, normal-vision ≥ 19.6. Light
+   * slots 3-5 sit below 3:1 on the surface, so every chart using them carries labels and a
+   * figures view (the relief rule). Slot meanings on Summary: 1 committed, 2 day-to-day,
+   * 3 invested; loans take 1-5 in loan order. */
+  --viz-1: #2a78d6;
+  --viz-2: #eb6834;
+  --viz-3: #1baf7a;
+  --viz-4: #eda100;
+  --viz-5: #e87ba4;
+  /* Sequential blue for magnitude (heatmap), lightest = near zero. */
+  --viz-seq-0: #f1f6fd;
+  --viz-seq-1: #cde2fb;
+  --viz-seq-2: #9ec5f4;
+  --viz-seq-3: #6da7ec;
+  --viz-seq-4: #3987e5;
+  --viz-seq-5: #256abf;
+  --viz-seq-6: #184f95;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -98,6 +117,18 @@
     --chart-neutral: #a8a29e;
     --chart-income: #2dd4bf;
     --chart-debt: #e07a4f;
+    --viz-1: #3987e5;
+    --viz-2: #d95926;
+    --viz-3: #199e70;
+    --viz-4: #c98500;
+    --viz-5: #d55181;
+    --viz-seq-0: #22272e;
+    --viz-seq-1: #0d366b;
+    --viz-seq-2: #104281;
+    --viz-seq-3: #184f95;
+    --viz-seq-4: #1c5cab;
+    --viz-seq-5: #2a78d6;
+    --viz-seq-6: #5598e7;
   }
 }
 

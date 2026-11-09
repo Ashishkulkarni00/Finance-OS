@@ -41,7 +41,7 @@ export function useBillSources(billId: number | null): BillSources {
     ),
     // A holding with a monthly amount and a paying account is something a bill can follow.
     investments: (investmentsPage?.content ?? []).filter(
-      (i) => i.monthlyContribution != null && i.payFromAccount != null && (i.planCommitmentId == null || i.planCommitmentId === billId),
+      (i) => i.monthlyContribution != null && Number(i.monthlyContribution) > 0 && i.payFromAccount != null && (i.planCommitmentId == null || i.planCommitmentId === billId),
     ),
     // A goal kept in an account can receive a monthly transfer; several bills may fund one.
     goals: (goalsPage?.content ?? []).filter((g) => !g.archived && g.linkedAccountId != null),

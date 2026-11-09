@@ -35,8 +35,32 @@ import type { FinancialStateResponse, Provenance } from '@/types/financialState'
  * <p>Nothing is computed here. Every figure arrives worked out from the server
  * (FRONTEND_CONVENTIONS §4 rule 2); this file groups, compares, words and formats.
  */
+/** Per-browser memory of "Hide" - a convenience only, so it may fail silently. */
+const OPEN_KEY = 'kosh.today.standing.open';
+
+function readOpen(): boolean {
+  try {
+    return window.localStorage.getItem(OPEN_KEY) !== 'false';
+  } catch {
+    return true;
+  }
+}
+
 export function StandingPanel({ state }: { state: FinancialStateResponse }) {
-  const [open, setOpen] = useState(false);
+  // Open by default (user, 2026-11-09): this month, the cushion and what's owed are worth
+  // seeing without a click. Hiding it is remembered so it stays out of the way for those
+  // who chose that.
+  const [open, setOpenState] = useState(readOpen);
+  const setOpen = (next: (v: boolean) => boolean) =>
+    setOpenState((v) => {
+      const value = next(v);
+      try {
+        window.localStorage.setItem(OPEN_KEY, String(value));
+      } catch {
+        /* storage blocked - the choice just won't persist */
+      }
+      return value;
+    });
   // Which row is showing its working. One at a time: the panel is the answer to a question
   // the user just asked, not a mode the statement sits in.
   const [why, setWhy] = useState<'runway' | 'debt' | null>(null);
@@ -58,7 +82,7 @@ export function StandingPanel({ state }: { state: FinancialStateResponse }) {
         <span className="flex items-center gap-space-2 text-caption text-ink-muted">
           {/* Named rather than left as "show more": a closed section that does not say what
               is in it is a section nobody opens. */}
-          {open ? 'Hide' : 'This month, safety, what you owe'}
+          {open ? 'Hide' : 'Show · this month, safety, what you owe'}
           <ChevronDown
             size={13}
             strokeWidth={1.75}

@@ -26,7 +26,7 @@ export function LoanCoverLink({ loanId }: { loanId: number }) {
       <div className="min-w-0 flex-1">
         <span className="text-label font-semibold text-ink">This is paying for</span>
         <p className="mt-space-1 text-body text-ink-soft">
-          <Link to="/money/cover" className="underline-offset-2 hover:text-ink hover:underline">
+          <Link to="/money/insurance" className="underline-offset-2 hover:text-ink hover:underline">
             {policy.name}
           </Link>
           {policy.insurer && ` · ${policy.insurer}`}

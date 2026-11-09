@@ -8,7 +8,7 @@ const TABS = [
   { to: '/money/investments', label: 'Investments' },
   // The fifth register answers a different question from the other four: not what you have
   // or owe, but what you wouldn't have to find if something happened (ADR-0016).
-  { to: '/money/cover', label: 'Cover' },
+  { to: '/money/insurance', label: 'Insurance' },
 ] as const;
 
 /**

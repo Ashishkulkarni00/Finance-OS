@@ -16,6 +16,28 @@ real use and solved as one pass. Cross-reference between the two; never copy an 
 
 ## 1. Correctness: numbers the user sees are wrong
 
+### 1.20 An auto-matched EMI never reached its loan — 🔨 **fixed forward 2026-11-09; backfill needs the user**
+
+**Seen** on `/momentum` 2026-11-09: *"8 EMIs have fallen due with nothing recorded"* - while the
+user had paid every one. Bike, Education and Coding Ninjas each showed 2 unrecorded EMIs
+(Oct + Nov); only the card EMIs (settled through the Settle sheet) had reached their loans.
+
+**Cause.** `CommitmentAutoMatcher.link` - the path taken when a bank debit is recorded as an
+expense and matched to the bill - set the instance PAID and stopped. The manual path,
+`CommitmentInstanceServiceImpl.settle`, also writes a `CommitmentInstancePayment` row and calls
+`LoanPaymentRecorder.record` (ROADMAP 1.2). So every bank-paid EMI marked the bill paid while
+the loan's outstanding, net worth, the debt-free curve and Momentum all believed it unpaid.
+
+**Fix (forward).** `link` now writes both records under the same conditions as `settle`.
+
+**Backfill.** `POST /loans/{id}/reconcile-payments` (`commitment/LoanPaymentReconciler`) rebuilds
+loan payments from PAID instances of the loan's EMI commitment and their linked transactions.
+Idempotent. **Not yet run - it writes real data, so the user approves it.** Expect net worth
+and each loan's outstanding to drop by the principal part of six bank EMIs.
+
+**Not backfilled:** `commitment_instance_payments` rows for old auto-matched instances. Only
+part-payment history reads them; old auto-matches were full payments, so nothing visible.
+
 ### 1.17 "Free this month" shows an income figure the user will not recognise
 
 Found 2026-11-01 while rebuilding Today. The note under "Free this month" reads
@@ -44,7 +66,108 @@ note is unexplained and far more prominent.
 
 ---
 
-### 1.15 `PlanAdherence` counts income as a commitment — and writes it into every snapshot
+### 1.18 A credit card can sit in credit, and nothing anywhere says so — 🔨 **built 2026-11-05, not yet observed firing**
+
+**Found 2026-11-04**, from a real correction that went wrong in the user's own data. It is
+the clearest defect this product has shipped, because the app held an **impossible figure**
+for hours and every screen reported it calmly.
+
+What happened: the card bill (₹21,430) was paid as a transfer from HDFC Salary, but only
+₹9,019 of the charges behind it had been recorded. The card's balance went **positive — a
+credit of ₹12,411**. Money, Cards and the Pulse all displayed it without comment. Net worth
+counted it as an asset.
+
+A credit card cannot owe you money. Where the balance is positive, exactly one of two things
+is true and both are worth saying:
+
+- a charge is missing — the bill covered purchases never entered, or
+- the payment was larger than the card's recorded debt.
+
+**Built 2026-11-05:** `insight/rules/CardCreditBalanceRule.java`, plus
+`InsightType.CARD_IN_CREDIT` and the matching member of the frontend's `InsightType` union.
+`CreditCardView.outstanding()` is already `-balance(card)`, so the whole test is
+`outstanding().signum() < 0`. No schema, no new query, no new endpoint — it joins the
+existing `/insights` payload. Severity ATTENTION, undated, ranked by the size of the credit;
+action opens the card. Backend `test-compile` and frontend `tsc` + `vite build` all clean.
+
+**Not yet observed firing.** The user's card was corrected to ₹0 before the rule existed, so
+there is no credit balance left to raise it, and manufacturing one means writing a bad row to
+real data. It needs a backend restart, and then either the next real occurrence or a
+deliberate ₹1 overpayment that is deleted straight after.
+
+**Wording is "nearly always", not "impossible", on purpose.** A card really can sit in credit
+— overpay, or take a refund after paying — so the insight names both causes and leads with
+the likelier one. Telling someone their refund is an error is how a warning gets dismissed,
+and the dismissal would carry to the case that matters.
+
+**Why this one first.** It is not a better warning about a known risk; it is a **class of
+check the product does not have** — *this figure is impossible*, as distinct from *this
+figure is concerning*. Others in the same family, worth following it: a bank account below
+zero that is not an overdraft, a commitment settled for many times its planned amount, a
+goal holding more than its target, a loan whose outstanding rises without a new drawdown.
+Each one catches a data-entry mistake at the moment it is made, which is the only moment it
+is cheap to fix.
+
+---
+
+### 1.19 Archiving a goal leaves its reservation holding money — 🔨 **built 2026-11-08**
+
+**Found 2026-11-01.** The goal *Bangalore trip tickets booking* was archived on 18 Oct with
+a target date of 31 Oct. Both passed. Its ₹3,226 reservation on HDFC Salary stayed live and
+kept reducing Real Balance for two weeks — ₹3,226 of ₹6,876, so the day rate read ₹135
+instead of ₹255. The user found it by asking why the Add form said money was held back, not
+because anything told them.
+
+Archiving a goal is a statement that it is over. Nothing in the write path releases, or even
+mentions, the reservation funding it.
+
+**Fix, in order of preference:**
+
+1. **An insight** — *"₹3,226 is still set aside for Bangalore trip, a goal you archived on
+   18 Oct."* Derived, no schema, reversible, and it respects the user's own judgement rather
+   than deciding for them. `FinancialContext` already carries goals and accounts.
+2. Prompting at the moment of archiving — better UX, but it is a write-path change and only
+   helps from then on; it does nothing for money already stranded.
+
+Not auto-release: money set aside is the user's statement of intent, and silently undoing it
+is the kind of plan rewrite ADR-0015 exists to prevent.
+
+---
+
+**Built 2026-11-08** — option 1, the insight.
+
+- `reservation/StrandedReservation.java` — the finding, carrying a `Reason` because the two
+  cases read very differently: a goal **archived** can be named and dated so the reader can
+  judge it; a goal **deleted** leaves a reservation pointing at nothing, and the only honest
+  thing to say is that nothing explains what the money is for any more.
+- `reservation/StrandedReservationCalculator.java` — `@Component`, two user-filtered
+  queries: every live reservation, and every goal *including archived* (`findAllForUser`
+  with `includeArchived = true`, which is precisely what this needs and what
+  `FinancialContext.goals` deliberately excludes). Deleted goals stay out of that query, and
+  their absence **is** the `GOAL_GONE` signal rather than a lookup failure to paper over.
+- `insight/rules/StrandedReservationRule.java` — ATTENTION, undated, ranked by amount. A
+  past archive date in `when` would rank it above every bill still to come, which it should
+  never outrank.
+- `InsightType.RESERVATION_STRANDED` + the frontend union member;
+  `FinancialContext.strandedReservations` wired in `buildContext`.
+- Reservations with **no** goal are skipped: "rent I'm holding for a flatmate" answers for
+  itself and has no goal to outlive.
+
+**It states the effect and opens the account; it does not offer to release.** The user may
+still be saving for the thing and have simply tidied the goal away. The sentence says what
+the money is doing — *"it is coming off what's free until salary and off the daily figure.
+Release it and it counts again — it stays in the account either way"* — and the action opens
+the account where **Set aside → Release** lives.
+
+**Not yet observed firing.** The Bangalore trip reservation that prompted this was released
+by the user on 2026-11-01, and the one live reservation today (₹10,001, parked from HDFC
+Premium to avoid minimum-balance charges) has no goal attached — so there is nothing stranded
+to find. Goal 6 is still archived, so a ₹1 reservation against it would raise the insight and
+can be deleted straight after.
+
+---
+
+### 1.15 `PlanAdherence` counts income as a commitment — ✅ **fixed 2026-11-07**
 
 - **Found 2026-10-24**, building Summary, on the real October cycle. `GET /review/months`
   first reported **16 of 17 commitments kept** and a "planned cost" of **₹1,24,722** against
@@ -63,10 +186,24 @@ note is unexplained and far more prominent.
   (`ReviewServiceImpl.billsOnly`, on `settleAs == INCOME` alone, so it needs no account lookup
   and stays clear of 1.11's open question). Changing what `close` *stores* is a decision about
   a historical row, not a side effect of building a report.
-- **Fix when taken:** filter in `PlanAdherence.from` itself and delete `billsOnly`. No cycle
-  has been closed yet, so there is nothing to restate — **this window does not stay open.**
+- **Fixed 2026-11-07, before any cycle was closed** — so there is nothing to restate, which
+  was the whole reason this had a deadline.
+  - `PlanAdherence.billsOnly(instances, commitments)` is now the one implementation, and
+    `PlanAdherence.from` **requires** the commitments. There is no overload that skips the
+    filter, so the unfiltered call does not compile and a later caller cannot reintroduce
+    the bug by forgetting it. The divergence was possible because the filter lived in the
+    caller; it now lives where the arithmetic does.
+  - `CycleServiceImpl.close` gained `CommitmentRepository` (a repository, not a service —
+    no bean cycle through `PositionService`) and passes the rules behind the cycle's
+    occurrences.
+  - `ReviewServiceImpl.billsOnly` now delegates rather than duplicating; its local
+    income-id set is gone, along with the `java.util.Set` import.
+  - `MonthReview`'s javadoc no longer describes the defect as open.
+  - Backend `test-compile` clean. **Behaviour on the Summary path must not change** — it was
+    already filtered — so `/review/months` reading identically after a restart is the
+    regression check, not a non-result.
 
-### 1.16 `formatPercent` prints a hyphen, not a true minus
+### 1.16 `formatPercent` prints a hyphen, not a true minus — ✅ **fixed 2026-11-08**
 
 - **Found 2026-10-24** on Summary: a negative savings rate renders **`-10%`** with
   `U+002D`, beside figures that correctly use `U+2212` (`Amount` via `splitMoney`).
@@ -310,22 +447,133 @@ note is unexplained and far more prominent.
 - `CycleServiceImpl` keeps the old unfiltered sum: its "money out" is every expense, bills
   included, which is what that figure is for.
 
-### 1.5 Net worth doesn't move as loan EMIs are paid
+### 1.5 Net worth doesn't move as loan EMIs are paid — 🔨 **built 2026-11-08**
 - **Problem.** Total debt uses the LOAN account balance, which only changes when the loan's
   outstanding principal is edited (V13 re-bases the account then). The loan page's
   "Outstanding today" is derived and does fall as payments are recorded.
 - **Cost.** Net worth reads more pessimistic every month until the user edits the loan.
 - **Fix.** Derive the loan account's balance from the loan's outstanding in the net worth /
   account balance calculation instead of the opening balance. Nothing stored (ADR-0011).
-- **Changed by ADR-0018 (2026-09-21), still open.** The loan's own figure is no longer a
-  calendar guess — it now falls only when a payment is *recorded*, which makes this fix both
-  safer and more valuable: net worth would move on evidence rather than on a date. The
-  divergence is still live and **will become visible on 5 October**, when the first three
-  EMIs fall due and the loan pages move while net worth does not.
+- **Changed by ADR-0018 (2026-09-21).** The loan's own figure is no longer a calendar guess —
+  it now falls only when a payment is *recorded*, which made this fix both safer and more
+  valuable: net worth moves on evidence rather than on a date.
+
+**The divergence, measured 2026-11-08 before fixing:**
+
+| Loan | Account balance | Loan's outstanding | Apart |
+|---|---:|---:|---:|
+| Mobile Mom | 12,600.98 | 10,163.00 | 2,437.98 |
+| Health Insurance | 42,701.00 | 39,488.70 | 3,212.30 |
+| **Total debt** | **3,40,091.98** | **3,34,441.70** | **5,650.28** |
+
+Both figures print on Today, in the *Standing* panel: *Owed ₹3,34,442* and *Net worth …
+₹3,40,092 owed*. Only the two card-paid loans had drifted, because only their EMIs had been
+recorded as payments; the bank-paid three will join them as their EMIs land.
+
+**Built 2026-11-08.**
+
+- `loan/LoanOutstandingIndex.java` — `@Component`, loan-account id to what that loan still
+  owes. Two queries for every loan, not two per loan: the loans, then
+  `findPaidAmountsForUser` batched and grouped here. **Repositories and a stateless
+  calculator only** — `PositionService` is reachable from `CycleServiceImpl.close`, so
+  anything it depends on must stay clear of the services that depend back on it (CLAUDE.md
+  bean-cycle traps). That is also why the arithmetic is duplicated from
+  `LoanServiceImpl.toView` rather than called through `LoanService`.
+- `PositionServiceImpl.currentNetWorth` reads it for LOAN accounts. **Credit cards keep the
+  posted balance** — a card's balance *is* its debt, since every charge posts to it. A LOAN
+  account with no loan behind it falls back to the posted balance, which is the old
+  behaviour.
+- Nothing stored (ADR-0011). No schema. `CycleServiceImpl.close` writes `netWorth` and
+  `totalDebt` into the snapshot through the same path, so a closed cycle now records the
+  derived figure too.
+- **Where it cannot be derived, the stated balance stands** — no rate, or a loan whose own
+  figures don't support derived ones. That overstates by whatever principal has been repaid,
+  but it is the *same* overstatement as before rather than a new one, and net worth going
+  unknown over one unpriced loan would be a worse answer. `loansWithoutTerms` on
+  `/financial-state` already exposes the condition; it is 0 for this user.
+
+**Expected after restart:** `netWorth.totalLiabilities` 3,40,091.98 → **3,34,441.70**,
+matching `debt.totalOutstanding` exactly; `netWorth.netWorth` −2,42,363.08 → **−2,36,712.80**.
+Assets must not move.
 
 ---
 
 ## 2. Missing capability, requested or implied
+
+### 2.16 A bill's "Paid from" never learns from where the money actually comes — 🔨 **built 2026-11-07**
+
+**Found 2026-11-04**, after the same mistake was made twice a month apart.
+
+*Clothes shopping* (₹12,000, Myntra) and *Credit card remaining* (₹411) are both set to pay
+from **HDFC Salary**. Both are actually put on the **HDFC Money back** card. So every month:
+the projection holds ₹12,000 aside out of the salary account for a payment that never leaves
+it, *Before payday* names the wrong account, and settling books card spending against the
+bank. The same three charges were mis-booked in October and again in November.
+
+The app allows settling from an account other than the plan's on purpose —
+`SettleCommitmentSheet` says so: *"Paid from is the plan, not a record"*. That is right. What
+is missing is that **nothing notices when the plan and the record keep disagreeing.**
+
+**The data is already there.** `CommitmentInstanceView.settledFromAccount` is documented as
+*"where the money actually left from, when that is not the bill's own account; null when they
+agree"* — computed today, used for display, and never reasoned about.
+
+**Fix:** a rule that reads it. When a bill's last two or more settlements came from the same
+account, and it is not the planned one, say so and offer to update the rule:
+
+> *Clothes shopping is planned from HDFC Salary, but the last 2 payments came from HDFC Money
+> back. Update the plan?* — **[Change to HDFC Money back]**
+
+**Why this is the intelligent one.** Every other warning in the engine fires on a threshold
+someone chose. This one learns the user's actual behaviour and offers to correct the plan to
+match it — the plan stops being something you maintain and starts being something that keeps
+itself honest. It is also the only fix here that would have prevented the November repeat of
+the October mistake.
+
+**Related, same cause, cheaper:** warn in the Settle sheet when the chosen *From* account is a
+different **kind** from the plan's — a bank where the plan says a card, or the reverse. That
+catches the first occurrence; the rule above catches the pattern. **Not built.**
+
+---
+
+**Built 2026-11-07.**
+
+- `commitment/PlanAccountDrift.java` — the finding: the bill, both accounts, how many
+  payments in a row, and when the last one was.
+- `commitment/PlanAccountDriftCalculator.java` — a `@Component` in the
+  `GoalWithdrawalCalculator` mould, so rules stay pure and never query. One
+  `findTop6ByCommitmentIdAndUserIdOrderByDueDateDesc` per bill (an existing finder, bounded
+  by the cycle's own commitments) and **one** batched `settlementFactsByIds` for every
+  payment behind them.
+- `insight/rules/PlanAccountDriftRule.java` — ATTENTION, undated, no rupee impact, so it can
+  never outrank a bill about to bounce. The action **opens the plan** rather than rewriting
+  it: changing where a bill is paid from is a plan revision (ADR-0015) and belongs to the
+  user on the page that records it, not to a button inside a warning.
+- `InsightType.PLAN_ACCOUNT_DRIFT` and the frontend union member.
+- `FinancialContext.planAccountDrifts`. While wiring it, `buildContext` was reading
+  `instanceService.listForCycle` twice — the cycle's whole worklist, the most expensive read
+  in the context. Now read once and shared.
+
+**Two in a row, never one.** The Settle sheet allows any account deliberately, and a bill
+paid from elsewhere once is ordinary. A warning on a one-off is noise, and noise is how a
+reader learns to skip the warning that matters. Paying from the planned account breaks the
+run, so correcting course clears the finding rather than leaving a standing accusation —
+the same principle `GoalWithdrawalCalculator` applies by netting deposits against
+withdrawals.
+
+**Verified silent on real data, which is the result the threshold predicts.** Replaying the
+rule's own logic over every cycle found exactly two bills with a single off-plan payment —
+*Home Support* (planned HDFC Salary, paid from Cash wallet, 29 Oct) and *Emergency fund
+top-up* (planned Cash wallet, paid from HDFC Salary, 3 Oct) — and none with two. Both look
+like a plan that wants correcting; both are correctly below the floor until it happens
+again.
+
+**Not yet observed firing**, for that same reason: no bill in this data has drifted twice
+yet. *Clothes shopping* will be the first if November repeats in December. The firing path
+can be proved without touching data by lowering `MIN_CONSECUTIVE` to 1 for one restart —
+both bills above should then appear — and putting it back.
+
+---
 
 ### 2.15 Taking money back out of a goal was a silent plan rewrite — ✅ **built 2026-10-09**
 - **Found by the user**: *"today is now green but it should not … what is planned and what is
@@ -480,20 +728,6 @@ note is unexplained and far more prominent.
 
 ## 4. Rough edges
 
-### 4.9 `/needs-you` nests a button inside a button
-
-- **Found 2026-11-01** while checking other screens after the Today rebuild. React logs
-  *"In HTML, <button> cannot be a descendant of <button>. This will cause a hydration
-  error."* on `/needs-you` and nowhere else.
-- **Cause:** `InsightRow`'s `navigable` branch wraps the whole card in a `<button>` so the
-  row is a way in, and that card already contains the action button and "I know". Only the
-  dedicated page passes `navigable`, which is why no other screen shows it.
-- **Not caused by the Today work** - that code path was not touched. `LedgerRow` already
-  solved exactly this with `div[role=button]` plus a real sibling that stops propagation,
-  and its class comment says so; `InsightRow` should follow it.
-- Cosmetic in the console today, but nested interactive elements are genuinely ambiguous to
-  keyboard and screen-reader users: the inner button's activation is swallowed by the outer.
-
 ### 4.8 The sidebar never collapses, so the app is unusable below ~700px
 - **Found 2026-10-03** while checking the rebuilt Today block at a narrow viewport. At 430px
   the fixed sidebar keeps its full width and the content column is squeezed to roughly 130px —
@@ -537,7 +771,7 @@ note is unexplained and far more prominent.
 - **Fix, if wanted.** Hard-delete the three rows and their postings after a `mysqldump`;
   harmless either way.
 
-### 4.7 A nested `<button>` on Needs you logs a React hydration error
+### 4.7 A nested `<button>` on Needs you logs a React hydration error — ✅ **fixed 2026-11-08**
 - Found 2026-09-25 in the headless console while screenshotting `/needs-you`:
   *"In HTML, `<button>` cannot be a descendant of `<button>`"*, traced through `AppShell` →
   `Outlet`. `InsightRow` renders the whole row as a button when `navigable` (the dedicated
@@ -547,6 +781,10 @@ note is unexplained and far more prominent.
   announce one control, and the inner button is not reliably reachable by keyboard.
 - **Fix.** Make the row a `<div>` with an overlaid stretched link or an `onClick` plus
   `role="link"`/`tabIndex`, so the action buttons are siblings rather than descendants.
+  **`LedgerRow` already solved exactly this** with `div[role=button]` plus a real sibling
+  that stops propagation, and says so in its class comment; `InsightRow` should follow it.
+- **Still present 2026-11-01**, re-observed on `/needs-you` while checking other screens
+  after the Today rebuild. Logged a second time as 4.9 in error and merged back here.
 
 ---
 

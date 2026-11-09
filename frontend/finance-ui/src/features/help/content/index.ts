@@ -36,7 +36,7 @@ export const CATEGORIES: DocCategory[] = [
   { id: 'loans', title: 'Loans & EMIs', summary: 'Every loan you are paying off, what an EMI is, what is still owed, and adding one.' },
   { id: 'cards', title: 'Credit cards', summary: 'A credit card as its own account, its statement and bill, available credit, and adding one.' },
   { id: 'goals', title: 'Goals & emergency fund', summary: 'Saving towards something with a target and a date, and building an emergency fund.' },
-  { id: 'cover', title: 'Cover', summary: 'What you are insured for, what it costs, and why cover is never counted as money you have.' },
+  { id: 'cover', title: 'Insurance', summary: 'What you are insured for, what it costs, and why cover is never counted as money you have.' },
   { id: 'investments', title: 'SIPs & RDs', summary: 'What you have put to work, adding a SIP or RD, and telling Kosh what a holding is worth.' },
   { id: 'corrections', title: 'Editing and correcting mistakes', summary: 'Fixing an entry, a bill or a balance - and why nothing in Kosh is ever destroyed, only corrected.' },
   { id: 'calculations', title: 'How figures are worked out', summary: 'Where the big numbers come from, why some show "—" instead of a guess, and why nothing is stored twice.' },

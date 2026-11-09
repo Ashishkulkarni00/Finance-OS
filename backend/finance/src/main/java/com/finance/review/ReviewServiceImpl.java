@@ -38,7 +38,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -145,9 +144,10 @@ public class ReviewServiceImpl implements ReviewService {
 
         // A bill falling due is a plan fact - it does not depend on anything having been
         // recorded, so these are read whether the month has transactions in it or not.
-        List<CommitmentInstance> bills = billsOnly(userId,
-                instanceRepository.findByCycleIdAndUserId(cycle.getId(), userId));
-        PlanAdherence adherence = PlanAdherence.from(bills);
+        List<CommitmentInstance> occurrences = instanceRepository.findByCycleIdAndUserId(cycle.getId(), userId);
+        List<Commitment> commitments = commitmentsBehind(userId, occurrences);
+        List<CommitmentInstance> bills = PlanAdherence.billsOnly(occurrences, commitments);
+        PlanAdherence adherence = PlanAdherence.from(occurrences, commitments);
         boolean planTracked = !bills.isEmpty();
 
         boolean current = !from.isAfter(today) && !to.isBefore(today);
@@ -201,37 +201,31 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     /**
-     * The occurrences that are actually bills - everything except an income commitment's.
+     * The cycle's bills - every occurrence except money coming in.
      *
      * <p>A salary credit is not a promise the user keeps, so counting it among "commitments
      * kept" inflates the North Star with the one thing that was never in doubt. On the real
      * October cycle it turned 16 of 17 into a figure that included the salary and the Diwali
      * bonus, and put their ₹57,700 inside a total labelled as what the plan would cost.
      *
-     * <p>Filtered on {@code settleAs} alone, which needs no account lookup - so this
-     * deliberately does not go anywhere near {@code CommitmentBucketClassifier}, whose
-     * spendability branch is blocked behind an open decision (FIX_BACKLOG 1.11) and would
-     * drag this screen into it.
-     *
-     * <p>{@code PlanAdherence} itself is left unfiltered: it is also what writes
-     * {@code plannedCommittedTotal} and {@code commitmentsKept} into a snapshot at close, and
-     * changing what gets stored in a historical row is a separate decision, not a side effect
-     * of building a report. Logged in FIX_BACKLOG instead.
+     * <p><strong>The filtering itself now lives in {@code PlanAdherence}</strong>, which is
+     * also what writes {@code plannedCommittedTotal} and {@code commitmentsKept} into the
+     * snapshot at close. Until 2026-11-07 this screen filtered and that one did not, so
+     * Summary read the right figure while every closed month would have recorded the wrong
+     * one, permanently (FIX_BACKLOG 1.15). One implementation, used by both, is the only
+     * arrangement in which they cannot drift apart again.
      */
     private List<CommitmentInstance> billsOnly(Long userId, List<CommitmentInstance> instances) {
         if (instances.isEmpty()) {
             return instances;
         }
-        Set<Long> incomeCommitments = commitmentRepository
-                .findByIdInAndUserId(instances.stream().map(CommitmentInstance::getCommitmentId).toList(), userId)
-                .stream()
-                .filter(commitment -> commitment.getSettleAs() == TransactionType.INCOME)
-                .map(Commitment::getId)
-                .collect(Collectors.toSet());
+        return PlanAdherence.billsOnly(instances, commitmentsBehind(userId, instances));
+    }
 
-        return instances.stream()
-                .filter(instance -> !incomeCommitments.contains(instance.getCommitmentId()))
-                .toList();
+    /** The rules behind a cycle's occurrences, for the one question of what settles as income. */
+    private List<Commitment> commitmentsBehind(Long userId, List<CommitmentInstance> instances) {
+        return commitmentRepository.findByIdInAndUserId(
+                instances.stream().map(CommitmentInstance::getCommitmentId).distinct().toList(), userId);
     }
 
     /**

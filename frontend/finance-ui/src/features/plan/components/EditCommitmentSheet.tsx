@@ -19,12 +19,12 @@ import {
   useUseBillAmountForInstanceMutation,
 } from '@/services/commitmentInstanceService';
 import type { CommitmentResponse, UpdateCommitmentRequest } from '@/types/commitmentRule';
-import { CommitmentFields } from './CommitmentFields';
+import { CommitmentFields, LastPaymentPicker } from './CommitmentFields';
 import { cycleOptions } from './AddCommitmentSheet';
 import { PaymentMonthPicker } from './PaymentMonthPicker';
 import { firstDueOnOrAfter, formatDayMonthYear, formatShortDate, salaryMonthContaining, shiftIsoDays, shiftIsoMonths } from '@/lib/dates';
 import { useGetCurrentCycleQuery } from '@/services/cycleService';
-import { commitmentSchema, isOneOff, MONTH_NAMES, useLastPayment, type CommitmentFormValues } from './commitmentForm';
+import { commitmentSchema, isOneOff, useLastPayment, type CommitmentFormValues } from './commitmentForm';
 import {
   GoalSettlement,
   LockedTerms,
@@ -100,9 +100,9 @@ export function EditCommitmentSheet({
 
 /** What each form field is called on screen - for naming the one that stopped a save. */
 const FIELD_LABELS: Partial<Record<keyof CommitmentFormValues, string>> = {
-  name: 'What',
-  amountType: 'Same every time?',
-  fixedAmount: 'How much',
+  name: 'Name',
+  amountType: 'Amount',
+  fixedAmount: 'Amount',
   frequency: 'How often',
   dueDay: 'Due on',
   accountId: 'Paid from',
@@ -195,10 +195,22 @@ function EditForm({
       why: rule.why ?? '',
     },
   });
-  const { handleSubmit, watch, setError, setValue } = form;
+  const { handleSubmit, watch, setError, setValue, formState } = form;
   const settleAs = watch('settleAs');
 
   const lastPayment = useLastPayment(Number(watch('dueDay')), rule.activeFrom, rule.activeTo);
+  // Did this edit change the plan itself - what's due, how much, when, or from where?
+  // Only then are "when does it start" and "why" worth asking (user, 2026-11-09: why does a
+  // "Why the change" box appear when I'm only fixing a name?). Name, category, must-pay and
+  // note are labels; they never needed either question.
+  const PLAN_FIELDS = ['amountType', 'fixedAmount', 'frequency', 'dueDay', 'accountId', 'settleAs', 'toAccountId'] as const;
+  const savedEnd = rule.activeTo ? rule.activeTo.slice(0, 7) : '';
+  const currentEnd = lastPayment.endYear && lastPayment.endMonth ? `${lastPayment.endYear}-${lastPayment.endMonth}` : '';
+  const planChanged =
+    PLAN_FIELDS.some((f) => formState.dirtyFields[f]) ||
+    (firstMonth !== '' && firstMonth !== savedFirstMonth) ||
+    currentEnd !== savedEnd ||
+    followKey !== sourceKey(rule.sourceType, rule.sourceId);
 
   const follow = parseSourceKey(followKey);
   const loan = follow?.type === 'LOAN' ? sources.loans.find((l) => l.id === follow.id) : undefined;
@@ -370,10 +382,10 @@ function EditForm({
         startSlot={
           !termsLocked && cycle ? (
             <FormRow
-              label={watch('frequency') === 'ONCE' ? 'When' : settleAs === 'INCOME' ? 'First one' : 'First payment'}
+              label={watch('frequency') === 'ONCE' ? 'When' : 'Starts'}
               hint={
                 watch('frequency') === 'ONCE'
-                  ? 'The month it happens - the exact date is shown beside it.'
+                  ? undefined
                   : 'Moving it later drops the unpaid months before it. Paid ones stay.'
               }
             >
@@ -438,28 +450,8 @@ function EditForm({
 
       {investment && (
         <div className="rounded-lg border border-line">
-          <FormRow label="Last instalment" error={lastPayment.error ?? undefined} hint="The month of its final instalment.">
-            <span className="flex flex-wrap items-center gap-space-2">
-              <Select
-                variant="row"
-                className="-ml-space-1"
-                ariaLabel="Month of the last instalment"
-                value={lastPayment.endMonth}
-                placeholder="Keeps going"
-                clearable
-                options={MONTH_NAMES.map((name, i) => ({ value: String(i + 1).padStart(2, '0'), label: name }))}
-                onChange={lastPayment.setEndMonth}
-              />
-              <Select
-                variant="row"
-                ariaLabel="Year of the last instalment"
-                value={lastPayment.endYear}
-                placeholder="Year"
-                clearable
-                options={lastPayment.yearOptions}
-                onChange={lastPayment.setEndYear}
-              />
-            </span>
+          <FormRow label="Ends" error={lastPayment.error ?? undefined}>
+            <LastPaymentPicker lastPayment={lastPayment} frequency={watch('frequency')} ariaLabel="When the last instalment is" />
           </FormRow>
         </div>
       )}
@@ -495,11 +487,11 @@ function EditForm({
         </div>
       )}
 
-      {!termsLocked && !oneOff && watch('frequency') !== 'ONCE' && (rule.sourceType === 'MANUAL' || rule.sourceType === 'GOAL') && laterMonths.length > 0 && (
+      {planChanged && !termsLocked && !oneOff && watch('frequency') !== 'ONCE' && (rule.sourceType === 'MANUAL' || rule.sourceType === 'GOAL') && laterMonths.length > 0 && (
         <div className="rounded-lg border border-line">
           <FormRow
-            label="Changes start"
-            hint="For a change that starts later, like rent rising from January. Earlier months keep the old figures."
+            label="From when"
+            hint="Pick a later month for a change that starts then, like rent rising from January. Earlier months keep the old figures."
           >
             <Select
               variant="row"
@@ -516,29 +508,31 @@ function EditForm({
         </div>
       )}
 
-      {/* Asked at the point of the decision, where the answer is known - a week later
-          nobody remembers. Optional on purpose: a required "why?" gets answered with "."  */}
-      <div className="rounded-lg border border-line">
-        <FormRow
-          label="Why the change"
-          hint="Optional. So next year you know why."
-        >
-          <input
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            maxLength={255}
-            autoComplete="off"
-            placeholder="Optional"
-            className={FORM_ROW_CONTROL}
-          />
-        </FormRow>
-      </div>
+      {/* Asked at the point of the decision, where the answer is known - a week later nobody
+          remembers. Only once the plan itself has changed: on a rename it was a question with
+          nothing to answer. Optional on purpose: a required "why?" gets answered with ".". */}
+      {planChanged && (
+        <>
+          <div className="rounded-lg border border-line">
+            <FormRow label="Why" hint="Kept in this commitment's history - e.g. “rent went up”. It doesn't change any figures.">
+              <input
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                maxLength={255}
+                autoComplete="off"
+                placeholder="Optional"
+                className={FORM_ROW_CONTROL}
+              />
+            </FormRow>
+          </div>
 
-      <p className="text-caption text-ink-muted">
-        {applyFrom
-          ? `Payments before ${formatDayMonthYear(applyFrom)} keep the old figures; from then on it uses these. To stop it instead, set its last payment.`
-          : 'Saving updates every one not yet paid - this month’s and later ones. Paid ones keep what was recorded.'}
-      </p>
+          <p className="text-caption text-ink-muted">
+            {applyFrom
+              ? `Payments before ${formatDayMonthYear(applyFrom)} keep the old figures; from then on it uses these.`
+              : 'Applies to every one not yet paid - this month’s and later. Paid ones keep what was recorded.'}
+          </p>
+        </>
+      )}
 
       {formError && <p className="text-caption text-critical">{formError}</p>}
 

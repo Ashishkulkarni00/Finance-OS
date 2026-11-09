@@ -32,7 +32,21 @@ public class LoanController {
     private final LoanMapper mapper;
     private final LoanEstimator estimator;
 
-    public LoanController(LoanService service, LoanMapper mapper, LoanEstimator estimator) {
+    private final com.finance.commitment.LoanPaymentReconciler reconciler;
+
+    /**
+     * Rebuilds this loan's payment records from its EMI bills already marked paid - repairs
+     * EMIs auto-matched before 2026-11-09, which never reached the loan. Idempotent.
+     */
+    @PostMapping("/{id}/reconcile-payments")
+    public java.util.Map<String, Integer> reconcilePayments(@PathVariable Long id) {
+        service.getById(id); // 404 for another user's loan, before anything is written
+        return java.util.Map.of("recorded", reconciler.reconcile(id));
+    }
+
+    public LoanController(LoanService service, LoanMapper mapper, LoanEstimator estimator,
+                          com.finance.commitment.LoanPaymentReconciler reconciler) {
+        this.reconciler = reconciler;
         this.service = service;
         this.mapper = mapper;
         this.estimator = estimator;

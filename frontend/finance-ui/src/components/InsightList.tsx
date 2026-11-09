@@ -1,4 +1,5 @@
-import type { CSSProperties, ReactNode } from 'react';
+import { cn } from '@/lib/cn';
+import type { CSSProperties, KeyboardEvent, ReactNode } from 'react';
 import { AlertTriangle, CheckCircle2, Sparkles } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/Button';
@@ -86,9 +87,16 @@ export function InsightRow({
   navigable = false,
   revealDelay,
   onDismiss,
+  clamp = false,
 }: {
   item: InsightItem;
   navigable?: boolean;
+  /**
+   * Cuts the explanation to two lines with an ellipsis. For the card beside Today's hero,
+   * where a five-line paragraph pushed the day's figure out of balance (user, 2026-11-09);
+   * the full sentence stays one hover away and in full on Needs you.
+   */
+  clamp?: boolean;
   /** Held back on first paint so a list of warnings reads as one thing arriving. */
   revealDelay?: number;
   /**
@@ -109,9 +117,27 @@ export function InsightRow({
     <div
       data-insight=""
       {...docAnchor}
+      // `role="button"` with a keydown handler rather than a real <button> wrapper. The
+      // card already contains an action button and "I know", and a <button> inside a
+      // <button> is invalid HTML: React warns, screen readers announce one control, and
+      // the inner button is not reliably reachable by keyboard. `LedgerRow` solved exactly
+      // this the same way and says so in its own class comment (FIX_BACKLOG 4.7).
+      {...(destination
+        ? {
+            role: 'button' as const,
+            tabIndex: 0,
+            onClick: () => navigate(destination),
+            onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                navigate(destination);
+              }
+            },
+          }
+        : {})}
       className={[
         'flex items-start gap-space-3 rounded-xl p-space-4 text-left',
-        destination ? 'w-full transition-opacity duration-150 hover:opacity-90' : '',
+        destination ? 'w-full cursor-pointer transition-opacity duration-150 hover:opacity-90' : '',
         revealDelay != null ? 'reveal' : '',
       ].join(' ')}
       style={
@@ -128,7 +154,9 @@ export function InsightRow({
       )}
       <div className="flex min-w-0 flex-1 flex-col gap-space-1">
         <p className="text-body text-ink">{item.title}</p>
-        <p className="text-caption text-ink-soft">{item.explanation}</p>
+        <p className={cn('text-caption text-ink-soft', clamp && 'line-clamp-2')} title={clamp ? item.explanation : undefined}>
+          {item.explanation}
+        </p>
         {action && (
           <div className="mt-space-2">
             <Button
@@ -167,12 +195,9 @@ export function InsightRow({
     </div>
   );
 
-  if (!destination) return body;
-  return (
-    <button type="button" onClick={() => navigate(destination)} className="w-full text-left">
-      {body}
-    </button>
-  );
+  // No wrapper at all now: the row carries its own role, so the action buttons inside it
+  // are siblings of the text rather than descendants of another control.
+  return body;
 }
 
 /**
@@ -187,8 +212,15 @@ export function InsightList({
   calmNote,
   hideKeys,
   hideWhenEmpty,
+  limit,
 }: {
   surface: InsightSurface;
+  /**
+   * Show at most this many, highest-ranked first. The server's own cap is per surface;
+   * this trims further where a screen wants the list shorter (Months: 2, user 2026-11-09).
+   * The header's count still uses the server's total, so nothing disappears from the tally.
+   */
+  limit?: number;
   title?: string;
   calmNote?: ReactNode;
   /**
@@ -214,7 +246,8 @@ export function InsightList({
   hideWhenEmpty?: boolean;
 }) {
   const { data, isLoading, isError } = useGetInsightsQuery(surface);
-  const items = hideKeys?.length ? data?.items.filter((i) => !hideKeys.includes(i.key)) : data?.items;
+  const filtered = hideKeys?.length ? data?.items.filter((i) => !hideKeys.includes(i.key)) : data?.items;
+  const items = limit != null ? filtered?.slice(0, limit) : filtered;
 
   if (hideWhenEmpty && !isLoading && !isError && items && items.length === 0) return null;
 
@@ -225,8 +258,17 @@ export function InsightList({
           // "3 of 7 shown" used to be a statement with nowhere to go. It is the way in to
           // the full list now; the list itself is unchanged.
           data && items && items.length > 0 ? (
-            <Link to="/needs-you" className="text-caption text-ink-muted underline-offset-2 hover:text-ink-soft hover:underline">
-              {data.total > items.length ? `${items.length} of ${data.total} — see all` : 'See all'}
+            // Loud only when something is actually hidden: then the link is the way to the rest
+            // and must not read as a footnote (user, 2026-11-09). When everything is shown it
+            // stays quiet - an orange "See all" over a complete list would be a false alarm.
+            <Link
+              to="/needs-you"
+              className={cn(
+                'text-caption underline-offset-2 hover:underline',
+                data.total > items.length ? 'font-semibold text-attention' : 'text-ink-muted hover:text-ink-soft',
+              )}
+            >
+              {data.total > items.length ? `${items.length} of ${data.total} — see all →` : 'See all'}
             </Link>
           ) : undefined
         }

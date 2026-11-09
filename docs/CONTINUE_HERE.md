@@ -1,4 +1,4 @@
-# Continue here (rewritten 2026-10-24)
+# Continue here (rewritten 2026-11-09)
 
 **This top block — down to the `---` — is the whole handoff contract. A session started
 with the single word "continue" must be able to act on it with no other input.** Everything
@@ -29,133 +29,265 @@ This changes how much gets *printed*, never how much gets verified.
 
 ## NEXT ACTION
 
-On branch **`feature/month-summary`**, off `uat-release`. Two pieces of finished work sit
-uncommitted: **Summary** (2026-10-24) and the **Today rebuild** (2026-11-01). Both are
-verified against real data in a headless browser, not merely compiled.
+On branch **`feature/month-summary`**. Since 2026-11-08 the user works in **auto mode**:
+decide and act, ask only when intervention is genuinely needed (git, real data, SQL/tests,
+the open product decisions below).
 
-### 1. Nothing is half-done. Two things need committing
+### 0. State on 2026-11-09 - everything verified live; one approval and one commit pending
 
-**Today, rebuilt 2026-11-01** on the user's own words: *"whatever is there on today page I
-dont like it how its aligned and everything ... what numbers its showing how it came nothing
-is making sense for me right now ... how much I am able to spend for today that should be
-there along with little relevant information. revamp it please"*. Full write-up below under
-*2026-11-01*.
+**Verified at runtime 2026-11-09** (the user's IntelliJ hot-reloads, so every fix below is live):
+all eight new endpoints by read-only GET, and Ahead / Plan > Goals / Today / Needs you / Summary
+by headless Chrome with writes blocked in-page (`$TEMP/kosh/cdp/check.mjs` pattern - note:
+CDP `Fetch` interception broke Vite's dynamic imports, use `Page.addScriptToEvaluateOnNewDocument`
+to wrap `fetch` instead; and match text case-insensitively, section headers are CSS-uppercased).
 
-**Summary, built 2026-10-24** on *"monthly summary section below Goals in left vertical ...
-via charts graphs etc"*. Five sections at `/summary`, a sixth rail entry under Goals. Full
-write-up below under *2026-10-24*.
+**Fixed during verification:**
+- **FIX_BACKLOG 1.20 - auto-matched EMIs never reached their loan** (real bug, predates this
+  work). `CommitmentAutoMatcher.link` now writes the payment row and the loan payment like
+  manual settle. Backfill endpoint `POST /loans/{id}/reconcile-payments` built, **not run**.
+- **Runway disagreed across screens** (Today 2.5 months vs new screens 1.9). One rule now:
+  `RunwayCalculator.calculateAhead(cycle, resolver)`, used by financial-state, lump sum and
+  suggested order.
+- Unlock options: loans paid off before the money arrives, loans on their last EMI, and goals
+  due before it are no longer offered.
+- What changed: routine clears (bill paid, amount typed), flickers under 10 min, and warnings
+  live again are filtered - 18 rows became the 4 that are news.
+- Wording: suggested-order goals step ("Of 2 goals: 2 fit if things go as usual or better"),
+  feasibility gives the per-month figure, WayBack's lone step reads "Spend a little less",
+  1-month buffer counts as done when "at most" can't plausibly tip it.
 
-Frontend only, both of them. `npx tsc -b --noEmit && npx vite build` clean; no backend
-change, so nothing new is waiting on DDL.
+**Waiting on the user:**
+1. **Reconcile run 2026-11-09 for loans 1, 2, 5 (user approved those three).** 6 EMIs recorded
+   (Bike needed a second pass - see below); re-runs return 0. Net worth −2,36,935 → **−2,15,314**,
+   owed 3,34,442 → 3,12,821. Loans 6 and 7 reconciled too (user approved), 1 each. **Every loan now 0 unrecorded**; net worth **-2,09,564**, owed 3,07,071; Momentum debt = BETTER, "₹33,021 of principal repaid since 14 Sep". Nothing pending here.
+   **Second bug found doing it:** `findTop6ByCommitmentIdAndUserIdOrderByDueDateDesc` returns
+   *future* months for long-running bills once future cycles exist (stray 2029 cycles), so
+   history read as empty. Replaced with `findTop6...AndDueDateLessThanEqual...` in both drift
+   calculators (likely why 2.16 was only ever "verified silent"), the reconciler (all due), and
+   the two instance-history views. `GoalServiceImpl:409` left (one-off booking bills).
+2. **Commit** everything on `feature/month-summary` (`git status` lists ~65 files).
+3. **Lift the schema freeze for 4.1 / 5.2 / 6.1?** DDL is under DEFERRED SCHEMA. Ask once.
 
-### 2. New: `webapp/mcp-server/` - Kosh's data, read-only, over MCP
+**2026-11-09 - user decisions:** schema freeze stays (4.1 / 5.2 / 6.1 skipped until end of MVP).
+**New target: improve the app's UI, screen by screen, starting with Today.** Done so far:
+- Today: removed the dotted leaders from the Free until salary / ÷ days / a day from here
+  breakdown (`SpendToday.tsx`, `<Statement leaders>` → `<Statement>`). User: "small faded line
+  to its amount ... looking weird". `Statement` still supports `leaders`; nothing uses it now.
+- Today > Before payday: removed the rule after each day heading ("tomorrow ────") in
+  `BeforePayday.tsx`. Row borders kept.
+- Today: top band's right track 28rem → 26rem to match the rail below (`SpendToday.tsx`,
+  `TodayPage.tsx`) - measured: both dividers at x=929 (1440px) and x=801 (1280px).
+- Today > Standing: open by default, "Hide" remembered per browser in localStorage
+  (`kosh.today.standing.open`, try/catch). Closed label: "Show · this month, safety, what you owe".
+- **Today done (user: "today seems fine"). Now: Ledger / add-transaction form.**
+- Add form: per-type labels via `TRANSACTION_TYPES[].words` (`transactionForm.ts`) - Expense
+  Spent on / Paid from; Income Received for / Received into; Transfer Reason / Move from / Move to;
+  Investment Invested in / Paid from / Held in; Refund Refund of / Credited to. Help guide
+  (`help/content/spending.ts`) updated to match.
+- Today top-left warning card: explanation clamped to 2 lines (`InsightRow` new `clamp` prop,
+  `line-clamp-2`, full text on hover; only `DayStatus` passes it). Measured 32px = 2 lines at
+  1440px and 390px.
+- Months top card, "So far this cycle": `Statement dense` (new prop, py-space-2 rows), Saved %
+  folded into the Left over label, shorter footnote. Band height 260 → 187px; content left 149 /
+  right 187 (was right 260).
+- Needs you: `InsightList` new `limit` prop; Months passes `limit={2}`. The see-all link is
+  semibold `text-attention` with → when items are hidden (everywhere, incl. Today), muted when
+  the list is complete. Live: 2 cards, "2 of 7 — see all →" in #b45309.
+- **Commitment add/edit simplified** (`CommitmentFields.tsx`, `PaymentMonthPicker.tsx`,
+  `AddCommitmentSheet.tsx`, `EditCommitmentSheet.tsx`, `commitmentForm.ts`): "What" → Name;
+  "Same every time?" + "How much" → one Amount row with Same/Changes every time chips; Starts =
+  one dropdown "November 2026 · due 5 Nov"; Ends = one dropdown "Keeps going" / "March 2027 · 5
+  payments" (`LastPaymentPicker`, frequency-aware); Category / Must pay / Note folded under
+  "More details" (summary on the closed row); Add's "This time" only for changing amounts; Edit's
+  "From when" + "Why" + apply note only after a plan field changes (`planChanged`: amount/type/
+  frequency/day/accounts/start/end/link - not name/category/must-pay/note). Help content
+  (monthly-plan, income, MonthGuideSheet) updated. Verified in headless Chrome: add form rows,
+  chips toggle, fold opens; edit: rename keeps Why hidden, amount change shows From when + Why.
+- Category moved back out of "More details" and **required for Payment and Income** (schema refine
+  in `commitmentForm.ts`): settling a bill copies the commitment's category into the Ledger entry,
+  and EXPENSE/INCOME entries require one server-side - without it the user was asked every month.
+  Must pay stays folded (defaults Yes). Edit error labels renamed (Name, Amount). Note: zod object
+  refines only run once base fields pass, so the category message appears after day/account.
+- Money overview: "Approximate" line now judges LOAN accounts by the loan's own `confidence`
+  (net worth reads derived loan outstanding since 1.5, not the account's opening balance) -
+  6 names → 2 (Education loan, SIP - Zerodha), both genuinely estimated (`NetWorthZone.tsx`).
+- Money > Needs a look shortfall card names the first *uncovered* payment and the shortfall:
+  "IDBI Saving account won't cover Petrol on 27 Nov · Holds ₹3,912; by then it would be ₹1,188
+  short" (was naming the covered ₹600 recharge) (`NeedsALookZone.tsx`).
+- Investments: a ₹0 monthly contribution now means "stopped" everywhere - no "not in your plan"
+  prompt (`InvestmentPlanPrompt`, `InvestmentsPage`, `InvestmentsCheckIn`, `billSources`), and the
+  row reads "Monthly · Stopped" (`InvestmentRow`). RD - Mom: ₹9,000, stopped, withdrawable Jan 2029
+  (still only in its note - `matures_on` is DEFERRED SCHEMA). Its "not valued yet" prompt is
+  genuine: the user enters the RD statement value via Value.
+- Money tab "Cover" renamed **Insurance**: route `/money/insurance` (`/money/cover` redirects),
+  tab label, page eyebrow + title "What you're covered for", help category title and its
+  "Open Insurance" links. "Cover for" (the sum assured) kept inside the policy form - that is
+  the right insurance term there. Help category id stays `cover`.
+- Goals page (/ahead) reordered: Money freeing up (headline + what ends) → Goals (header, primer,
+  goals with verdicts, suggested order) → **Where the freed money could go** (chips pick which
+  unlock) → Lump sum → Month by month. `AheadForecast` takes a `goals` slot (rendered on forecast
+  loading/error too); `UnlockCalendar` split into summary + `UnlockChoices`. Feasibility verdict
+  is now its own inset panel (bg-sunken, label line, sentence) under each goal. Order verified live.
+- **Summary revamped** (dataviz skill followed; palette validated with its script, light+dark):
+  new `--viz-1..5` + `--viz-seq-0..6` tokens in index.css (committed blue, day-to-day orange,
+  invested aqua). `SummaryTiles` (6 stat tiles, committed-share meter) replaces `WhereYouStand`
+  (deleted). Month by month = one stacked column chart (committed/day-to-day/invested vs income
+  rule) + legend; `ColumnChart` tones now use `--viz-*`. `WhereItWent` rewritten: month chips,
+  tall segmented bar of the month, ranked category bars split planned-bill vs day-to-day (new
+  `GET /review/months/{id}/categories` hook). New `CategoryHeatmap` (category × month, sequential
+  blue, store-based multi-month fetch). Debt down: statement + list replaced by `PayoffTimeline`
+  (bar per loan to its last EMI on a shared year axis). Every table folded behind "Show the
+  figures" (`viz.tsx` FiguresToggle). Verified by DOM measurement at 1280px (order, 30 heatmap
+  cells, no overflow). Headless screenshots render blank on this machine - not usable.
+  **Known app-wide gap:** below ~640px the nav rail still takes 240px (every page), not Summary-specific.
+- **Recharts adopted** (`recharts@3.10.1`, pinned) - **ADR-0022** supersedes ADR-0021 §3 (Highcharts
+  rejected: commercial licence; Kosh is meant to be sold). Month by month is now
+  `InOutChart.tsx`: per month a "Came in" bar beside a stacked out bar (committed / day-to-day /
+  invested, or one neutral "went out" for pre-plan months), unrecorded months skipped, y-axis
+  ₹30K/₹1.2L ticks, custom tooltip printing only server strings (ADR-0022 §2). Verified live:
+  bar heights 136/139/250px for In, tooltip on October shows all five figures. `ColumnChart` is
+  now unused. Candidates for Recharts next: debt curve (`TrendLine`) if the user wants hover there.
+- **All Summary plots now Recharts** (user: "everywhere ... highcharts no"): Month by month =
+  Income | Expenses (committed/day-to-day/invested stack) | **Left after expenses** (can go
+  below zero) - `InOutChart`; month split = `SplitBar`; categories = `CategoryBars`; debt =
+  `DebtCurve` (area + payoff dots); loans = `PayoffTimeline` (horizontal bars to last EMI, year
+  ticks). Shared hover card `ChartTooltip.tsx` (server strings only). Old `ColumnChart`,
+  `TrendLine`, `chartScale` deleted. Heatmap stays hand-built. All 5 hover-tested live.
+Headless screenshots render blank (CDP `captureScreenshot` on this machine) - verify UI by DOM
+queries instead (`$TEMP/kosh/cdp/peek.mjs` pattern) until that's solved.
 
-Built 2026-11-01 on the user's instruction: *"I want to begin new session in claude code via
-app, and give it access of data what our kosh has so that in the session I can ask claude to
-act as my personal CA"*. On the current branch, at their direction.
+**Next if none of that is answered:** FIX_BACKLOG impossible-state family, or Phase 7.
 
-- **`server.mjs`** - one file, zero dependencies, MCP over stdio (Node 22's `fetch` plus
-  newline-delimited JSON-RPC). 16 tools, each one GET.
-- **Read-only is structural.** `call()` is the only function that touches the network and
-  takes no HTTP method, so there is no code path that can POST, PATCH or DELETE. A session
-  cannot write because no tool *can*. `lastFour` is stripped from every account on the way
-  out; names are not, since an answer has to be able to say "IDBI Saving".
-- **`CA_BRIEF.md`** - the role, the reading rules that are easy to get wrong (the 28-27
-  salary month against the 1 Apr - 31 Mar financial year; transfers are not spending; null
-  is never zero), and the part that decides whether a tax answer is possible at all:
-  **what Kosh does not know** - gross salary, TDS, EPF, HRA, rent, regime choice. The brief
-  tells the session to ask for a payslip or Form 16 rather than compute from take-home.
-  What it *can* do from Kosh alone: **80E** (education loan interest, via
-  `kosh_loan_schedule` on loan 2 - `interestComponent` per row) and **80D** (health premium,
-  with the parent-policy limit noted as separate).
-- **Registered in both clients.** Claude Code reads `.mcp.json` at `G:\FinanceOS\`; Claude
-  Desktop reads `%LOCALAPPDATA%\Claude-Data\<account>\claude_desktop_config.json` - the newer
-  per-account layout, **not** the `%APPDATA%\Claude\` path the guides still give, and it had
-  no `mcpServers` key at all. Desktop's entry uses the **absolute path to `node.exe`**: the app
-  spawns servers without a login shell's `PATH`. The previous config was backed up beside it as
-  `claude_desktop_config.backup-2026-11-01.json`.
-- **The brief reaches a Desktop chat through MCP**, since a chat there cannot open a file: as a
-  *prompt* (`personal_ca`, listed under "+") and as the `kosh_ca_brief` *tool*, read from disk
-  per call so edits need no restart.
-- **`.mcp.json` lives at `G:\FinanceOS\`** - outside the repo, which is not a git work tree
-  at that level, so machine-local config stays untracked while the server itself is
-  versioned.
+### 1. ROADMAP 4.4 (unlock redirection) - first slice of the session
 
-**Verified** against the running backend: handshake, `tools/list` (16), live calls to
-accounts / loans / spending summary / loan schedule, `lastFour` absent from the payload,
-unknown-tool error, and the backend-down path returning a sentence that names the fix. One
-real bug found and fixed in the process: exiting on stdin close dropped in-flight requests,
-so the server now drains before exiting.
+The user committed 1.5 / 1.19 / 2.16 / 4.2 in `570d818`. What is left in the tree is 4.4:
 
-### 3. What the Today rebuild did **not** fix, deliberately
+- **Backend** `decision/UnlockDecisionService`, `UnlockOption`, `dto/UnlockOptionResponse`,
+  `DecisionController` - `GET /decisions/unlock-options?amount=&startsOn=`. No schema.
+- **Fixed today, found by reading the live response:** interest saved was `EMI x count`
+  on each path. The final payment is partial, so the faster path was overcharged by up to
+  a whole EMI - IDBI showed **₹0 saved while clearing 8 months sooner**, Mobile Mom ₹0, Bike
+  understated (₹21,755 vs ₹25,940), Fibe overstated (₹4,864 vs ₹4,309). Now
+  `AmortisationCalculator.totalInterest` sums the real interest; corrected figures checked in
+  jshell against the compiled class. Postman asserts a loan clearing sooner saves > ₹0.
+- **Labels** are the loan's account name ("Mobile Mom"), not the lender - two loans were both
+  "HDFC - Credit card".
+- **`startsOn`** (new): an unlock in February is costed from February - each loan/goal carried
+  forward at its own pace first; anything cleared by then drops out, including the ending
+  loan itself (it was being offered as a home for its own freed EMI).
+- **Frontend** `features/ahead/components/UnlockOptions.tsx`, wired into Ahead's *Money
+  freeing up*: two registers (loan / goal) never merged into one ranking, "keep it" last.
+  With several unlocks, each row is the switch. Also `AffordNote.tsx` (4.2 fix: number-vs-
+  string stale check, and an error line instead of silence) and `mcp-server` tools
+  `kosh_afford` / `kosh_unlock_options`.
+- **State:** backend compiles, `tsc` + `vite build` clean. **The running backend (from the
+  user's IntelliJ) is the pre-fix build** - it ignores `startsOn` and still shows the wrong
+  savings. Needs a restart from IntelliJ, then: `GET /decisions/unlock-options?amount=2648&startsOn=2027-02-28`
+  should not list Mobile Mom, and every loan with `clearsMonthsSooner > 0` saves > ₹0. Then
+  click-check Ahead via the CDP script.
 
-- **`FIX_BACKLOG` 1.17 - "Free this month" leads with an income figure the user will not
-  recognise.** The note reads *"₹1,05,733 in"*: salary ₹57,700 + Diwali bonus ₹46,000 + a
-  ₹1,736 withdrawal from an NJE-wealth SIP + ₹297 recorded as "Unexplained part of the
-  credit". A SIP withdrawal is a transfer between two things the user already owns and is
-  **not income**. The arithmetic is right; the input is not. Contained for now inside Today's
-  collapsed *Standing* section - but it is the **lead figure on Months**, where it is
-  prominent and unexplained. Needs a decision: is the transaction miscategorised, or should
-  the shape calculator exclude income whose counterparty is the user's own holding?
-- **A second shortfall account would keep its card.** `useDatedWarnings` fetches one
-  projection, for the first shortfall account, and anchors that warning to the exact payment
-  that breaks it. Hooks cannot be called in a loop; a second shortfall still shows in full in
-  Needs you, just not inline. Nothing is lost, only the placement.
+### 1b. "Build everything" run (user, 2026-11-08 night) - progress log, newest last
 
-### 4. Defects still open from Summary, neither fixed
+The user asked to complete every remaining roadmap item in auto mode, one go, writing this
+handoff if the session runs out. Order chosen: 5.1 -> 4.3 -> 3.4 -> 6.2 -> 5.3 -> 6.4; the
+schema-needing items (4.1, 5.2 allocation, 6.1) get DDL under DEFERRED SCHEMA instead.
+**All of it compiles; none of it has run** (the backend in IntelliJ is the old build).
 
-- **`FIX_BACKLOG` 1.15 - `PlanAdherence` counts income as a commitment.** The October cycle
-  read "16 of 17 kept" with a planned cost of ₹1,24,722 against ₹59,200 of income, because the
-  salary and the Diwali bonus are occurrences like any other. Summary filters them out for
-  itself; `CycleServiceImpl.close` still writes the inflated figures into `CycleSnapshot`,
-  which is immutable. **No cycle has been closed yet, so there is nothing to restate - that
-  window shuts the first time a month is closed.** This is the one item with a deadline.
-- **`FIX_BACKLOG` 1.16 - `formatPercent` prints a hyphen, not a true minus.** One line, six
-  existing call sites, so not slipped into an unrelated change.
+- ✅ **5.1 feasibility** - `goal/GoalFeasibility`, `GoalFeasibilityService`, `GET /goals/feasibility`.
+  Free money = Real Balance (this month) / forecast `flexible` (later months) less usual spend
+  (`SpendBaseline`). Goals judged by priority then date, each consuming its gap (5.2's contention,
+  derived). Only a gap above the ceiling is `DOES_NOT_FIT`. UI: verdict line under each goal on
+  Plan > Goals (`GoalsSection.tsx`). Postman added.
+- ✅ **4.3 lump sum** - `decision/LumpSumService`, `LumpSumOption`, `LumpSumResult`,
+  `GET /decisions/lump-sum?amount=`. Prepay (interest saved, months, EMI freed, runway after),
+  goal (verdict before/after via `assessWith`), keep (runway). Invest = break-even rate only, no
+  assumed return. UI: `features/ahead/components/LumpSumPlanner.tsx` on Ahead. Postman added.
 
-### 5. Open decisions - the user has not answered these; do not pick for them
+- ✅ **3.4 What changed** - `insight/InsightChanges`, `GET /insights/changes`,
+  `POST /insights/changes/{id}/acknowledge` (writes `dismissed_at` on cleared rows - no column).
+  Flapping warnings collapse to one row with `occurrences`; `liveAgain` flagged. UI:
+  `features/today/components/WhatChanged.tsx` on `/needs-you`. Postman added (filed in the
+  Decisions folder by the insert helper - move to Insights when convenient).
+
+- ✅ **6.2 recovery** - `recovery/RecoveryPlan`, `RecoveryService`, `RecoveryController`,
+  `GET /recovery`. BROKEN (Real Balance < 0) / STRETCHED (less left than usual spend for the
+  days remaining). Levers: defer optional (smallest that covers, else largest-first) ->
+  release set-aside -> spend less per day; then catch-up months from future room above usual.
+  Predicted on today's data: STRETCHED, gap ≈ ₹3,038 -> one SPEND_LESS step (~₹152/day under
+  usual); RELEASE is offered only when BROKEN, so it never suggests the raid GOAL_RAIDED warns about. UI: `features/today/components/WayBack.tsx` at the top of Today's rail; silent
+  when ON_COURSE. Postman added.
+
+- ✅ **5.3 suggested order** - `goal/SuggestedOrderService`, `GET /goals/suggested-order`:
+  1-month buffer -> debt ≥12% -> 3-month buffer -> dated goals -> cheap debt or investing.
+  Statuses from runway, loans, feasibility; `current` = you are here. UI:
+  `features/plan/components/SuggestedOrder.tsx` under Plan > Goals. Postman added.
+
+- ✅ **6.4 month close closes the loop** - most of it already existed (ReviewStep: planned vs
+  actual, didn't happen, skipped, differences, plan changes next month). Added: `CycleReview.carryOver()`
+  / `carryOverCount()` (unpaid must-pay bills, null if one has no amount) on
+  `GET /cycles/{id}/review`, and a "Closing the loop" band at the top of ReviewStep: kept N of M,
+  and what carries into next month on top of its plan. Postman assertion added.
+
+- ✅ **6.3 momentum** - `momentum/MomentumService`, `MomentumController`, `GET /momentum`; new
+  derived query `CycleSnapshotRepository.findByUserIdOrderByCreatedAtAsc` (no schema). Directions:
+  debt (UNKNOWN while EMIs unrecorded - on real data every loan has 2), next to finish, net worth
+  and promises kept from the last two closed months (none closed yet -> UNKNOWN with the reason).
+  UI: `features/summary/components/Momentum.tsx` on Summary under Where you stand. Postman added.
+
+- ✅ **3.1 subscription drift** (as plan-amount drift) - `commitment/PlanAmountDrift`,
+  `PlanAmountDriftCalculator`, `insight/rules/PlanAmountDriftRule`, `InsightType.PLAN_AMOUNT_DRIFT`
+  (+ frontend union), `FinancialContext.planAmountDrifts`. Fixed bill, last two PAID payments
+  both off the plan the same way by ≥5% and ≥₹50. More = ATTENTION (Today+Month), less = INFO
+  (Month). `test-compile` passes. Idle cash still deliberately not built (see ROADMAP 3.1 note).
+
+### 2. Still unverified at runtime (from earlier today)
+
+- **`1.19`** `StrandedReservationRule` - to see it fire needs a ₹1 reservation on HDFC Salary
+  (account 2) against archived goal 6, deleted after. **Needs the user's OK** (real data).
+- **`2.16`** `PlanAccountDriftRule` - verified silent only. To see it fire without touching
+  data: `MIN_CONSECUTIVE = 1` in `PlanAccountDriftCalculator`, restart, expect *Home Support*
+  and *Emergency fund top-up*, set it back.
+
+### 3. Open decisions — the user has not answered these; do not pick for them
 
 - **May a closed cycle's figures change?** The only thing blocking `FIX_BACKLOG` **1.11**.
-  `CommitmentBucketClassifier` reads the *planned* source, so an account's spendability checkbox
-  silently restates a month's shape - and it is shared with `CycleReview`, which **recomputes
-  live rather than reading `CycleSnapshot`**. If the answer is "no", `CycleReview` needs the
-  snapshot before the classifier can move. *Note: ₹27,500 is **arithmetically correct** - see the
-  correction in 1.11. The defect is that it moved retroactively, not that it is wrong.*
-- **Commitment 43** (₹30,000 EF top-up, 3 Nov) - **the user said "let it be" on 2026-10-03.**
+  `CommitmentBucketClassifier` reads the *planned* source, so an account's spendability
+  checkbox silently restates a month's shape — and it is shared with `CycleReview`, which
+  **recomputes live rather than reading `CycleSnapshot`**. If the answer is "no",
+  `CycleReview` needs the snapshot before the classifier can move. *₹27,500 is
+  **arithmetically correct** — the defect is that it moved retroactively, not that it is wrong.*
+- **Commitment 43** (₹30,000 EF top-up) — **the user said "let it be" on 2026-10-03.**
   Parked, not pending. Do not raise it again unprompted.
 
-*(The old "green on a positive Free this month" question is closed: that row left Today's
-hierarchy on 2026-11-01 and now sits inside Standing, where a colour would say nothing.)*
+### 4. Two things the data is saying right now, neither investigated
 
-### 6. Real money: IDBI is short on **5 Nov** - and Today now says so on the row
+Both appeared on `/insights` after the 2026-11-08 restart and **neither has been looked at**:
 
-Checked 2026-11-01 against live data. `GET /accounts/4/projection`: IDBI Saving holds ₹4,389
-and is projected to **-₹10,111** by the cycle's end. It covers the Education loan EMI on 5 Nov
-(leaving ₹972) and then **cannot cover the Coding Ninjas EMI** the same day. ₹10,111 needs to
-move in by 5 Nov; ₹44,151 is sitting in HDFC Salary.
+- **`GOAL_RAIDED` — ₹10,001 came back out of Emergency fund** this cycle, with no plan asking
+  for it.
+- **`SHORTFALL` — IDBI won't cover Petrol on 27 Nov.** The IDBI problem has *moved*, not gone:
+  it was Coding Ninjas on 5 Nov, now it is the end of the month. Same account, same cause —
+  the money lives in HDFC Salary. This is the third month running. **Read the live projection
+  before repeating the warning**; re-raising a solved problem is how a product teaches people
+  to ignore it.
 
-This is the **same shape** as the 8 Oct warning raised on 2026-10-03 - the money lives in the
-wrong account each month. The warning is now attached to the payment it breaks in *Before
-payday*, with its own **Move money** button, rather than sitting in a card beside it.
+### 5. What to pick next (after 4.4 is verified)
 
-### 7. If they say "carry on": the solutions pass, `USAGE_ISSUES` section "Solutions pass"
+1. **4.3 prepay vs save vs invest** waits on 5.1 (goal engine reading cash flow). 4.1 (remember
+   the decision) is blocked by the migration freeze. So Phase 4's next buildable piece is
+   **5.1's cash-flow reading**, or -
+2. the rest of the impossible-state family `1.18` opened (bank below zero that isn't an
+   overdraft, a bill settled for many times its plan, a goal over target) - small, no schema.
+3. Look at the two live insights in section 4 first if the user is in the app that day.
 
-Six proposals, none approved. **M3 is the one to build** - show the payment list on a bill's
-detail page. It is the only item that hands the user the evidence instead of Claude fixing
-something on their behalf, and *"which entries made up this ₹10,500?"* has been answerable in
-the data since V23 and visible nowhere. **M2** (refuse an over-settle - the calculator still has
-no cap) is smaller and closes a live rule-4 hole.
+### 6. Standing agreements that bit this session
 
-### Owed to Summary, small and deliberate
-
-- **No Help topic and no primer.** Every other screen has one; this has a takeaway sentence per
-  section and a plain-language footnote under each table instead, because it is a report with no
-  form to get wrong. If a Help topic is written, `SummaryPage` has nowhere to hang a guide sheet
-  yet.
-- **`Statement notes` collapses below ~900px** - its label column squeezes to nothing while the
-  22rem notes column holds its width. Pre-existing, affects Money; Today's own statements use
-  the two-column form and are unaffected. Related to `FIX_BACKLOG` 4.8 (the rail never
-  collapses).
+- **The user runs every git command.** Claude tracks read-only and reminds.
+- **No migrations, no SQL, no tests.** Both rules built this week were designed around it —
+  derived insights, no schema, so the backend boots unchanged.
+- **Never write to real data without asking.** Asked and granted twice on 2026-11-04/07: the
+  ₹12,000 Myntra correction, and a ₹1 card overpayment to prove `CardCreditBalanceRule` fires,
+  deleted immediately after. Both confirmed back to a clean state.
 
 ### Where a problem found in real use goes
 
@@ -163,6 +295,104 @@ no cap) is smaller and closes a live rule-4 hole.
 `FIX_BACKLOG` is defects and missing capability. Cross-reference, never copy. **Do not fix
 `USAGE_ISSUES` entries piecemeal** — they are solved in one considered pass, at the user's own
 instruction.
+
+---
+
+## 2026-11-07 — The plan learns where the money actually goes (`FIX_BACKLOG` 2.16)
+
+**Why.** *Clothes shopping* (₹12,000, Myntra) is planned from HDFC Salary and actually goes on
+the HDFC Money back card. In October that mis-booked ₹12,000 of card spending against the
+bank; in November it happened again and was only caught because the card ended up ₹12,411 in
+credit. The product watched the same mistake twice and said nothing — while
+`CommitmentInstanceView.settledFromAccount` ("where the money actually left from, when that is
+not the bill's own account") was computed and displayed on screen the whole time, and never
+reasoned about.
+
+**Built**
+
+- `commitment/PlanAccountDrift.java` — the finding: bill, both accounts, run length, last date.
+- `commitment/PlanAccountDriftCalculator.java` — `@Component`, in the
+  `GoalWithdrawalCalculator` mould so rules stay pure and never query. One existing
+  `findTop6ByCommitmentIdAndUserIdOrderByDueDateDesc` per bill, bounded by the cycle's own
+  commitments, then **one** batched `settlementFactsByIds` for every payment behind them.
+- `insight/rules/PlanAccountDriftRule.java` — ATTENTION, undated, no rupee impact, so it can
+  never outrank a bill about to bounce.
+- `InsightType.PLAN_ACCOUNT_DRIFT` + the frontend union member.
+- `FinancialContext.planAccountDrifts`, wired in `InsightService.buildContext`.
+
+**Three decisions worth keeping**
+
+- **Two in a row, never one.** The Settle sheet allows any account deliberately — *"Paid from
+  is the plan, not a record"* — so a bill paid elsewhere once is ordinary. A warning on a
+  one-off is noise, and noise is how a reader learns to skip the warning that matters. Paying
+  from the planned account breaks the run, so correcting course clears the finding rather than
+  leaving a standing accusation — the principle `GoalWithdrawalCalculator` applies by netting
+  deposits against withdrawals.
+- **The action opens the plan, it does not rewrite it.** Changing where a bill is paid from is
+  a plan revision (ADR-0015) and belongs to the user on the page that records it, not to a
+  button inside a warning. The engine suggests; the user acts.
+- **A settled instance with no readable payment breaks the run.** Unknown is not agreement,
+  the same way null is never zero.
+
+**Found while wiring it:** `buildContext` was calling `instanceService.listForCycle` twice —
+the cycle's whole worklist, the most expensive read in the insight context. Now read once and
+shared.
+
+---
+
+## 2026-11-07 — `PlanAdherence` no longer counts a salary as a promise kept (`FIX_BACKLOG` 1.15)
+
+Fixed **before any cycle was closed**, which was the entire reason it had a deadline: `close`
+writes into `CycleSnapshot`, which is immutable.
+
+**The real defect was where the filter lived.** `ReviewServiceImpl` had its own `billsOnly`,
+so Summary read the right figure while `CycleServiceImpl.close` called the unfiltered
+`PlanAdherence.from`. Two places had to remember the same rule and only one did.
+
+- `PlanAdherence.billsOnly(instances, commitments)` is now the single implementation, and
+  `PlanAdherence.from` **requires** the commitments — there is no overload that skips the
+  filter, so the unfiltered call does not compile and a later caller cannot reintroduce the
+  bug by forgetting it.
+- `CycleServiceImpl` gained `CommitmentRepository` (a repository, not a service — no bean
+  cycle through `PositionService`).
+- `ReviewServiceImpl.billsOnly` delegates; its local income-id set and `java.util.Set` import
+  are gone. `MonthReview`'s javadoc no longer calls the defect open.
+
+**Verified by what did *not* change.** Summary was already filtering, so the correct outcome
+was identical figures. `/review/months` before and after the restart: **4 months compared, 0
+differences** — 28 Sept–27 Oct still 16 of 16 / ₹67,022, 28 Oct–27 Nov still 13 of 17 /
+₹92,962. The filter moved; behaviour did not.
+
+---
+
+## 2026-11-05 — `CardCreditBalanceRule`: the first impossible-state check (`FIX_BACKLOG` 1.18)
+
+A credit card cannot owe you money. On 2026-11-04 this user's card sat at **+₹12,411** for
+hours — paid ₹21,430 against ₹9,019 of recorded charges — and Money, Cards and the Pulse all
+reported it calmly while net worth counted it as an asset.
+
+`CreditCardView.outstanding()` is already `-balance(card)`, so the test is
+`outstanding().signum() < 0`. No schema, no query, no new endpoint.
+
+**Observed firing on real data 2026-11-07**, with a ₹1 overpayment the user approved and which
+was deleted immediately after:
+
+> **HDFC Money back is ₹1 in credit** · ATTENTION · impact ₹1 · action *Open card* → `/cards/15`
+> *"The card has been paid ₹1 more than the charges recorded on it. Usually that means a
+> purchase hasn't been entered yet — a bill often covers things bought before you started
+> recording them. It can also be a refund, or a payment larger than the bill. Until it is one
+> or the other, this ₹1 is counted as money you have."*
+
+Cleanup confirmed: transaction deleted, card ₹0.00, insight gone, HDFC Salary untouched.
+
+**Worded "nearly always", not "impossible", deliberately.** A card really can sit in credit —
+overpay, or take a refund after paying — so it names both causes and leads with the likelier.
+Telling someone their refund is an error is how a warning gets dismissed, and the dismissal
+would carry to the case that matters.
+
+**The family this opens** is the point: the product had no concept of a figure that *cannot be
+true*, only of one that is concerning. Next in it — a bank account below zero that is not an
+overdraft, a bill settled for many times its plan, a goal holding more than its target.
 
 ---
 
@@ -1183,6 +1413,65 @@ is *"withdrawable after 3 years — that means Jan 2029"*. Nothing in the backen
 Ahead's money-unlock calendar, which today is built only from commitments ending
 (`ForecastServiceImpl.unlocksFrom`). **Until the DDL is applied, do not add the `@Column`** —
 `ddl-auto=validate` means the backend will not boot. The `note` field is the interim home.
+
+**Three more designed 2026-11-08 (the "build everything" run) - also not approved, also do not
+write without asking.** Each is the one table its roadmap item cannot do without; everything
+derivable around them is already built. No `@Entity` exists for any of them yet, so the backend
+still boots.
+
+```sql
+-- ROADMAP 4.1 - remember which option a decision took, and whether it was followed through.
+-- Written by the decision screens (afford / unlock / lump sum) when the user picks; read by
+-- Momentum ("you chose to prepay Fibe in Nov - done") and month close.
+CREATE TABLE decision (
+  id            BIGINT AUTO_INCREMENT PRIMARY KEY,
+  user_id       BIGINT       NOT NULL,
+  kind          VARCHAR(20)  NOT NULL,          -- AFFORD | UNLOCK | LUMP_SUM
+  amount        DECIMAL(15,2) NOT NULL,
+  chosen_kind   VARCHAR(20)  NOT NULL,          -- PREPAY | GOAL | KEEP | SPEND | SKIP
+  chosen_ref_id BIGINT       NULL,              -- loan / goal id; null for KEEP
+  context_json  JSON         NOT NULL,          -- the options as shown, frozen (a decision is history, like CycleSnapshot)
+  reason        VARCHAR(500) NULL,
+  decided_at    DATETIME(6)  NOT NULL,
+  followed_at   DATETIME(6)  NULL,              -- set when the matching transaction/plan change is seen
+  deleted_at    DATETIME(6)  NULL,
+  created_at    DATETIME(6)  NOT NULL,
+  updated_at    DATETIME(6)  NOT NULL,
+  INDEX idx_decision_user (user_id, decided_at)
+);
+
+-- ROADMAP 5.2 - allocate free money across goals. Feasibility already does the contention
+-- (priority order, each goal consuming its gap); this stores only the user's chosen split,
+-- as a share of free money, so it moves with the month instead of going stale as a rupee figure.
+CREATE TABLE goal_allocation (
+  id           BIGINT AUTO_INCREMENT PRIMARY KEY,
+  user_id      BIGINT        NOT NULL,
+  goal_id      BIGINT        NOT NULL,
+  share        DECIMAL(5,4)  NOT NULL,          -- 0.2500 = a quarter of free money; sum per user <= 1
+  active_from  DATE          NOT NULL,
+  active_to    DATE          NULL,               -- versioned like commitments (ADR-0015), never overwritten
+  deleted_at   DATETIME(6)   NULL,
+  created_at   DATETIME(6)   NOT NULL,
+  updated_at   DATETIME(6)   NOT NULL,
+  INDEX idx_alloc_user_goal (user_id, goal_id)
+);
+
+-- ROADMAP 6.1 - a promise: "I will put ₹5,000 aside this month", kept or missed. Kept/missed
+-- is DERIVED at read time from transactions in the cycle (ADR-0011) - only the promise is stored.
+CREATE TABLE promise (
+  id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+  user_id     BIGINT        NOT NULL,
+  cycle_id    BIGINT        NOT NULL,
+  kind        VARCHAR(20)   NOT NULL,           -- SET_ASIDE | SPEND_UNDER | PAY_DOWN
+  amount      DECIMAL(15,2) NOT NULL,
+  ref_id      BIGINT        NULL,               -- goal / loan / category, by kind
+  note        VARCHAR(200)  NULL,
+  deleted_at  DATETIME(6)   NULL,
+  created_at  DATETIME(6)   NOT NULL,
+  updated_at  DATETIME(6)   NOT NULL,
+  INDEX idx_promise_user_cycle (user_id, cycle_id)
+);
+```
 
 V18-V23 were each asked for explicitly and are all applied. List any new pending schema change
 here rather than writing a migration unprompted.

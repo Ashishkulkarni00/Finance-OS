@@ -26,36 +26,36 @@ export default function PlanPage() {
 
   return (
     <div className="flex flex-col gap-space-8">
-      <AheadForecast />
+      <AheadForecast
+        goals={
+          <div className="flex flex-col gap-space-6 border-t border-line pt-space-8">
+            <div className="flex items-start justify-between gap-space-4">
+              <div className="flex flex-col gap-space-1">
+                <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">Goals</span>
+                <span className="text-title text-ink">What you’re saving towards</span>
+              </div>
+              <div className="flex shrink-0 items-center gap-space-4">
+                <button
+                  type="button"
+                  onClick={() => setGuideOpen(true)}
+                  className="flex items-center gap-space-1 rounded-md px-space-1 text-caption text-ink-muted transition-colors hover:bg-sunken hover:text-ink"
+                >
+                  <CircleHelp size={14} strokeWidth={1.5} aria-hidden />
+                  How Goals works
+                </button>
+                <Button variant="secondary" size="sm" onClick={() => setAdding(true)}>
+                  <Plus size={14} strokeWidth={1.5} />
+                  Add a goal
+                </Button>
+              </div>
+            </div>
 
-      <div className="flex flex-col gap-space-6 border-t border-line pt-space-8">
-        <div className="flex items-start justify-between gap-space-4">
-          <div className="flex flex-col gap-space-1">
-            <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">Goals</span>
-            <span className="text-title text-ink">What you’re saving towards</span>
+            <GoalsPrimer onOpenGuide={() => setGuideOpen(true)} />
+
+            <GoalsSection onAdd={() => setAdding(true)} />
           </div>
-          <div className="flex shrink-0 items-center gap-space-4">
-            <button
-              type="button"
-              onClick={() => setGuideOpen(true)}
-              className="flex items-center gap-space-1 rounded-md px-space-1 text-caption text-ink-muted transition-colors hover:bg-sunken hover:text-ink"
-            >
-              <CircleHelp size={14} strokeWidth={1.5} aria-hidden />
-              How Goals works
-            </button>
-            <Button variant="secondary" size="sm" onClick={() => setAdding(true)}>
-              <Plus size={14} strokeWidth={1.5} />
-              Add a goal
-            </Button>
-          </div>
-        </div>
-
-        <GoalsPrimer onOpenGuide={() => setGuideOpen(true)} />
-      </div>
-
-      <div>
-        <GoalsSection onAdd={() => setAdding(true)} />
-      </div>
+        }
+      />
 
       <AddGoalSheet open={adding} onClose={() => setAdding(false)} />
       <GoalsGuideSheet open={guideOpen} onClose={() => setGuideOpen(false)} />

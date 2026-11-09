@@ -49,7 +49,7 @@ export function DayStatus({
   if (item) {
     return (
       <div className="mt-space-5">
-        <InsightRow item={item} revealDelay={revealDelay} />
+        <InsightRow item={item} revealDelay={revealDelay} clamp />
       </div>
     );
   }

@@ -13,13 +13,20 @@ export type InsightType =
   | 'PLANNED_ITEM_MISSED'
   | 'CARD_BILL_DUE'
   | 'CARD_BILL_OVERDUE'
+  /** A card has been paid more than the charges recorded on it, so it sits in credit. */
+  | 'CARD_IN_CREDIT'
   | 'GOAL_BEHIND'
   /** A goal funded by a bill with no set amount — its pace cannot be judged at all. */
   | 'GOAL_FUNDING_UNCLEAR'
   /** Money set aside while debt costing more than it can earn is still running. */
   | 'RATE_MISMATCH'
   /** Money taken back out of a goal this cycle, with no plan asking for it. */
-  | 'GOAL_RAIDED';
+  | 'GOAL_RAIDED'
+  /** A bill's recent payments keep coming from an account other than the planned one. */
+  | 'PLAN_ACCOUNT_DRIFT'
+  | 'PLAN_AMOUNT_DRIFT'
+  /** Money is still set aside for a goal that has been archived or deleted. */
+  | 'RESERVATION_STRANDED';
 
 /** CRITICAL = money is lost if nothing happens. Shown in attention tone, never red. */
 export type InsightSeverity = 'CRITICAL' | 'ATTENTION' | 'OPPORTUNITY' | 'INFO';
@@ -75,4 +82,21 @@ export interface SilencedInsight {
   dismissedAt?: string;
   /** Set for "not this week" — it returns on its own after this. */
   snoozedUntil?: string;
+}
+
+/** A warning that stopped being true and hasn't been acknowledged — ROADMAP 3.4. */
+export interface InsightChange {
+  /** The occurrence row; "Got it" is keyed on this, since one warning can recur. */
+  id: number;
+  key: string;
+  type: string;
+  severity: InsightSeverity;
+  /** What was said at the time, frozen. */
+  title: string;
+  firstSeenAt: string;
+  clearedAt: string;
+  /** How many times it started and cleared in the last 30 days. */
+  occurrences: number;
+  /** It has since come back — the resolution didn't hold. */
+  liveAgain: boolean;
 }

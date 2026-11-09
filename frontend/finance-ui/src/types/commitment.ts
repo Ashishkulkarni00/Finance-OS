@@ -125,6 +125,9 @@ export interface CycleReviewResponse {
   skipped: CycleReviewItem[];
   differences: { instanceId: number; name: string; planned: Money; actual: Money; difference: Money }[];
   largestUnplanned: { transactionId: number; description: string; date: string; amount: Money; category?: string }[];
+  /** Must-pay bills not paid, carrying into next month (ROADMAP 6.4). Absent/null when one has no amount. */
+  carryOver?: Money | null;
+  carryOverCount: number;
 }
 
 export interface CycleReviewItem {

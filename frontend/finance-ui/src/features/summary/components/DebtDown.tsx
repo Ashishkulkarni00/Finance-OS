@@ -1,9 +1,8 @@
 import { TrendingDown } from 'lucide-react';
-import { TrendLine, type TrendMarker, type TrendPoint } from '@/components/charts/TrendLine';
-import { Amount } from '@/components/Amount';
+import { DebtCurve } from './DebtCurve';
 import { EmptyState } from '@/components/EmptyState';
 import { SectionHeader } from '@/components/SectionHeader';
-import { Statement, StatementRow } from '@/components/Statement';
+import { PayoffTimeline } from './PayoffTimeline';
 import { formatDayMonthYear } from '@/lib/dates';
 import { formatMoney } from '@/lib/money';
 import type { DebtTrajectoryResponse } from '@/types/review';
@@ -12,14 +11,6 @@ interface DebtDownProps {
   debt: DebtTrajectoryResponse;
 }
 
-/** "Oct 26" - short enough that a 37-month axis can carry one every six months. */
-function monthLabel(iso: string): string {
-  return new Date(`${iso.slice(0, 10)}T00:00:00Z`).toLocaleDateString('en-IN', {
-    month: 'short',
-    year: '2-digit',
-    timeZone: 'UTC',
-  });
-}
 
 /**
  * Every loan walked forward to the day the last one clears.
@@ -55,24 +46,6 @@ export function DebtDown({ debt }: DebtDownProps) {
     );
   }
 
-  const points: TrendPoint[] = debt.points.map((point) => ({
-    label: monthLabel(point.month),
-    value: point.outstanding,
-  }));
-
-  // Each loan's payoff placed on the curve by month, so the line is annotated where it
-  // actually steps down rather than in a legend beside it.
-  const indexOfMonth = new Map(debt.points.map((point, index) => [point.month.slice(0, 7), index]));
-  const markers: TrendMarker[] = debt.loans
-    .filter((loan) => loan.inCurve && loan.payoffDate)
-    .map((loan) => ({
-      key: String(loan.loanId),
-      index: indexOfMonth.get(loan.payoffDate!.slice(0, 7)) ?? -1,
-      label: `${loan.name} clears ${formatDayMonthYear(loan.payoffDate!)}`,
-    }))
-    .filter((marker) => marker.index > 0)
-    .sort((a, b) => a.index - b.index);
-
   const years = debt.monthsToDebtFree != null ? Math.floor(debt.monthsToDebtFree / 12) : null;
   const restMonths = debt.monthsToDebtFree != null ? debt.monthsToDebtFree % 12 : null;
 
@@ -84,11 +57,8 @@ export function DebtDown({ debt }: DebtDownProps) {
         </SectionHeader>
       </div>
 
-      <TrendLine
-        points={points}
-        markers={markers}
-        takeaway={
-          debt.debtFreeDate ? (
+      <p className="max-w-[72ch] text-body text-ink-soft">
+        {debt.debtFreeDate ? (
             <>
               <span className="text-ink">{formatMoney(debt.outstandingNow)}</span> is owed today. Paying the EMIs as
               they fall clears every loan by{' '}
@@ -108,39 +78,12 @@ export function DebtDown({ debt }: DebtDownProps) {
               {debt.excludedLoanCount === 1 ? 'one loan is' : `${debt.excludedLoanCount} loans are`} missing a rate —
               a date that left one out would be the most encouraging possible lie.
             </>
-          )
-        }
-        description="A falling line showing the total still owed across every loan, one point per month, from today to the month the last loan clears. Each loan's payoff is marked and listed below."
-      />
+          )}
+      </p>
 
-      <Statement notes>
-        <StatementRow label="Owed today" value={debt.outstandingNow} variant="subtotal" note="Across every loan in the curve, from the payments recorded against each one." />
-        <StatementRow
-          label="Interest still ahead"
-          value={debt.interestAhead}
-          note="On top of the principal, if every EMI is paid as scheduled. Paying ahead reduces this; paying late increases it."
-        />
-        <StatementRow
-          label="Clear by"
-          valueNode={
-            <span className="num text-row text-ink">
-              {debt.debtFreeDate ? formatDayMonthYear(debt.debtFreeDate) : '—'}
-            </span>
-          }
-          note={
-            debt.debtFreeDate
-              ? 'The last loan’s final EMI.'
-              : 'Withheld on purpose while a loan is missing from the curve.'
-          }
-        />
-        {debt.excludedLoanCount > 0 && (
-          <StatementRow
-            label={`Not in this curve (${debt.excludedLoanCount})`}
-            value={debt.excludedOutstanding}
-            note="No interest rate recorded, so the balance cannot be walked forward. The real total owed is higher than the line shows."
-          />
-        )}
-      </Statement>
+      <DebtCurve debt={debt} />
+
+      <PayoffTimeline debt={debt} />
 
       {debt.unrecordedEmis > 0 && (
         <p className="max-w-[72ch] text-caption text-attention">
@@ -150,24 +93,6 @@ export function DebtDown({ debt }: DebtDownProps) {
         </p>
       )}
 
-      <div className="flex flex-col">
-        {debt.loans.map((loan) => (
-          <div
-            key={loan.loanId}
-            className="flex items-baseline justify-between gap-space-4 border-b border-line py-space-3 last:border-b-0"
-          >
-            <span className="min-w-0">
-              <span className="block truncate text-label text-ink">{loan.name}</span>
-              <span className="block text-caption text-ink-muted">
-                {loan.inCurve && loan.payoffDate
-                  ? `${formatMoney(loan.emi)} a month, clears ${formatDayMonthYear(loan.payoffDate)}`
-                  : 'No rate recorded — not in the curve'}
-              </span>
-            </span>
-            <Amount value={loan.outstanding} role="row" className="shrink-0 text-ink-soft" />
-          </div>
-        ))}
-      </div>
     </section>
   );
 }

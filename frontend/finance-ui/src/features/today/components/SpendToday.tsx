@@ -34,8 +34,7 @@ import type { FinancialStateResponse } from '@/types/financialState';
  * derivation starts.
  *
  * <p><strong>The derivation is on the page, not behind a disclosure.</strong> Three ruled
- * rows - free until salary, divided by days, a day from here - in one narrow measure with
- * dotted leaders. That is the whole "how did it come" answer and it costs three lines. What
+ * rows - free until salary, divided by days, a day from here - in one narrow measure. That is the whole "how did it come" answer and it costs three lines. What
  * stays behind the disclosure is the next level down: how Free until salary itself was built,
  * which is `PositionStatement` and was always there.
  *
@@ -44,8 +43,10 @@ import type { FinancialStateResponse } from '@/types/financialState';
  * hand's width of dead paper between a four-word label and its number - most of why the
  * screen read as misaligned. A narrower column was the first fix and was wrong in a second
  * way: three blocks at three widths give a ragged right edge, which is the same complaint
- * one level up. So the measure is shared with Before payday and Standing, and the gap that
- * remains is crossed by `Statement`'s dotted leaders, which is what they are for.
+ * one level up. So the measure is shared with Before payday and Standing. Dotted leaders
+ * once crossed the gap between label and figure; the user found them a faint, stray line
+ * beside every amount (2026-11-09) and they were removed - the derivation column is narrow
+ * enough that the eye crosses it unaided.
  *
  * <p>Nothing is computed here. Every rupee arrives worked out from the server
  * (FRONTEND_CONVENTIONS §4 rule 2); this file compares, words and formats. The one ratio
@@ -113,7 +114,10 @@ export function SpendToday({
           divided by a rule rather than by a gap. The figure answers the question; the panel
           to its right shows the working. Below `lg` they stack and the rule turns
           horizontal, so the reading order never changes. */}
-      <div className="grid grid-cols-1 gap-space-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,28rem)] lg:gap-0">
+      {/* The right track is 26rem to match the rail under it in TodayPage - at 28rem the two
+          vertical dividers sat 2rem apart and the page read as two misaligned halves
+          (user, 2026-11-09). Change both together. */}
+      <div className="grid grid-cols-1 gap-space-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] lg:gap-0">
         <div className="flex flex-col gap-space-2 lg:pr-space-8">
           <span className="reveal text-micro uppercase tracking-[0.08em] text-ink-muted">Spend today</span>
 
@@ -183,7 +187,7 @@ export function SpendToday({
           {status}
         </div>
 
-        {/* The derivation. Three rows with dotted leaders - the answer to "how did it come",
+        {/* The derivation. Three rows - the answer to "how did it come",
             on the page rather than behind a tap, and beside the figure rather than under it
             so the band reads as one summary across the full measure. */}
         {ok && (
@@ -191,7 +195,7 @@ export function SpendToday({
             className="reveal border-t border-line pt-space-6 lg:border-l lg:border-t-0 lg:pl-space-8 lg:pt-0"
             style={{ '--reveal-delay': '220ms' } as CSSProperties}
           >
-            <Statement leaders>
+            <Statement>
               <StatementRow
                 label={<span {...realBalanceDoc}>Free until salary</span>}
                 value={ok.realBalance}

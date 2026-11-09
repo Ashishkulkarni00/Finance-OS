@@ -71,7 +71,7 @@ export const COVER_TOPICS: DocTopic[] = [
       },
     ],
     related: ['cover.premium-and-renewal', 'cover.adding-a-policy', 'accounts.net-worth'],
-    seeInApp: [{ label: 'Open Cover', to: '/money/cover' }],
+    seeInApp: [{ label: 'Open Insurance', to: '/money/insurance' }],
   },
   {
     id: 'cover.premium-and-renewal',
@@ -137,7 +137,7 @@ export const COVER_TOPICS: DocTopic[] = [
       },
     ],
     related: ['cover.what-cover-is', 'cover.adding-a-policy'],
-    seeInApp: [{ label: 'Open Cover', to: '/money/cover' }],
+    seeInApp: [{ label: 'Open Insurance', to: '/money/insurance' }],
   },
   {
     id: 'cover.adding-a-policy',
@@ -227,6 +227,6 @@ export const COVER_TOPICS: DocTopic[] = [
       },
     ],
     related: ['cover.what-cover-is', 'cover.premium-and-renewal'],
-    seeInApp: [{ label: 'Open Cover', to: '/money/cover' }],
+    seeInApp: [{ label: 'Open Insurance', to: '/money/insurance' }],
   },
 ];

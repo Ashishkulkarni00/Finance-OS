@@ -78,3 +78,40 @@ export interface CreateGoalRequest {
   linkedReservationId?: number | null;
   linkedAccountId?: number | null;
 }
+
+/**
+ * Whether a goal fits in the money that will actually be free before its date — ROADMAP
+ * 5.1/5.2. Goals are judged in priority order and each takes its share before the next, so
+ * two goals that fit alone can fail together. Only DOES_NOT_FIT is certain: its gap exceeds
+ * every rupee the plan leaves before any day-to-day spending.
+ */
+export type GoalFeasibilityState = 'COVERED_BY_PLAN' | 'FITS' | 'FITS_IF' | 'DOES_NOT_FIT' | 'UNKNOWN';
+
+export interface GoalFeasibility {
+  goalId: number;
+  name: string;
+  targetDate: string | null;
+  state: GoalFeasibilityState;
+  stillNeeded: Money | null;
+  planWillAdd: Money | null;
+  gap: Money | null;
+  freeByDeadline: Money | null;
+  freeCeiling: Money | null;
+  shortBy: Money | null;
+  perMonthFromFree: Money | null;
+  monthsCounted: number;
+  /** One plain sentence, always present. */
+  reason: string;
+}
+
+/** ROADMAP 5.3 — a suggested order for spare money, and where the user stands. Never enforced. */
+export interface SuggestedOrderStep {
+  key: string;
+  title: string;
+  /** Why this step sits where it does — stated, not asserted. */
+  why: string;
+  status: 'DONE' | 'IN_PROGRESS' | 'NOT_STARTED' | 'UNKNOWN';
+  detail: string | null;
+  /** The first step not yet done — "you are here". */
+  current: boolean;
+}

@@ -84,10 +84,10 @@ user opening five tabs. ✅ **Met 2026-09-24 — Phase 2 is closed.**
 
 | # | Item | Impact | Status |
 |---|---|---|---|
-| 3.1 | Merge opportunity rules into the insight engine; add idle cash, subscription drift, rate mismatch (saving at 6% while paying 22%), goal underfunded early | Backend (rules), no schema | 🟡 **In progress.** ~~goal underfunded~~ done 2026-09-24 (`GoalFundingUnclearRule`). ~~rate mismatch~~ done 2026-09-25 (`RateMismatchRule`) — **no savings rate is assumed**, see below. Idle cash and subscription drift not started — one rule at a time, each checked on real data first |
+| 3.1 | Merge opportunity rules into the insight engine; add idle cash, subscription drift, rate mismatch (saving at 6% while paying 22%), goal underfunded early | Backend (rules), no schema | 🟡 **Built 2026-11-08, compiles, never run** - subscription drift as `PlanAmountDriftRule` (a fixed bill paid off-plan the same way twice, ≥5% and ≥₹50). ~~goal underfunded~~ and ~~rate mismatch~~ done earlier. **Idle cash still deliberately not built** - every non-spendable rupee is claimed (note below) |
 | 3.2 | **Dismiss/snooze** (`insight_state`) | DB (1 table), backend, UI | ✅ **Done 2026-09-25** · **V21** (two columns, applied) · `InsightSilencer` · dismiss / snooze / restore · answered items folded, never dropped · **the dismiss click itself is untested** — needs a POST |
 | 3.3 | **A voice when healthy** — "nothing needs you; here's what moved" | Backend wording + UI | ✅ **Done 2026-09-25** · `CalmVoice` → `whatMoved` on `GET /insights`, shown under the list whenever nothing is urgent |
-| 3.4 | Threshold crossings from 1.4 become first-class attention items | Backend | **Mostly already true — rescope before building.** A crossing that *starts* is already an `Insight`, on `/needs-you`, dismissable (1.4 + 3.2); one that *clears* gets a line from `CalmVoice` (3.3). What is genuinely missing: a crossing is only ever seen if you happen to be looking. The toast lasts 10s, `CalmVoice.recovery()` returns **one** recovery, only from the last 7 days, and only when nothing urgent is live — so a warning that starts and clears between two visits is never mentioned. `insight_state` holds the history and nothing reads it as a timeline. Proposed: a **"What changed"** list on `/needs-you` over cleared rows, each with *Got it*. **No V22** — `dismissed_at` from 3.2 is already the right marker |
+| 3.4 | Threshold crossings from 1.4 become first-class attention items | Backend | 🔨 **Built 2026-11-08, compiles, never run** - "What changed" on `/needs-you`: `GET /insights/changes`, `POST /insights/changes/{id}/acknowledge`. No V22: `dismissed_at` on a cleared row is the acknowledgement, as proposed |
 
 **Exit:** the product has something worth saying every week, and never says it twice.
 
@@ -133,12 +133,12 @@ exclusion set to use later are in `CONTINUE_HERE.md`.
 
 ## Phase 4 — Decision engine *(the differentiator)*
 
-| # | Item | Impact |
-|---|---|---|
-| 4.1 | **`decision` entity** + follow-through tracking | DB (1 table), backend, UI |
-| 4.2 | **"Can I afford this?"** — consequence preview before a spend | Backend simulation over state, UI at entry point |
-| 4.3 | **Prepay vs save vs invest** — the ₹50,000 question, with interest saved, liquidity cost, goal impact side by side | Backend simulation, UI comparison |
-| 4.4 | **Unlock redirection** — at an EMI's end, a decision with options, not a notification | Backend + UI |
+| # | Item | Impact | Status |
+|---|---|---|---|
+| 4.1 | **`decision` entity** + follow-through tracking | DB (1 table), backend, UI | ⛔ **Blocked by the migration freeze** - DDL designed 2026-11-08, in CONTINUE_HERE DEFERRED SCHEMA. `ddl-auto=validate`, so a new `@Entity` stops the backend booting. Until this lands Phase 4 can make a trade-off legible but cannot remember the choice — which is half its own exit criterion |
+| 4.2 | **"Can I afford this?"** — consequence preview before a spend | Backend simulation over state, UI at entry point | 🔨 **Built 2026-11-08.** `GET /decisions/afford`, no schema. Five states, and the answer sits under the amount in the Add sheet while it is being typed. **Never run** — see `CONTINUE_HERE` |
+| 4.3 | **Prepay vs save vs invest** — the ₹50,000 question, with interest saved, liquidity cost, goal impact side by side | Backend simulation, UI comparison | 🔨 **Built 2026-11-08, compiles, never run** - `GET /decisions/lump-sum`: each loan prepaid (interest saved, months, EMI freed, runway after), each goal (feasibility verdict before/after), or kept. Investing is a break-even rate, never an assumed return. UI: Ahead > *Got a lump sum?* |
+| 4.4 | **Unlock redirection** — at an EMI's end, a decision with options, not a notification | Backend + UI | 🔨 **Built 2026-11-08** - `GET /decisions/unlock-options?amount=&startsOn=`; interest-saved bug (EMI × count) found on the live response and fixed; UI on Ahead under *Money freeing up*. **Fixed build never run** - needs a restart |
 
 **Exit:** for the three decisions this user actually faces, the trade-off is legible and the
 choice is remembered.
@@ -149,20 +149,20 @@ choice is remembered.
 
 | # | Item | Impact | Status |
 |---|---|---|---|
-| 5.1 | **Feasibility**: required/month vs what's actually free; say when a goal is fiction | Backend (goal engine reads flow) | 🟡 **Half done 2026-09-24.** Pace now measures *funding vs requirement*, so a goal nobody funds can no longer read `ON_TRACK` (`GoalPace`, `GoalServiceImpl.funding`). What remains is the other half: required/month against what is **actually free**, which needs the goal engine to read cash flow. |
-| 5.2 | **Contention + allocation**: priority becomes functional; allocate free cash across goals | DB (allocation), backend, UI |
-| 5.3 | Funding source per goal; goal dependency (reserve before investing, debt before wealth) as a *suggested* order, never enforced | Backend + UI |
+| 5.1 | **Feasibility**: required/month vs what's actually free; say when a goal is fiction | Backend (goal engine reads flow) | 🔨 **Built 2026-11-08, compiles, never run** - the cash-flow half: `GET /goals/feasibility` - each goal against free money (Real Balance, then forecast flexible) less usual spending. Only a gap above the ceiling is `DOES_NOT_FIT`. UI: a verdict line per goal on Plan > Goals |
+| 5.2 | **Contention + allocation**: priority becomes functional; allocate free cash across goals | DB (allocation), backend, UI | 🟡 **Contention built 2026-11-08 (derived, in 5.1)** - goals judged in priority order, each consuming its gap. **Allocation needs a table** (`goal_allocation`, DDL in CONTINUE_HERE DEFERRED SCHEMA) - blocked by the freeze |
+| 5.3 | Funding source per goal; goal dependency (reserve before investing, debt before wealth) as a *suggested* order, never enforced | Backend + UI | 🔨 **Built 2026-11-08, compiles, never run** - `GET /goals/suggested-order`: 1-month buffer → debt ≥12% → 3-month buffer → dated goals → cheap debt or investing, with you-are-here. UI under Plan > Goals |
 
 ---
 
 ## Phase 6 — Behavioural layer
 
-| # | Item | Impact |
-|---|---|---|
-| 6.1 | **Commitments (promises)** — "I will put ₹5,000 aside this month", tracked, kept or missed | DB, backend, UI |
-| 6.2 | **Recovery protocol** — after a broken month, a concrete way back (which optional items to defer, what to restore next month) | Backend + UI |
-| 6.3 | **Momentum** — named directions with reasons, no score | Backend + UI |
-| 6.4 | Month close becomes the review that closes the loop: planned vs actual vs kept | Uses 1.1 |
+| # | Item | Impact | Status |
+|---|---|---|---|
+| 6.1 | **Commitments (promises)** — "I will put ₹5,000 aside this month", tracked, kept or missed | DB, backend, UI | ⛔ **Needs a table** (`promise`, DDL in CONTINUE_HERE DEFERRED SCHEMA) - blocked by the freeze. Kept/missed would be derived, only the promise stored |
+| 6.2 | **Recovery protocol** — after a broken month, a concrete way back (which optional items to defer, what to restore next month) | Backend + UI | 🔨 **Built 2026-11-08, compiles, never run** - `GET /recovery`: BROKEN / STRETCHED, levers defer optional → release set-aside (BROKEN only) → spend less per day, then catch-up months. UI: top of Today's rail, silent when on course |
+| 6.3 | **Momentum** — named directions with reasons, no score | Backend + UI | 🔨 **Built 2026-11-08, compiles, never run** - `GET /momentum`: debt, next to finish, net worth and promises kept from closed months. UI on Summary |
+| 6.4 | Month close becomes the review that closes the loop: planned vs actual vs kept | Uses 1.1 | 🔨 **Built 2026-11-08, compiles, never run** - mostly existed; added kept-N-of-M headline and `carryOver` (unpaid must-pay bills into next month) on `GET /cycles/{id}/review` |
 
 ---
 

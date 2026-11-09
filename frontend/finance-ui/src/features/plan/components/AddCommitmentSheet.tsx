@@ -489,13 +489,13 @@ export function AddCommitmentSheet({ open, onClose, defaultStart, preset }: AddC
             startSlot={
               cycle && (
                 <FormRow
-                  label={once ? 'When' : isIncome ? 'First one' : 'First payment'}
+                  label={once ? 'When' : 'Starts'}
                   hint={
                     once
-                      ? 'The month it happens - the exact date is shown beside it.'
+                      ? undefined
                       : // Not "when did you first ever pay this" - that quietly creates an
                         // unpaid entry in every month since.
-                        'The first month it should show in your plan - usually this one, not when you first ever paid it.'
+                        'The first one your plan should count - usually this month, not when you first ever paid it.'
                   }
                 >
                   <PaymentMonthPicker
@@ -507,11 +507,13 @@ export function AddCommitmentSheet({ open, onClose, defaultStart, preset }: AddC
                 </FormRow>
               )
             }
+            // Only for an amount that changes: a fixed one is the figure above, and a second box
+            // here was ignored on save anyway (see onSubmit), so it only added a row.
             amountSlot={
+              watch('amountType') === 'VARIABLE' && (
               <FormRow
-                label="First amount"
+                label="This time"
                 error={firstAmountError ?? undefined}
-                hint="Optional. Later months you fill in as you go."
               >
                 <span className="flex items-center gap-space-1">
                   <span className="num text-ink-muted">₹</span>
@@ -519,11 +521,12 @@ export function AddCommitmentSheet({ open, onClose, defaultStart, preset }: AddC
                     value={firstAmount}
                     onChange={(e) => setFirstAmount(e.target.value)}
                     inputMode="decimal"
-                    placeholder="Optional - leave blank if not known yet"
+                    placeholder="If you know the first one - optional"
                     className={FORM_ROW_CONTROL + ' num'}
                   />
                 </span>
               </FormRow>
+              )
             }
             afterEndSlot={
               // Only asked when it matters: the start month's due date has already gone by.

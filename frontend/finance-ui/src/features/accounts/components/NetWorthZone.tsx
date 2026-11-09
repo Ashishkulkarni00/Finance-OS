@@ -6,6 +6,8 @@ import { Statement, StatementRow } from '@/components/Statement';
 import { formatMoney } from '@/lib/money';
 import { useDocAnchor } from '@/features/help/useDocAnchor';
 import { useGetInvestmentSummaryQuery } from '@/services/investmentService';
+import { useGetLoansQuery } from '@/services/loanService';
+import type { LoanResponse } from '@/types/loan';
 import type { AccountResponse } from '@/types/api';
 import type { CashPositionResponse, NetWorthResponse } from '@/types/position';
 
@@ -17,9 +19,32 @@ interface NetWorthZoneProps {
   isError: boolean;
 }
 
-/** The accounts whose starting balance net worth rests on but nobody confirmed. */
-function unconfirmedBalances(accounts: AccountResponse[]): AccountResponse[] {
-  return accounts.filter((a) => !a.archived && a.includeInNetWorth && a.openingConfidence !== 'CONFIRMED');
+type Unconfirmed = { account: AccountResponse; label: 'estimated' | 'unknown' };
+
+/**
+ * The balances net worth rests on that nobody confirmed.
+ *
+ * <p><strong>A loan is judged by the loan, not its account.</strong> Since FIX_BACKLOG 1.5
+ * (2026-11-08) net worth reads each loan's derived outstanding - the balance stated on the
+ * loan, less the EMIs recorded since - so the LOAN account's own opening balance no longer
+ * enters the figure. Judging loans by that flag listed five "unconfirmed" balances when four
+ * of the five loans were marked confirmed from their statements (user, 2026-11-09). A LOAN
+ * account with no loan record still falls back to its opening flag.
+ */
+function unconfirmedBalances(accounts: AccountResponse[], loans: LoanResponse[] | undefined): Unconfirmed[] {
+  const loanByAccount = new Map((loans ?? []).map((l) => [l.account.id, l]));
+  const out: Unconfirmed[] = [];
+  for (const a of accounts) {
+    if (a.archived || !a.includeInNetWorth) continue;
+    const loan = a.type === 'LOAN' ? loanByAccount.get(a.id) : undefined;
+    if (loan) {
+      if (loan.status === 'CLOSED' || loan.confidence === 'CONFIRMED') continue;
+      out.push({ account: a, label: loan.confidence === 'ESTIMATED' ? 'estimated' : 'unknown' });
+    } else if (a.openingConfidence !== 'CONFIRMED') {
+      out.push({ account: a, label: a.openingConfidence === 'ESTIMATED' ? 'estimated' : 'unknown' });
+    }
+  }
+  return out;
 }
 
 /**
@@ -41,6 +66,7 @@ function unconfirmedBalances(accounts: AccountResponse[]): AccountResponse[] {
  */
 export function NetWorthZone({ netWorth, cash, accounts, isLoading, isError }: NetWorthZoneProps) {
   const { data: investments } = useGetInvestmentSummaryQuery();
+  const { data: loansPage } = useGetLoansQuery();
   const netWorthDoc = useDocAnchor('networth.total');
 
   if (isLoading) {
@@ -56,7 +82,7 @@ export function NetWorthZone({ netWorth, cash, accounts, isLoading, isError }: N
     );
   }
 
-  const unconfirmed = unconfirmedBalances(accounts);
+  const unconfirmed = unconfirmedBalances(accounts, loansPage?.content);
   // Comparisons for tone and presence, not arithmetic on money.
   const negative = netWorth ? Number(netWorth.netWorth) < 0 : false;
   const outsideTotal = investments && Number(investments.outsideLedgerTotal) > 0 ? investments.outsideLedgerTotal : null;
@@ -78,13 +104,13 @@ export function NetWorthZone({ netWorth, cash, accounts, isLoading, isError }: N
               <p className="max-w-[40rem] text-caption text-attention">
                 Approximate —{' '}
                 {unconfirmed.length === 1 ? 'the starting balance of ' : `${unconfirmed.length} starting balances aren’t confirmed: `}
-                {unconfirmed.map((a, i) => (
+                {unconfirmed.map(({ account: a, label }, i) => (
                   <Fragment key={a.id}>
                     {i > 0 && ', '}
                     <Link to={`/accounts/${a.id}`} className="underline underline-offset-2 hover:text-ink">
                       {a.name}
                     </Link>
-                    <span className="text-ink-muted"> ({a.openingConfidence === 'ESTIMATED' ? 'estimated' : 'unknown'})</span>
+                    <span className="text-ink-muted"> ({label})</span>
                   </Fragment>
                 ))}
                 {unconfirmed.length === 1 ? ' isn’t confirmed.' : '.'}

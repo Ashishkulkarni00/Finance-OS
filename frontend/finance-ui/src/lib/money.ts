@@ -87,7 +87,12 @@ const PERCENT = new Intl.NumberFormat('en-IN', { style: 'percent', maximumFracti
  * already shipped once. Always go through here.
  */
 export function formatPercent(fraction: number | null | undefined): string {
-  return fraction == null ? '—' : PERCENT.format(fraction);
+  if (fraction == null) return '—';
+  // `Intl` gives a HYPHEN-MINUS; every figure in this product uses a true minus (U+2212),
+  // which is the same width as a digit and sits on the digits' own optical line. A hyphen
+  // beside tabular numerals is visibly short and sits too high, and these percentages
+  // appear directly under money that is already rendering U+2212 (FIX_BACKLOG 1.16).
+  return PERCENT.format(fraction).replace('-', '−');
 }
 
 /** Compact form (₹1.2L / ₹4.5Cr) - only where a chart genuinely has no room for the full figure. */
