@@ -319,6 +319,100 @@ const TOOLS = [
     run: (a) => call('/timeline', { days: a.days ?? 45 }),
   },
   {
+    name: 'kosh_afford',
+    description:
+      'What spending an amount from an account today would COST - the day rate left afterwards, and ' +
+      'the dated payment, if any, that stops being covered. A simulation: nothing is recorded. ' +
+      'Returns one of FITS, TIGHTENS, SHORTFALL, EXCEEDS_ACCOUNT, or INCOMPLETE (a bill with no ' +
+      'amount, so no honest answer exists).',
+    schema: {
+      type: 'object',
+      properties: {
+        amount: num('How much would be spent'),
+        accountId: num('Which account it would leave, from kosh_accounts'),
+      },
+      required: ['amount', 'accountId'],
+    },
+    run: (a) => call('/decisions/afford', { amount: a.amount, accountId: a.accountId }),
+  },
+  {
+    name: 'kosh_unlock_options',
+    description:
+      'What freed-up money could do each month - on each loan (months sooner, interest saved), each ' +
+      'goal (when it lands), or kept. For when an EMI ends, a subscription is cancelled, or income ' +
+      'rises. Loans and goals are ranked within their own kind and never merged: no exchange rate ' +
+      'between rupees saved and a goal arriving sooner is assumed.',
+    schema: {
+      type: 'object',
+      properties: { amount: num('How much a month has been freed up') },
+      required: ['amount'],
+    },
+    run: (a) => call('/decisions/unlock-options', { amount: a.amount }),
+  },
+  {
+    name: 'kosh_unlock_options_from',
+    description:
+      'Same as kosh_unlock_options, but for money that becomes free on a later date (an EMI ending in ' +
+      'February): every loan and goal is carried forward to that date first, and anything cleared by then drops out.',
+    schema: {
+      type: 'object',
+      properties: { amount: num('How much a month is freed up'), startsOn: str('YYYY-MM-DD the money becomes free') },
+      required: ['amount', 'startsOn'],
+    },
+    run: (a) => call('/decisions/unlock-options', { amount: a.amount, startsOn: a.startsOn }),
+  },
+  {
+    name: 'kosh_lump_sum',
+    description:
+      'Where a lump sum (bonus, refund) could go: each loan prepaid (interest saved, months sooner, EMI freed if it ' +
+      'clears, runway after), each goal (feasibility verdict before and after), or kept (runway). No investment return ' +
+      'is assumed - breakEvenRate is the rate an investment would have to beat. Never ranked across kinds; present the trade-off, do not pick.',
+    schema: { type: 'object', properties: { amount: num('The lump sum') }, required: ['amount'] },
+    run: (a) => call('/decisions/lump-sum', { amount: a.amount }),
+  },
+  {
+    name: 'kosh_goal_feasibility',
+    description:
+      'Whether each goal can be met from money that will actually be free before its date, after usual spending, ' +
+      'judged in priority order (goals compete). States: COVERED_BY_PLAN, FITS, FITS_IF (uncertain), DOES_NOT_FIT ' +
+      '(certain - gap exceeds every rupee the plan leaves), UNKNOWN. Each has a plain reason sentence; quote it.',
+    schema: { type: 'object', properties: {} },
+    run: () => call('/goals/feasibility'),
+  },
+  {
+    name: 'kosh_suggested_order',
+    description:
+      'A common order for spare money - 1-month buffer, debt above 12%, 3-month buffer, dated goals, then cheap debt ' +
+      'or investing - with the user status on each and "current" marking where they are. A suggestion, never a rule.',
+    schema: { type: 'object', properties: {} },
+    run: () => call('/goals/suggested-order'),
+  },
+  {
+    name: 'kosh_recovery',
+    description:
+      'If this month has gone wrong, a concrete way back: BROKEN (bills exceed what is held) or STRETCHED (less left ' +
+      'than usual spending), with levers in order - defer optional payments, release set-aside money (only when BROKEN), ' +
+      'spend less per day - and how many months it takes to put back. ON_COURSE means nothing to do.',
+    schema: { type: 'object', properties: {} },
+    run: () => call('/recovery'),
+  },
+  {
+    name: 'kosh_momentum',
+    description:
+      'Which way things are moving - named directions with reasons (debt, next thing to finish, net worth and promises ' +
+      'kept across closed months). Never a score. UNKNOWN directions say what would make them knowable.',
+    schema: { type: 'object', properties: {} },
+    run: () => call('/momentum'),
+  },
+  {
+    name: 'kosh_what_changed',
+    description:
+      'Warnings that stopped being true in the last 30 days and have not been acknowledged - good news the user may ' +
+      'have missed. liveAgain means it has since come back.',
+    schema: { type: 'object', properties: {} },
+    run: () => call('/insights/changes'),
+  },
+  {
     name: 'kosh_insights',
     description:
       'What Kosh itself currently flags: an account that will not cover a bill, something overdue, ' +

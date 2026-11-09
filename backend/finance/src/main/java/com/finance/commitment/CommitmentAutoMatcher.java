@@ -55,12 +55,18 @@ public class CommitmentAutoMatcher {
     private final CommitmentSettlementCalculator calculator;
     private final CurrentCycleResolver cycleResolver;
     private final TransactionRepository transactionRepository;
+    private final CommitmentInstancePaymentRepository payments;
+    private final com.finance.loan.LoanPaymentRecorder loanPayments;
 
     public CommitmentAutoMatcher(CommitmentInstanceRepository instanceRepository,
                                  CommitmentRepository commitmentRepository,
                                  CommitmentSettlementCalculator calculator,
                                  CurrentCycleResolver cycleResolver,
-                                 TransactionRepository transactionRepository) {
+                                 TransactionRepository transactionRepository,
+                                 CommitmentInstancePaymentRepository payments,
+                                 com.finance.loan.LoanPaymentRecorder loanPayments) {
+        this.payments = payments;
+        this.loanPayments = loanPayments;
         this.instanceRepository = instanceRepository;
         this.commitmentRepository = commitmentRepository;
         this.calculator = calculator;
@@ -199,7 +205,26 @@ public class CommitmentAutoMatcher {
         }
         instance.setConfirmedAt(Instant.now());
         instance.setLinkedTransactionId(transaction.getId());
-        instanceRepository.save(instance);
+        CommitmentInstance saved = instanceRepository.save(instance);
+
+        // **The same two records a manual settle writes.** Auto-matching used to stop at the
+        // status, so a bank EMI recorded as an expense marked the bill paid while the loan
+        // never heard of it - on real data every bank-paid EMI since October read
+        // "unrecorded", net worth over-stated what was owed, and Momentum couldn't say debt was
+        // falling. Found 2026-11-09. Same conditions as CommitmentInstanceServiceImpl.settle.
+        payments.save(com.finance.commitment.domain.CommitmentInstancePayment.builder()
+                .userId(saved.getUserId())
+                .commitmentInstanceId(saved.getId())
+                .transactionId(transaction.getId())
+                .amount(transaction.getAmount())
+                .recordedAt(Instant.now())
+                .build());
+        if (commitment.getSourceType() == com.finance.commitment.domain.CommitmentSource.LOAN
+                && commitment.getSourceId() != null
+                && saved.getStatus() == com.finance.commitment.domain.CommitmentInstanceStatus.PAID
+                && org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive()) {
+            loanPayments.record(commitment.getSourceId(), saved.getUserId(), saved.getDueDate(), transaction.getId());
+        }
 
         // Ids and status only - never the amount (ADR-0010).
         log.info("Commitment instance auto-matched id={} transactionId={} status={}",

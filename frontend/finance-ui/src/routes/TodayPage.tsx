@@ -1,3 +1,4 @@
+import { WayBack } from '@/features/today/components/WayBack';
 import { useState, type CSSProperties } from 'react';
 import { CircleHelp, Wallet } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -173,6 +174,7 @@ export default function TodayPage() {
           className="reveal flex flex-col gap-space-8 border-t border-line pt-space-8 xl:border-l xl:border-t-0 xl:pl-space-8 xl:pt-0"
           style={{ '--reveal-delay': '500ms' } as CSSProperties}
         >
+          <WayBack />
           <InsightList surface="TODAY" title="Also worth a look" hideKeys={railHidden} hideWhenEmpty />
           {financialState && <StandingPanel state={financialState} />}
         </div>

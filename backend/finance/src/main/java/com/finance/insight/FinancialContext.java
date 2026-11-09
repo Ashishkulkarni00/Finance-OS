@@ -43,7 +43,8 @@ public record FinancialContext(
         List<Account> accounts,
         List<GoalWithdrawal> goalWithdrawals,
         List<PlanAccountDrift> planAccountDrifts,
-        List<StrandedReservation> strandedReservations
+        List<StrandedReservation> strandedReservations,
+        List<com.finance.commitment.PlanAmountDrift> planAmountDrifts
 ) {
     public record AccountProjection(Account account, ProjectionResult projection) {
     }

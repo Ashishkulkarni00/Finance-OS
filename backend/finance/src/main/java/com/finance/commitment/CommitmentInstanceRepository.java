@@ -18,6 +18,20 @@ public interface CommitmentInstanceRepository extends JpaRepository<CommitmentIn
     /** Recent occurrences of the same commitment, most recent first - the detail route's history. */
     List<CommitmentInstance> findTop6ByCommitmentIdAndUserIdOrderByDueDateDesc(Long commitmentId, Long userId);
 
+    /**
+     * The six most recent occurrences <strong>already due</strong>. Use this, not
+     * {@link #findTop6ByCommitmentIdAndUserIdOrderByDueDateDesc}, for anything that reasons about
+     * history: once a future cycle exists (Ahead, or a stray 2029 one), the plain top six of a
+     * long-running bill are all future months, and history reads as empty. Found 2026-11-09 -
+     * it had kept both drift rules silent and the reconcile blind to October.
+     */
+    List<CommitmentInstance> findTop6ByCommitmentIdAndUserIdAndDueDateLessThanEqualOrderByDueDateDesc(
+            Long commitmentId, Long userId, java.time.LocalDate dueOnOrBefore);
+
+    /** Every occurrence already due - not "the latest six", which for a long loan are all in the future. */
+    List<CommitmentInstance> findByCommitmentIdAndUserIdAndDueDateLessThanEqualOrderByDueDateDesc(
+            Long commitmentId, Long userId, java.time.LocalDate dueOnOrBefore);
+
     List<CommitmentInstance> findByCycleIdAndUserId(Long cycleId, Long userId);
 
     /**

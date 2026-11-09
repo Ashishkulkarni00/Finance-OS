@@ -178,7 +178,8 @@ public class CommitmentInstanceServiceImpl implements CommitmentInstanceService 
     @Override
     @Transactional(readOnly = true)
     public List<CommitmentInstance> recentForCommitment(Long commitmentId) {
-        return repository.findTop6ByCommitmentIdAndUserIdOrderByDueDateDesc(commitmentId, currentUser.currentUserId());
+        return repository.findTop6ByCommitmentIdAndUserIdAndDueDateLessThanEqualOrderByDueDateDesc(
+                commitmentId, currentUser.currentUserId(), LocalDate.now(clock));
     }
 
     @Override
@@ -472,8 +473,10 @@ public class CommitmentInstanceServiceImpl implements CommitmentInstanceService 
                 ? null : categoryService.getByIdIncludingDeleted(commitment.getCategoryId());
         TransactionView linkedTransaction = instance.getLinkedTransactionId() == null
                 ? null : transactionService.getById(instance.getLinkedTransactionId());
-        List<CommitmentInstance> history = repository.findTop6ByCommitmentIdAndUserIdOrderByDueDateDesc(
-                commitment.getId(), currentUser.currentUserId());
+        // History up to this occurrence or today, whichever is later - never the far future.
+        LocalDate upTo = instance.getDueDate().isAfter(LocalDate.now(clock)) ? instance.getDueDate() : LocalDate.now(clock);
+        List<CommitmentInstance> history = repository.findTop6ByCommitmentIdAndUserIdAndDueDateLessThanEqualOrderByDueDateDesc(
+                commitment.getId(), currentUser.currentUserId(), upTo);
         return new CommitmentInstanceDetailView(instance, commitment, account, category, linkedTransaction, history);
     }
 

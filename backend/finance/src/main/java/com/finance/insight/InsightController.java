@@ -1,5 +1,8 @@
 package com.finance.insight;
 
+import com.finance.insight.dto.InsightChangeResponse;
+import java.util.List;
+
 import com.finance.common.exception.ErrorCode;
 import com.finance.common.exception.ResourceNotFoundException;
 import com.finance.insight.dto.InsightListResponse;
@@ -21,11 +24,27 @@ public class InsightController {
     private final InsightService service;
     private final CalmVoice calmVoice;
     private final InsightSilencer silencer;
+    private final InsightChanges changes;
 
-    public InsightController(InsightService service, CalmVoice calmVoice, InsightSilencer silencer) {
+    public InsightController(InsightService service, CalmVoice calmVoice, InsightSilencer silencer,
+                             InsightChanges changes) {
+        this.changes = changes;
         this.service = service;
         this.calmVoice = calmVoice;
         this.silencer = silencer;
+    }
+
+    /** "What changed" - warnings that resolved since you last looked (ROADMAP 3.4). */
+    @GetMapping("/changes")
+    public List<InsightChangeResponse> changes() {
+        return InsightChangeResponse.from(changes.unacknowledged());
+    }
+
+    /** "Got it" on a resolved warning. Other users' rows are a 404. */
+    @PostMapping("/changes/{id}/acknowledge")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void acknowledge(@PathVariable Long id) {
+        changes.acknowledge(id);
     }
 
     /** What needs the user on one screen: ranked, capped (Today 3, Month 5), with the full count. */

@@ -1,3 +1,4 @@
+import { Momentum } from '@/features/summary/components/Momentum';
 import { ErrorState } from '@/components/ErrorState';
 import { Skeleton } from '@/components/Skeleton';
 import { DebtDown } from '@/features/summary/components/DebtDown';
@@ -76,6 +77,8 @@ export default function SummaryPage() {
       </header>
 
       <WhereYouStand current={current} samePoint={data.samePoint} debt={debt.data} />
+
+      <Momentum />
 
       <MonthByMonth months={data.months} monthsRecorded={data.monthsRecorded} samePoint={data.samePoint} />
 

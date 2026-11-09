@@ -24,7 +24,10 @@ public record CycleReviewResponse(
         List<Item> notDone,
         List<Item> skipped,
         List<Difference> differences,
-        List<Spend> largestUnplanned
+        List<Spend> largestUnplanned,
+        /** Must-pay bills not paid, carrying into next month (ROADMAP 6.4); null when one has no amount. */
+        @JsonSerialize(using = MoneySerializer.class) BigDecimal carryOver,
+        int carryOverCount
 ) {
     public record Item(Long instanceId, String name, @JsonSerialize(using = MoneySerializer.class) BigDecimal amount,
                        LocalDate dueDate, boolean mandatory, boolean savings) {
@@ -50,7 +53,8 @@ public record CycleReviewResponse(
                 r.differences().stream().map(d -> new Difference(d.instanceId(), d.name(), d.planned(), d.actual(),
                         d.difference())).toList(),
                 r.largestUnplanned().stream().map(s -> new Spend(s.transactionId(), s.description(), s.date(),
-                        s.amount(), s.category())).toList());
+                        s.amount(), s.category())).toList(),
+                r.carryOver(), r.carryOverCount());
     }
 
     private static Item item(CycleReview.Item i) {

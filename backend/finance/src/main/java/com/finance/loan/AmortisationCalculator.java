@@ -198,6 +198,34 @@ public class AmortisationCalculator {
     }
 
     /**
+     * The interest paid between now and the loan clearing at this EMI, with the same
+     * period-by-period rounding as {@link #impliedEmis} - or {@code null} when it never clears.
+     *
+     * <p>Summed interest, never {@code emi × count}. The last payment is only what is left,
+     * so counting it as a full EMI overstates the cost by up to one whole EMI - and a bigger
+     * EMI carries a bigger overstatement, which made a faster payoff look like it saved
+     * nothing at all.
+     */
+    public BigDecimal totalInterest(BigDecimal outstanding, BigDecimal annualRate, BigDecimal emi) {
+        BigDecimal monthlyRate = annualRate.divide(BigDecimal.valueOf(1200), 10, RoundingMode.HALF_UP);
+        BigDecimal balance = outstanding;
+        BigDecimal interestPaid = MoneyScale.ZERO;
+        for (int count = 0; balance.signum() > 0; count++) {
+            if (count >= MAX_PERIODS) {
+                return null;
+            }
+            BigDecimal interest = MoneyScale.normalise(balance.multiply(monthlyRate));
+            BigDecimal principalPart = emi.subtract(interest);
+            if (principalPart.signum() <= 0) {
+                return null;
+            }
+            interestPaid = interestPaid.add(interest);
+            balance = balance.subtract(principalPart);
+        }
+        return MoneyScale.normalise(interestPaid);
+    }
+
+    /**
      * The remaining schedule, from the balance date forward: one entry per remaining EMI,
      * stopping early if the balance clears. Empty when the rate was never supplied -
      * inventing one, zero included, would produce a schedule that looks authoritative and

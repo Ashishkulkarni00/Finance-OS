@@ -3608,6 +3608,38 @@
 							"body": "{\n    \"asOf\": \"2026-09-14\",\n    \"emi\": \"2400.00\",\n    \"lastEmiDate\": \"2028-10-10\",\n    \"emisRemaining\": 25,\n    \"nextEmiDate\": \"2026-10-10\",\n    \"outstandingBalance\": \"50000.00\"\n}"
 						}
 					]
+				},
+				{
+					"name": "Reconcile a loan's payments from paid EMI bills",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+									"pm.test(\"says how many it recorded\", () => pm.expect(pm.response.json().recorded).to.be.a(\"number\"));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/loans/1/reconcile-payments",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"loans",
+								"1",
+								"reconcile-payments"
+							]
+						},
+						"description": "Repairs EMIs auto-matched before 2026-11-09: the auto-matcher marked the bill PAID but never wrote a loan payment, so the loan reported paid EMIs as unrecorded. Rebuilds loan_payments from PAID instances of the loan's EMI commitment and their linked transactions. Idempotent - duplicates are refused by transaction and by period, so a second run returns 0. Writes real data: run deliberately. 404 for another user's loan."
+					},
+					"response": []
 				}
 			]
 		},
@@ -9182,7 +9214,8 @@
 									"const b = pm.response.json();",
 									"pm.test(\"money as strings\", () => [\"incomeExpected\", \"incomeReceived\", \"paymentsPlanned\", \"paymentsPaid\", \"setAsidePlanned\", \"setAsideMade\", \"spentOutsidePlan\"].forEach((k) => pm.expect(b[k]).to.be.a(\"string\")));",
 									"pm.test(\"counts add up\", () => pm.expect(b.paymentsPaidCount).to.be.at.most(b.paymentsCount));",
-									"pm.test(\"lists are capped\", () => { pm.expect(b.differences.length).to.be.at.most(5); pm.expect(b.largestUnplanned.length).to.be.at.most(3); });"
+									"pm.test(\"lists are capped\", () => { pm.expect(b.differences.length).to.be.at.most(5); pm.expect(b.largestUnplanned.length).to.be.at.most(3); });",
+									"pm.test(\"carry-over: only unpaid must-pay bills, null when one has no amount (6.4)\", () => { const mand = b.notDone.filter((i) => i.mandatory && !i.savings); pm.expect(b.carryOverCount).to.eql(mand.length); if (mand.some((i) => i.amount == null)) pm.expect(b.carryOver).to.eql(null); });"
 								]
 							}
 						}
@@ -10558,7 +10591,302 @@
 						"description": "Structural validation, 400. Zero is not a decision."
 					},
 					"response": []
-				}
+				},
+			{
+				"name": "What could freed-up money do",
+				"event": [
+					{
+						"listen": "test",
+						"script": {
+							"type": "text/javascript",
+							"exec": [
+								"pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+								"const b = pm.response.json();",
+								"pm.test(\"every option names a kind\", () => b.forEach((o) => pm.expect([\"LOAN\",\"GOAL\",\"KEEP\"]).to.include(o.kind)));",
+								"pm.test(\"keeping it is always offered, and last\", () => pm.expect(b[b.length - 1].kind).to.eql(\"KEEP\"));",
+								"pm.test(\"money is strings\", () => b.forEach((o) => { pm.expect(o.amount).to.be.a(\"string\"); if (o.interestSaved !== null) pm.expect(o.interestSaved).to.be.a(\"string\"); }));",
+								"pm.test(\"loans sort by interest saved, most first\", () => { const l = b.filter((o) => o.kind === \"LOAN\" && o.interestSaved !== null).map((o) => Number(o.interestSaved)); for (let i = 1; i < l.length; i++) pm.expect(l[i]).to.be.at.most(l[i - 1]); });",
+								"pm.test(\"a loan that clears sooner saves interest - never ₹0 (the partial-final-EMI bug)\", () => b.forEach((o) => { if (o.kind === \"LOAN\" && o.clearsMonthsSooner > 0) pm.expect(Number(o.interestSaved)).to.be.above(0); }));",
+								"pm.test(\"an option that cannot be costed says why rather than vanishing\", () => b.forEach((o) => { if (o.kind === \"LOAN\" && o.interestSaved === null) pm.expect(o.unknownReason).to.be.a(\"string\"); }));",
+								"pm.test(\"a goal option carries a date\", () => b.filter((o) => o.kind === \"GOAL\").forEach((o) => pm.expect(o.reachesOn).to.match(/^\\d{4}-\\d{2}-\\d{2}$/)));"
+							]
+						}
+					}
+				],
+				"request": {
+					"method": "GET",
+					"header": [],
+					"url": {
+						"raw": "{{baseUrl}}/decisions/unlock-options?amount=2648&startsOn=2027-02-28",
+						"host": [
+							"{{baseUrl}}"
+						],
+						"path": [
+							"decisions",
+							"unlock-options"
+						],
+						"query": [
+							{
+								"key": "amount",
+								"value": "2648"
+							},
+							{
+								"key": "startsOn",
+								"value": "2027-02-28",
+								"description": "Optional. When the money becomes free (an EMI ending in February). Every loan and goal is carried forward at its own pace to this date before the extra is applied, and anything that has cleared by then - including the ending loan itself - drops out. Omitted or past means today."
+							}
+						]
+					},
+					"description": "ROADMAP 4.4. When an EMI ends, \u20b92,648 a month stops leaving. Saying that is a notification; saying what it would do on each loan, on each goal, or kept, is a decision.\n\n### Nothing is recommended\n\nLoans sort by **interest saved** and goals by **how soon they land**, but the two lists are never merged into one ranking. Merging them would need an exchange rate between \"saves \u20b914,200\" and \"the emergency fund is ready in March instead of September\" - and that rate belongs to the person, not to the server. `KEEP` is always present, always last, and never worded as the lazy choice.\n\n### An option that cannot be costed still appears\n\nA loan with no interest rate, or whose EMI does not cover its own monthly interest, comes back with `unknownReason` set and its figures null. Dropping it would quietly shorten the list of things the user could do, which is worse than admitting the gap (ADR-0006).\n\n### Costed from when the money arrives\n\n`startsOn` carries everything forward to the day the money is free. Without it a February unlock would show goals landing months early and offer the ending loan as a home for its own EMI.\n\n### Interest saved is summed interest\n\nNever `EMI x count`: the final payment is partial, and counting it as a full EMI reported ₹0 saved on a loan clearing eight months sooner.\n\n### It takes an amount, not an unlock\n\nThe question is identical whether the money came from a loan ending, a subscription cancelled, or a raise. Keying it to a commitment id would make it useless for the other two."
+				},
+				"response": []
+			},
+			{
+				"name": "Where could a lump sum go",
+				"event": [
+					{
+						"listen": "test",
+						"script": {
+							"type": "text/javascript",
+							"exec": [
+								"pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+								"const b = pm.response.json();",
+								"pm.test(\"keeping it is always offered, and last\", () => pm.expect(b.options[b.options.length - 1].kind).to.eql(\"KEEP\"));",
+								"pm.test(\"no option absorbs more than the sum\", () => b.options.forEach((o) => pm.expect(Number(o.applied)).to.be.at.most(Number(b.amount))));",
+								"pm.test(\"prepaying sorts by interest saved, most first\", () => { const l = b.options.filter((o) => o.kind === \"PREPAY\" && o.interestSaved !== null).map((o) => Number(o.interestSaved)); for (let i = 1; i < l.length; i++) pm.expect(l[i]).to.be.at.most(l[i - 1]); });",
+								"pm.test(\"a prepayment that ends a loan sooner saves interest\", () => b.options.forEach((o) => { if (o.kind === \"PREPAY\" && o.clearsMonthsSooner > 0) pm.expect(Number(o.interestSaved)).to.be.above(0); }));",
+								"pm.test(\"prepaying never improves runway unless it frees an EMI\", () => b.options.forEach((o) => { if (o.kind === \"PREPAY\" && !o.closesLoan && o.runwayMonthsAfter != null && b.runwayMonthsBefore != null) pm.expect(o.runwayMonthsAfter).to.be.at.most(b.runwayMonthsBefore); }));",
+								"pm.test(\"no investment return is assumed - only the bar\", () => b.options.forEach((o) => pm.expect([\"PREPAY\",\"GOAL\",\"KEEP\"]).to.include(o.kind)));"
+							]
+						}
+					}
+				],
+				"request": {
+					"method": "GET",
+					"header": [],
+					"url": {
+						"raw": "{{baseUrl}}/decisions/lump-sum?amount=50000",
+						"host": [
+							"{{baseUrl}}"
+						],
+						"path": [
+							"decisions",
+							"lump-sum"
+						],
+						"query": [
+							{
+								"key": "amount",
+								"value": "50000"
+							}
+						]
+					},
+					"description": "ROADMAP 4.3 - the 50,000 question. A bonus lands: each loan prepaid (interest saved, months sooner, the EMI freed if it clears, runway after), each goal (its feasibility verdict before and after, from /goals/feasibility), or kept (runway).\n\n### Never ranked across kinds\n\nPrepay options sort by interest saved - one unit, a defensible order. Goals and keeping are not merged into that ranking: the exchange rate between rupees saved and a goal that now fits belongs to the person (D8).\n\n### Investing is a bar, not an option\n\nAny return figure would be an assumption presented as a number (rule 3). `breakEvenRate` is the dearest costed loan's rate - what an investment would have to beat after tax and with certainty.\n\n### Assumptions stated in the UI\n\nEMI stays the same and the loan ends sooner; no prepayment charge. The sum is treated as money already held, so prepaying spends runway."
+				},
+				"response": []
+			},
+			{
+				"name": "What changed - resolved warnings",
+				"event": [
+					{
+						"listen": "test",
+						"script": {
+							"type": "text/javascript",
+							"exec": [
+								"pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+								"const b = pm.response.json();",
+								"pm.test(\"each change is a cleared occurrence with its frozen words\", () => b.forEach((c) => { pm.expect(c.clearedAt).to.be.a(\"string\"); pm.expect(c.title).to.be.a(\"string\").and.not.empty; pm.expect(c.occurrences).to.be.at.least(1); }));",
+								"pm.test(\"one row per warning, never repeated\", () => { const keys = b.map((c) => c.key); pm.expect(new Set(keys).size).to.eql(keys.length); });",
+								"if (b.length) pm.collectionVariables.set(\"changeId\", b[0].id);"
+							]
+						}
+					}
+				],
+				"request": {
+					"method": "GET",
+					"header": [],
+					"url": {
+						"raw": "{{baseUrl}}/insights/changes",
+						"host": [
+							"{{baseUrl}}"
+						],
+						"path": [
+							"insights",
+							"changes"
+						]
+					},
+					"description": "ROADMAP 3.4. Warnings that stopped being true in the last 30 days and have not been acknowledged. A warning that flapped is one row (its latest occurrence) with `occurrences`; `liveAgain` means it has since come back. No new column: `dismissed_at` on a cleared row is the acknowledgement."
+				},
+				"response": []
+			},
+			{
+				"name": "Got it - acknowledge a resolved warning",
+				"event": [
+					{
+						"listen": "test",
+						"script": {
+							"type": "text/javascript",
+							"exec": [
+								"pm.test(\"204 No Content\", () => pm.response.to.have.status(204));"
+							]
+						}
+					}
+				],
+				"request": {
+					"method": "POST",
+					"header": [],
+					"url": {
+						"raw": "{{baseUrl}}/insights/changes/{{changeId}}/acknowledge",
+						"host": [
+							"{{baseUrl}}"
+						],
+						"path": [
+							"insights",
+							"changes",
+							"{{changeId}}",
+							"acknowledge"
+						]
+					},
+					"description": "Marks this resolution, and earlier unacknowledged ones for the same warning, as seen. 404 for a row that is not this user's or is still live. Writes real state - run deliberately."
+				},
+				"response": []
+			},
+			{
+				"name": "A way back this month",
+				"event": [
+					{
+						"listen": "test",
+						"script": {
+							"type": "text/javascript",
+							"exec": [
+								"pm.test(\"200 OK - always, even when the month is fine\", () => pm.response.to.have.status(200));",
+								"const b = pm.response.json();",
+								"pm.test(\"state is known\", () => pm.expect([\"ON_COURSE\",\"STRETCHED\",\"BROKEN\",\"INCOMPLETE\"]).to.include(b.state));",
+								"pm.test(\"a fine month has no steps\", () => { if (b.state === \"ON_COURSE\") pm.expect(b.steps).to.be.empty; });",
+								"pm.test(\"levers come in order: defer, release, spend less\", () => { const order = { DEFER: 0, RELEASE: 1, SPEND_LESS: 2 }; for (let i = 1; i < b.steps.length; i++) pm.expect(order[b.steps[i].kind]).to.be.at.least(order[b.steps[i - 1].kind]); });",
+								"pm.test(\"steps cover the gap\", () => { if (b.gap) { const sum = b.steps.reduce((a, s) => a + Number(s.amount), 0); pm.expect(sum).to.be.at.least(Number(b.gap) - 0.01); } });",
+								"pm.test(\"money is strings\", () => b.steps.forEach((s) => pm.expect(s.amount).to.be.a(\"string\")));"
+							]
+						}
+					}
+				],
+				"request": {
+					"method": "GET",
+					"header": [],
+					"url": {
+						"raw": "{{baseUrl}}/recovery",
+						"host": [
+							"{{baseUrl}}"
+						],
+						"path": [
+							"recovery"
+						]
+					},
+					"description": "ROADMAP 6.2. BROKEN = Real Balance below zero; STRETCHED = covered, but less left than the user's own usual day-to-day spending for the days remaining (needs 2 months of history; never claimed without it).\n\nLevers in order: defer optional payments (the smallest one that covers the gap, else largest-first), release money set aside, then spend less as a day rate. Mandatory bills are never offered. `catchUp` is what gets put back afterwards, over `catchUpMonths` at `catchUpPerMonth`, from the coming months' room above usual spending. Read-only."
+				},
+				"response": []
+			},
+			{
+				"name": "Which way things are moving",
+				"event": [
+					{
+						"listen": "test",
+						"script": {
+							"type": "text/javascript",
+							"exec": [
+								"pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+								"const b = pm.response.json();",
+								"pm.test(\"directions, never a score\", () => b.forEach((m) => { pm.expect([\"BETTER\",\"WORSE\",\"STEADY\",\"UNKNOWN\"]).to.include(m.direction); pm.expect(m).to.not.have.property(\"score\"); }));",
+								"pm.test(\"every direction has a headline\", () => b.forEach((m) => pm.expect(m.headline).to.be.a(\"string\").and.not.empty));",
+								"pm.test(\"unknown says what would make it knowable\", () => b.filter((m) => m.direction === \"UNKNOWN\").forEach((m) => pm.expect(m.reason).to.be.a(\"string\").and.not.empty));"
+							]
+						}
+					}
+				],
+				"request": {
+					"method": "GET",
+					"header": [],
+					"url": {
+						"raw": "{{baseUrl}}/momentum",
+						"host": [
+							"{{baseUrl}}"
+						],
+						"path": [
+							"momentum"
+						]
+					},
+					"description": "ROADMAP 6.3. Named directions with reasons, no score. Debt (principal repaid from recorded EMIs - UNKNOWN while EMIs are unrecorded, with the count), next to finish (next bill to end, from the forecast), and net worth / promises kept from the last two closed months (CycleSnapshot) - UNKNOWN until two months are closed."
+				},
+				"response": []
+			},
+			{
+				"name": "Which goals can the months ahead carry",
+				"event": [
+					{
+						"listen": "test",
+						"script": {
+							"type": "text/javascript",
+							"exec": [
+								"pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+								"const b = pm.response.json();",
+								"pm.test(\"every goal has a known state and a sentence\", () => b.forEach((g) => { pm.expect([\"COVERED_BY_PLAN\",\"FITS\",\"FITS_IF\",\"DOES_NOT_FIT\",\"UNKNOWN\"]).to.include(g.state); pm.expect(g.reason).to.be.a(\"string\").and.not.empty; }));",
+								"pm.test(\"money is strings\", () => b.forEach((g) => [\"stillNeeded\",\"gap\",\"freeByDeadline\",\"freeCeiling\",\"shortBy\"].forEach((k) => { if (g[k] != null) pm.expect(g[k]).to.be.a(\"string\"); })));",
+								"pm.test(\"only a gap above the ceiling is called fiction\", () => b.filter((g) => g.state === \"DOES_NOT_FIT\").forEach((g) => { pm.expect(Number(g.gap)).to.be.above(Math.max(Number(g.freeCeiling), 0)); pm.expect(Number(g.shortBy)).to.be.above(0); }));",
+								"pm.test(\"FITS means it fits after usual spending\", () => b.filter((g) => g.state === \"FITS\").forEach((g) => pm.expect(Number(g.gap)).to.be.at.most(Number(g.freeByDeadline))));"
+							]
+						}
+					}
+				],
+				"request": {
+					"method": "GET",
+					"header": [],
+					"url": {
+						"raw": "{{baseUrl}}/goals/feasibility",
+						"host": [
+							"{{baseUrl}}"
+						],
+						"path": [
+							"goals",
+							"feasibility"
+						]
+					},
+					"description": "ROADMAP 5.1 (the cash-flow half) and the derived half of 5.2 (contention). Pace says whether the plan funds a goal; this says whether the money that will actually be free before its date could.\n\n### Where free money comes from\n\nThis salary month: the Real Balance less usual day-to-day spending for the days left. Each later month: the forecast's `flexible` less a month of usual spending (the month the date falls in is charged only up to the date).\n\n### Only one answer is certain\n\n`flexible` leaves out bills with no amount, so it is a ceiling; with under two months of history there is no usual spending to subtract. Either makes the answer `FITS_IF`, never `FITS`. `DOES_NOT_FIT` is reserved for a gap above the ceiling - every rupee the plan leaves before a single meal - which cannot be met.\n\n### Goals compete\n\nJudged by priority, then date; each goal's gap comes out of free money before the next is judged. Nothing is moved or allocated - nothing stored (ADR-0011)."
+				},
+				"response": []
+			},
+			{
+				"name": "Suggested order for spare money",
+				"event": [
+					{
+						"listen": "test",
+						"script": {
+							"type": "text/javascript",
+							"exec": [
+								"pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+								"const b = pm.response.json();",
+								"pm.test(\"five steps in the fixed order\", () => pm.expect(b.map((s) => s.key)).to.eql([\"buffer-1\",\"debt-high\",\"buffer-3\",\"goals\",\"debt-low\"]));",
+								"pm.test(\"at most one 'you are here'\", () => pm.expect(b.filter((s) => s.current).length).to.be.at.most(1));",
+								"pm.test(\"every step says why\", () => b.forEach((s) => pm.expect(s.why).to.be.a(\"string\").and.not.empty));"
+							]
+						}
+					}
+				],
+				"request": {
+					"method": "GET",
+					"header": [],
+					"url": {
+						"raw": "{{baseUrl}}/goals/suggested-order",
+						"host": [
+							"{{baseUrl}}"
+						],
+						"path": [
+							"goals",
+							"suggested-order"
+						]
+					},
+					"description": "ROADMAP 5.3. A month of must-pay bills within reach -> debt above 12% (the RateMismatchRule line) -> three months within reach -> goals with a date (from /goals/feasibility) -> low-rate debt or investing (break-even stated, no return assumed). `current` marks the first step not done. Suggested, never enforced: nothing else in the product reads it."
+				},
+				"response": []
+			}
 			]
 		}
 	]

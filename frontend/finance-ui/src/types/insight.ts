@@ -24,6 +24,7 @@ export type InsightType =
   | 'GOAL_RAIDED'
   /** A bill's recent payments keep coming from an account other than the planned one. */
   | 'PLAN_ACCOUNT_DRIFT'
+  | 'PLAN_AMOUNT_DRIFT'
   /** Money is still set aside for a goal that has been archived or deleted. */
   | 'RESERVATION_STRANDED';
 
@@ -81,4 +82,21 @@ export interface SilencedInsight {
   dismissedAt?: string;
   /** Set for "not this week" — it returns on its own after this. */
   snoozedUntil?: string;
+}
+
+/** A warning that stopped being true and hasn't been acknowledged — ROADMAP 3.4. */
+export interface InsightChange {
+  /** The occurrence row; "Got it" is keyed on this, since one warning can recur. */
+  id: number;
+  key: string;
+  type: string;
+  severity: InsightSeverity;
+  /** What was said at the time, frozen. */
+  title: string;
+  firstSeenAt: string;
+  clearedAt: string;
+  /** How many times it started and cleared in the last 30 days. */
+  occurrences: number;
+  /** It has since come back — the resolution didn't hold. */
+  liveAgain: boolean;
 }

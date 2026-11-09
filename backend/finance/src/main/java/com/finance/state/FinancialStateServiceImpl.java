@@ -84,8 +84,7 @@ public class FinancialStateServiceImpl implements FinancialStateService {
         // For a settled plan the two cycles carry the same standing commitments and the
         // answer is identical - this only differs at a boundary, which is exactly where the
         // current cycle gives the wrong answer.
-        Cycle nextCycle = cycleResolver.resolve(currentUser.currentUserId(), cycle.getEndDate().plusDays(1));
-        Runway runway = runwayCalculator.calculate(nextCycle);
+        Runway runway = runwayCalculator.calculateAhead(cycle, cycleResolver);
         SpendBaseline baseline = baselineCalculator.calculate();
         DebtPosition debt = debtCalculator.calculate(expectedIncome);
 
