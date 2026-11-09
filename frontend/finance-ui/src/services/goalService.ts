@@ -1,5 +1,5 @@
 import { baseApi } from './api/baseApi';
-import type { GoalResponse, CreateGoalRequest, UpdateGoalRequest } from '@/types/goal';
+import type { GoalResponse, CreateGoalRequest, UpdateGoalRequest, GoalFeasibility, SuggestedOrderStep } from '@/types/goal';
 import type { PageResponse } from '@/types/api';
 
 export const goalService = baseApi.injectEndpoints({
@@ -16,6 +16,18 @@ export const goalService = baseApi.injectEndpoints({
         'Commitment' as const,
         'CommitmentInstance' as const,
       ],
+    }),
+
+    /** Which goals the months ahead can carry. Moves with anything that moves free money. */
+    getGoalFeasibility: build.query<GoalFeasibility[], void>({
+      query: () => '/goals/feasibility',
+      providesTags: [{ type: 'Goal' as const, id: 'LIST' }, 'Position', 'Commitment', 'CommitmentInstance'],
+    }),
+
+    /** Buffer → dear debt → full cushion → dated goals → cheap debt or investing (ROADMAP 5.3). */
+    getSuggestedOrder: build.query<SuggestedOrderStep[], void>({
+      query: () => '/goals/suggested-order',
+      providesTags: [{ type: 'Goal' as const, id: 'LIST' }, 'Position', 'Commitment', 'CommitmentInstance'],
     }),
 
     getGoal: build.query<GoalResponse, number>({
@@ -54,6 +66,8 @@ export const goalService = baseApi.injectEndpoints({
 export const {
   useGetGoalsQuery,
   useGetGoalQuery,
+  useGetGoalFeasibilityQuery,
+  useGetSuggestedOrderQuery,
   useCreateGoalMutation,
   useUpdateGoalMutation,
   useArchiveGoalMutation,

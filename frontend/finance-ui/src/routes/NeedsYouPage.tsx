@@ -6,6 +6,7 @@ import { ErrorState } from '@/components/ErrorState';
 import { InsightRow } from '@/components/InsightList';
 import { SectionHeader } from '@/components/SectionHeader';
 import { Skeleton } from '@/components/Skeleton';
+import { WhatChanged } from '@/features/today/components/WhatChanged';
 import {
   useDismissInsightMutation,
   useGetAllInsightsQuery,
@@ -105,6 +106,8 @@ export function NeedsYouPage() {
           </section>
         ))
       )}
+
+      <WhatChanged />
 
       {/* Answered, not lost. Folded away rather than deleted: a list you can silently drop
           things from is one you stop trusting, and an accidental "I know" would otherwise

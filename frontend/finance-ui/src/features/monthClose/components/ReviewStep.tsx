@@ -56,6 +56,30 @@ export function ReviewStep({ cycle }: { cycle: CycleResponse }) {
         </p>
       </div>
 
+      {/* Closing the loop (ROADMAP 6.4): the promises kept, then what this month hands the
+          next. Kept is the North Star, so it leads; the carry-over is the one consequence of
+          this month that the next plan doesn't know about yet. */}
+      <div className="flex flex-col gap-space-2 rounded-lg bg-sunken px-space-4 py-space-3">
+        <p className="text-body text-ink">
+          <span className="num">{review.paymentsPaidCount}</span> of <span className="num">{review.paymentsCount}</span>{' '}
+          {review.paymentsCount === 1 ? 'payment' : 'payments'} made as planned.
+        </p>
+        {review.carryOverCount > 0 && (
+          <p className="text-caption text-ink-soft">
+            {review.carryOver != null ? (
+              <>
+                <Amount value={review.carryOver} role="caption" className="text-ink" /> of must-pay bills
+              </>
+            ) : (
+              <>{review.carryOverCount} must-pay {review.carryOverCount === 1 ? 'bill' : 'bills'} (one with no amount yet)</>
+            )}{' '}
+            didn’t happen, so {review.carryOverCount === 1 ? 'it carries' : 'they carry'} into
+            {next ? ` ${cycleMonthName(next.endDate)}` : ' next month'} — on top of that month’s plan, which doesn’t include{' '}
+            {review.carryOverCount === 1 ? 'it' : 'them'}.
+          </p>
+        )}
+      </div>
+
       <div>
         <div className="grid grid-cols-[minmax(0,1fr)_8rem_8rem] gap-space-3 pb-space-2 text-micro uppercase tracking-[0.08em] text-ink-muted">
           <span />

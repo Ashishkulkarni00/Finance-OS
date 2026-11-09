@@ -8,9 +8,11 @@ import { Amount } from '@/components/Amount';
 import { LedgerRow, DomainRule, MetaFacts } from '@/components/LedgerRow';
 import { formatMoney } from '@/lib/money';
 import { formatShortDate } from '@/lib/dates';
-import { useGetGoalsQuery } from '@/services/goalService';
+import { useGetGoalsQuery, useGetGoalFeasibilityQuery } from '@/services/goalService';
+import { cn } from '@/lib/cn';
 import { useDocAnchor } from '@/features/help/useDocAnchor';
-import type { GoalResponse } from '@/types/goal';
+import { SuggestedOrder } from './SuggestedOrder';
+import type { GoalFeasibility, GoalResponse } from '@/types/goal';
 
 const MONTH_YEAR = new Intl.DateTimeFormat('en-IN', { month: 'short', year: 'numeric' });
 
@@ -23,7 +25,35 @@ const MONTH_YEAR = new Intl.DateTimeFormat('en-IN', { month: 'short', year: 'num
  * along - is visible without opening it. `progressPercent` is the server's; the bar only
  * draws it.
  */
-function GoalRow({ goal }: { goal: GoalResponse }) {
+/**
+ * The verdict under a goal: can the months before its date carry it? Quiet when the answer is
+ * yes, coloured only when it is certainly no - a warning on every "maybe" would teach the
+ * reader to skip the one that matters.
+ */
+function FeasibilityLine({ f }: { f: GoalFeasibility }) {
+  const label: Record<GoalFeasibility['state'], string> = {
+    COVERED_BY_PLAN: 'On plan',
+    FITS: 'Fits',
+    FITS_IF: 'Fits if',
+    DOES_NOT_FIT: 'Doesn’t fit',
+    UNKNOWN: 'Can’t tell',
+  };
+  return (
+    <p className="flex gap-space-2 pb-space-2 pl-space-4 text-caption">
+      <span
+        className={cn(
+          'shrink-0 text-micro uppercase tracking-[0.08em]',
+          f.state === 'DOES_NOT_FIT' ? 'text-attention' : f.state === 'FITS' || f.state === 'COVERED_BY_PLAN' ? 'text-positive' : 'text-ink-muted',
+        )}
+      >
+        {label[f.state]}
+      </span>
+      <span className="text-ink-soft">{f.reason}</span>
+    </p>
+  );
+}
+
+function GoalRow({ goal, feasibility }: { goal: GoalResponse; feasibility?: GoalFeasibility }) {
   // The next payment it has to make - a trip's bookings - is the date that matters most.
   const next = (goal.schedule ?? []).find((l) => l.commitmentId != null && l.status !== 'PAID');
   const cardDoc = useDocAnchor('goal.card');
@@ -70,6 +100,7 @@ function GoalRow({ goal }: { goal: GoalResponse }) {
         </>
       }
     />
+    {feasibility && <FeasibilityLine f={feasibility} />}
     </div>
   );
 }
@@ -82,6 +113,8 @@ function GoalRow({ goal }: { goal: GoalResponse }) {
 export function GoalsSection({ onAdd }: { onAdd: () => void }) {
   const { data: goalsPage, isLoading, isError, refetch } = useGetGoalsQuery();
   const goals = (goalsPage?.content ?? []).filter((g) => !g.archived);
+  // A second request, not a blocker: goals render without it, and a failure just leaves the verdicts off.
+  const { data: feasibility } = useGetGoalFeasibilityQuery(undefined, { skip: goals.length === 0 });
 
   if (isLoading) {
     return (
@@ -114,13 +147,22 @@ export function GoalsSection({ onAdd }: { onAdd: () => void }) {
   }
 
   return (
+    <div className="flex flex-col gap-space-8">
     <section>
       <SectionHeader trailing={`${goals.length} in progress`}>Your goals</SectionHeader>
       <div className="flex flex-col">
         {goals.map((goal) => (
-          <GoalRow key={goal.id} goal={goal} />
+          <GoalRow key={goal.id} goal={goal} feasibility={feasibility?.find((f) => f.goalId === goal.id)} />
         ))}
       </div>
+      {goals.length > 1 && feasibility && (
+        <p className="mt-space-3 text-caption text-ink-muted">
+          Judged against the money that will actually be free, after your usual spending — in priority order, each goal
+          taking its share before the next. Two goals that each fit alone can fail together.
+        </p>
+      )}
     </section>
+    <SuggestedOrder />
+    </div>
   );
 }

@@ -8,6 +8,8 @@ import { cn } from '@/lib/cn';
 import { cycleMonthName, formatShortDate } from '@/lib/dates';
 import { useGetForecastQuery } from '@/services/forecastService';
 import type { ForecastMonth, ForecastUnlock } from '@/types/forecast';
+import { UnlockOptions } from './UnlockOptions';
+import { LumpSumPlanner } from './LumpSumPlanner';
 
 const HORIZON = 12;
 
@@ -21,10 +23,14 @@ const HORIZON = 12;
  * its breakdown under a band.
  */
 function UnlockCalendar({ months, total }: { months: ForecastMonth[]; total: string }) {
-  const items = months.flatMap((m) => m.unlocks.map((u) => ({ ...u, monthEnd: m.cycleEnd })));
+  const items = months.flatMap((m) => m.unlocks.map((u) => ({ ...u, monthEnd: m.cycleEnd, monthStart: m.cycleStart })));
+  const [pickedKey, setPickedKey] = useState<string | null>(null);
   if (items.length === 0) return null;
 
   const single = items.length === 1 ? items[0]! : null;
+  const keyOf = (u: { commitmentId: number; monthEnd: string }) => `${u.commitmentId}-${u.monthEnd}`;
+  // The first to end is the first decision due, so it is the one shown unprompted.
+  const picked = items.find((u) => keyOf(u) === pickedKey) ?? items[0]!;
 
   return (
     <section>
@@ -55,25 +61,43 @@ function UnlockCalendar({ months, total }: { months: ForecastMonth[]; total: str
         <div className="mt-space-5">
           <GroupBand label="What ends" count={items.length} />
           <ul className="flex flex-col">
-            {items.map((u: ForecastUnlock & { monthEnd: string }) => (
-              <li
-                key={`${u.commitmentId}-${u.monthEnd}`}
-                className="flex items-baseline justify-between gap-space-3 border-b border-line py-space-2 last:border-b-0"
-              >
-                <span className="min-w-0 text-label text-ink">
-                  {u.name}
-                  <span className="block text-caption text-ink-muted">from {cycleMonthName(u.monthEnd)}</span>
-                </span>
-                <Amount value={u.amount} role="row" className="shrink-0 text-positive" />
-              </li>
-            ))}
+            {items.map((u: ForecastUnlock & { monthEnd: string }) => {
+              const active = keyOf(u) === keyOf(picked);
+              return (
+                <li key={keyOf(u)} className="border-b border-line last:border-b-0">
+                  {/* Each row is the switch for the options below it - the list already
+                      names every unlock, so a second picker would say it all twice. */}
+                  <button
+                    type="button"
+                    onClick={() => setPickedKey(keyOf(u))}
+                    aria-pressed={active}
+                    className={cn(
+                      'flex w-full items-baseline justify-between gap-space-3 py-space-2 text-left',
+                      active && 'bg-sunken',
+                    )}
+                  >
+                    <span className="min-w-0 text-label text-ink">
+                      {u.name}
+                      <span className="block text-caption text-ink-muted">from {cycleMonthName(u.monthEnd)}</span>
+                    </span>
+                    <Amount value={u.amount} role="row" className="shrink-0 text-positive" />
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
 
-      <p className="mt-space-3 text-caption text-ink-muted">
-        Nothing moves on its own — decide where it should go before it arrives, or it becomes day-to-day spending.
-      </p>
+      <div className="mt-space-6">
+        <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">
+          What {single ? 'it' : <>the <span className="normal-case">{picked.name}</span> money</>} could do, from {cycleMonthName(picked.monthEnd)}
+        </span>
+        <p className="mb-space-3 text-caption text-ink-muted">
+          Nothing moves on its own. Costed from when the money is actually free, with everything else carried forward to then.
+        </p>
+        <UnlockOptions amount={picked.amount} startsOn={picked.monthStart} />
+      </div>
     </section>
   );
 }
@@ -236,6 +260,8 @@ export function AheadForecast() {
       </div>
 
       <UnlockCalendar months={data.months} total={data.unlockedMonthlyTotal} />
+
+      <LumpSumPlanner />
 
       <section>
         <SectionHeader
