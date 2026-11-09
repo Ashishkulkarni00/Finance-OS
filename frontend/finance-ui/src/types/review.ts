@@ -114,3 +114,31 @@ export interface DebtTrajectoryResponse {
   excludedLoanCount: number;
   excludedOutstanding: Money;
 }
+
+/** One category in a month - GET /review/months/{cycleId}/categories. */
+export interface ReviewCategory {
+  categoryId: number;
+  name: string;
+  group: string;
+  total: Money;
+  /** The part that settled a planned bill. `committed + flexible = total`. */
+  committed: Money;
+  flexible: Money;
+  /** Of the month's spend, 0-1. */
+  share?: number | null;
+  shareOfFlexible?: number | null;
+}
+
+export interface ReviewMonthCategories {
+  cycleId: number;
+  label: string;
+  startDate: string;
+  endDate: string;
+  recorded: boolean;
+  planTracked: boolean;
+  spend?: Money;
+  committed?: Money;
+  flexible?: Money;
+  /** Largest first. */
+  categories: ReviewCategory[];
+}

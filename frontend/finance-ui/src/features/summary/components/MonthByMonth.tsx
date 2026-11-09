@@ -1,9 +1,9 @@
-import { ColumnChart, type ColumnDatum } from '@/components/charts/ColumnChart';
+import { INCOME, InOutChart, LEFT_OVER } from './InOutChart';
 import { SectionHeader } from '@/components/SectionHeader';
-import { cycleMonthName } from '@/lib/dates';
 import { formatMoney, formatPercent } from '@/lib/money';
 import type { ReviewMonth, ReviewSamePoint } from '@/types/review';
 import { MonthFigureTable } from './MonthFigureTable';
+import { FiguresToggle, Legend, SERIES } from './viz';
 
 interface MonthByMonthProps {
   months: ReviewMonth[];
@@ -25,15 +25,6 @@ interface MonthByMonthProps {
  * day of the previous month, and why the table says "still running".
  */
 export function MonthByMonth({ months, monthsRecorded, samePoint }: MonthByMonthProps) {
-  const data: ColumnDatum[] = months.map((month) => ({
-    key: String(month.cycleId),
-    label: cycleMonthName(month.endDate),
-    recorded: month.recorded,
-    current: month.current,
-    segments: [{ key: 'spend', label: 'Out', value: month.spend, tone: 'committed' as const }],
-    reference: { value: month.income, label: 'In' },
-  }));
-
   const current = months.find((month) => month.current);
 
   return (
@@ -44,57 +35,67 @@ export function MonthByMonth({ months, monthsRecorded, samePoint }: MonthByMonth
         </SectionHeader>
       </div>
 
-      <ColumnChart
-        data={data}
-        takeaway={
-          samePoint ? (
-            <>
-              {Number(samePoint.spendChange) === 0 ? (
-                <>Spending is level with the same day of {samePoint.previousLabel}.</>
-              ) : (
-                <>
-                  <span className="text-ink">{formatMoney(samePoint.spendChange)}</span>{' '}
-                  {Number(samePoint.spendChange) > 0 ? 'more' : 'less'} has gone out than by day {samePoint.daysIn} of{' '}
-                  {samePoint.previousLabel}
-                  {current?.elapsedShare != null && <> — this month is {formatPercent(current.elapsedShare)} through</>}.
-                </>
-              )}{' '}
-              The rule across each column is what came in that month.
-            </>
-          ) : (
-            <>
-              What went out each salary month, against what came in — the rule across each column.
-              {monthsRecorded < 2 && ' One month is a starting point, not a trend; this fills in as months pass.'}
-            </>
-          )
-        }
-        description="A column per salary month showing total spending, with a horizontal rule marking the income recorded in that month. Exact figures follow in the table below."
-      />
+      <p className="max-w-[72ch] text-body text-ink-soft">
+        {samePoint ? (
+              <>
+                {Number(samePoint.spendChange) === 0 ? (
+                  <>Spending is level with the same day of {samePoint.previousLabel}.</>
+                ) : (
+                  <>
+                    <span className="text-ink">{formatMoney(samePoint.spendChange)}</span>{' '}
+                    {Number(samePoint.spendChange) > 0 ? 'more' : 'less'} has gone out than by day {samePoint.daysIn} of{' '}
+                    {samePoint.previousLabel}
+                    {current?.elapsedShare != null && <> — this month is {formatPercent(current.elapsedShare)} through</>}.
+                  </>
+                )}{' '}
+                Each month reads left to right: income, expenses split by kind, and what was left after them.
+              </>
+            ) : (
+              <>
+                Each salary month: income, expenses split by kind, and what was left after them.
+                {monthsRecorded < 2 && ' One month is a starting point, not a trend; this fills in as months pass.'}
+              </>
+            )}
+      </p>
 
-      <MonthFigureTable
-        months={months}
-        columns={[
-          { key: 'income', head: 'In', money: (month) => month.income },
-          { key: 'spend', head: 'Out', money: (month) => month.spend },
-          { key: 'invested', head: 'Invested', money: (month) => month.invested },
-          { key: 'net', head: 'Kept', money: (month) => month.net, emphasis: true },
-          {
-            key: 'rate',
-            head: 'Kept %',
-            node: (month) => (
-              <span className="num text-row text-ink-soft">{formatPercent(month.savingsRate)}</span>
-            ),
-          },
+      <InOutChart months={months} />
+
+      <Legend
+        items={[
+          { label: 'Income', colour: INCOME },
+          { label: 'Committed — bills & EMIs', colour: SERIES.committed },
+          { label: 'Day to day', colour: SERIES.flexible },
+          { label: 'Invested', colour: SERIES.invested },
+          { label: 'Left after expenses', colour: LEFT_OVER },
         ]}
       />
 
-      <p className="max-w-[72ch] text-caption text-ink-muted">
-        <span className="text-ink-soft">Kept</span> is what came in less what went out. Money moved into an
-        investment is not spending, so it is not subtracted here — it appears under Invested, and under{' '}
-        <span className="text-ink-soft">Left liquid</span> in the next section.{' '}
-        <span className="text-ink-soft">—</span> means nothing was recorded in that month, which is not the same
-        as nothing happening.
-      </p>
+      <FiguresToggle>
+      <MonthFigureTable
+          months={months}
+          columns={[
+            { key: 'income', head: 'In', money: (month) => month.income },
+            { key: 'spend', head: 'Out', money: (month) => month.spend },
+            { key: 'invested', head: 'Invested', money: (month) => month.invested },
+            { key: 'net', head: 'Kept', money: (month) => month.net, emphasis: true },
+            {
+              key: 'rate',
+              head: 'Kept %',
+              node: (month) => (
+                <span className="num text-row text-ink-soft">{formatPercent(month.savingsRate)}</span>
+              ),
+            },
+          ]}
+        />
+  
+        <p className="max-w-[72ch] text-caption text-ink-muted">
+          <span className="text-ink-soft">Kept</span> is what came in less what went out. Money moved into an
+          investment is not spending, so it is not subtracted here — it appears under Invested, and under{' '}
+          <span className="text-ink-soft">Left liquid</span> in the next section.{' '}
+          <span className="text-ink-soft">—</span> means nothing was recorded in that month, which is not the same
+          as nothing happening.
+        </p>
+      </FiguresToggle>
     </section>
   );
 }

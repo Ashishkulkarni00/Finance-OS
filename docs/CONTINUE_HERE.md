@@ -68,6 +68,94 @@ to wrap `fetch` instead; and match text case-insensitively, section headers are 
 2. **Commit** everything on `feature/month-summary` (`git status` lists ~65 files).
 3. **Lift the schema freeze for 4.1 / 5.2 / 6.1?** DDL is under DEFERRED SCHEMA. Ask once.
 
+**2026-11-09 - user decisions:** schema freeze stays (4.1 / 5.2 / 6.1 skipped until end of MVP).
+**New target: improve the app's UI, screen by screen, starting with Today.** Done so far:
+- Today: removed the dotted leaders from the Free until salary / ÷ days / a day from here
+  breakdown (`SpendToday.tsx`, `<Statement leaders>` → `<Statement>`). User: "small faded line
+  to its amount ... looking weird". `Statement` still supports `leaders`; nothing uses it now.
+- Today > Before payday: removed the rule after each day heading ("tomorrow ────") in
+  `BeforePayday.tsx`. Row borders kept.
+- Today: top band's right track 28rem → 26rem to match the rail below (`SpendToday.tsx`,
+  `TodayPage.tsx`) - measured: both dividers at x=929 (1440px) and x=801 (1280px).
+- Today > Standing: open by default, "Hide" remembered per browser in localStorage
+  (`kosh.today.standing.open`, try/catch). Closed label: "Show · this month, safety, what you owe".
+- **Today done (user: "today seems fine"). Now: Ledger / add-transaction form.**
+- Add form: per-type labels via `TRANSACTION_TYPES[].words` (`transactionForm.ts`) - Expense
+  Spent on / Paid from; Income Received for / Received into; Transfer Reason / Move from / Move to;
+  Investment Invested in / Paid from / Held in; Refund Refund of / Credited to. Help guide
+  (`help/content/spending.ts`) updated to match.
+- Today top-left warning card: explanation clamped to 2 lines (`InsightRow` new `clamp` prop,
+  `line-clamp-2`, full text on hover; only `DayStatus` passes it). Measured 32px = 2 lines at
+  1440px and 390px.
+- Months top card, "So far this cycle": `Statement dense` (new prop, py-space-2 rows), Saved %
+  folded into the Left over label, shorter footnote. Band height 260 → 187px; content left 149 /
+  right 187 (was right 260).
+- Needs you: `InsightList` new `limit` prop; Months passes `limit={2}`. The see-all link is
+  semibold `text-attention` with → when items are hidden (everywhere, incl. Today), muted when
+  the list is complete. Live: 2 cards, "2 of 7 — see all →" in #b45309.
+- **Commitment add/edit simplified** (`CommitmentFields.tsx`, `PaymentMonthPicker.tsx`,
+  `AddCommitmentSheet.tsx`, `EditCommitmentSheet.tsx`, `commitmentForm.ts`): "What" → Name;
+  "Same every time?" + "How much" → one Amount row with Same/Changes every time chips; Starts =
+  one dropdown "November 2026 · due 5 Nov"; Ends = one dropdown "Keeps going" / "March 2027 · 5
+  payments" (`LastPaymentPicker`, frequency-aware); Category / Must pay / Note folded under
+  "More details" (summary on the closed row); Add's "This time" only for changing amounts; Edit's
+  "From when" + "Why" + apply note only after a plan field changes (`planChanged`: amount/type/
+  frequency/day/accounts/start/end/link - not name/category/must-pay/note). Help content
+  (monthly-plan, income, MonthGuideSheet) updated. Verified in headless Chrome: add form rows,
+  chips toggle, fold opens; edit: rename keeps Why hidden, amount change shows From when + Why.
+- Category moved back out of "More details" and **required for Payment and Income** (schema refine
+  in `commitmentForm.ts`): settling a bill copies the commitment's category into the Ledger entry,
+  and EXPENSE/INCOME entries require one server-side - without it the user was asked every month.
+  Must pay stays folded (defaults Yes). Edit error labels renamed (Name, Amount). Note: zod object
+  refines only run once base fields pass, so the category message appears after day/account.
+- Money overview: "Approximate" line now judges LOAN accounts by the loan's own `confidence`
+  (net worth reads derived loan outstanding since 1.5, not the account's opening balance) -
+  6 names → 2 (Education loan, SIP - Zerodha), both genuinely estimated (`NetWorthZone.tsx`).
+- Money > Needs a look shortfall card names the first *uncovered* payment and the shortfall:
+  "IDBI Saving account won't cover Petrol on 27 Nov · Holds ₹3,912; by then it would be ₹1,188
+  short" (was naming the covered ₹600 recharge) (`NeedsALookZone.tsx`).
+- Investments: a ₹0 monthly contribution now means "stopped" everywhere - no "not in your plan"
+  prompt (`InvestmentPlanPrompt`, `InvestmentsPage`, `InvestmentsCheckIn`, `billSources`), and the
+  row reads "Monthly · Stopped" (`InvestmentRow`). RD - Mom: ₹9,000, stopped, withdrawable Jan 2029
+  (still only in its note - `matures_on` is DEFERRED SCHEMA). Its "not valued yet" prompt is
+  genuine: the user enters the RD statement value via Value.
+- Money tab "Cover" renamed **Insurance**: route `/money/insurance` (`/money/cover` redirects),
+  tab label, page eyebrow + title "What you're covered for", help category title and its
+  "Open Insurance" links. "Cover for" (the sum assured) kept inside the policy form - that is
+  the right insurance term there. Help category id stays `cover`.
+- Goals page (/ahead) reordered: Money freeing up (headline + what ends) → Goals (header, primer,
+  goals with verdicts, suggested order) → **Where the freed money could go** (chips pick which
+  unlock) → Lump sum → Month by month. `AheadForecast` takes a `goals` slot (rendered on forecast
+  loading/error too); `UnlockCalendar` split into summary + `UnlockChoices`. Feasibility verdict
+  is now its own inset panel (bg-sunken, label line, sentence) under each goal. Order verified live.
+- **Summary revamped** (dataviz skill followed; palette validated with its script, light+dark):
+  new `--viz-1..5` + `--viz-seq-0..6` tokens in index.css (committed blue, day-to-day orange,
+  invested aqua). `SummaryTiles` (6 stat tiles, committed-share meter) replaces `WhereYouStand`
+  (deleted). Month by month = one stacked column chart (committed/day-to-day/invested vs income
+  rule) + legend; `ColumnChart` tones now use `--viz-*`. `WhereItWent` rewritten: month chips,
+  tall segmented bar of the month, ranked category bars split planned-bill vs day-to-day (new
+  `GET /review/months/{id}/categories` hook). New `CategoryHeatmap` (category × month, sequential
+  blue, store-based multi-month fetch). Debt down: statement + list replaced by `PayoffTimeline`
+  (bar per loan to its last EMI on a shared year axis). Every table folded behind "Show the
+  figures" (`viz.tsx` FiguresToggle). Verified by DOM measurement at 1280px (order, 30 heatmap
+  cells, no overflow). Headless screenshots render blank on this machine - not usable.
+  **Known app-wide gap:** below ~640px the nav rail still takes 240px (every page), not Summary-specific.
+- **Recharts adopted** (`recharts@3.10.1`, pinned) - **ADR-0022** supersedes ADR-0021 §3 (Highcharts
+  rejected: commercial licence; Kosh is meant to be sold). Month by month is now
+  `InOutChart.tsx`: per month a "Came in" bar beside a stacked out bar (committed / day-to-day /
+  invested, or one neutral "went out" for pre-plan months), unrecorded months skipped, y-axis
+  ₹30K/₹1.2L ticks, custom tooltip printing only server strings (ADR-0022 §2). Verified live:
+  bar heights 136/139/250px for In, tooltip on October shows all five figures. `ColumnChart` is
+  now unused. Candidates for Recharts next: debt curve (`TrendLine`) if the user wants hover there.
+- **All Summary plots now Recharts** (user: "everywhere ... highcharts no"): Month by month =
+  Income | Expenses (committed/day-to-day/invested stack) | **Left after expenses** (can go
+  below zero) - `InOutChart`; month split = `SplitBar`; categories = `CategoryBars`; debt =
+  `DebtCurve` (area + payoff dots); loans = `PayoffTimeline` (horizontal bars to last EMI, year
+  ticks). Shared hover card `ChartTooltip.tsx` (server strings only). Old `ColumnChart`,
+  `TrendLine`, `chartScale` deleted. Heatmap stays hand-built. All 5 hover-tested live.
+Headless screenshots render blank (CDP `captureScreenshot` on this machine) - verify UI by DOM
+queries instead (`$TEMP/kosh/cdp/peek.mjs` pattern) until that's solved.
+
 **Next if none of that is answered:** FIX_BACKLOG impossible-state family, or Phase 7.
 
 ### 1. ROADMAP 4.4 (unlock redirection) - first slice of the session

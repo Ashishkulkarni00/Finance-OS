@@ -32,6 +32,13 @@ export const commitmentSchema = z
     message: 'A fixed commitment needs its amount - or record it as one that varies',
     path: ['fixedAmount'],
   })
+  // A payment or income needs its category: every time it's paid, the entry in the Ledger
+  // takes it from here - without one, the user is asked again every month (2026-11-09).
+  // Saving and investing are transfers and carry no category.
+  .refine((v) => (v.settleAs !== 'EXPENSE' && v.settleAs !== 'INCOME') || v.categoryId != null, {
+    message: 'Pick a category - each payment of it uses this',
+    path: ['categoryId'],
+  })
   // Money moved or invested has to land somewhere.
   .refine((v) => (v.settleAs !== 'TRANSFER' && v.settleAs !== 'INVESTMENT') || v.toAccountId != null, {
     message: 'Which account does the money go into?',
@@ -93,7 +100,36 @@ export function useLastPayment(dueDay: number, firstDue: string | null, initialA
     setEndYear('');
   };
 
-  return { endMonth, setEndMonth, endYear, setEndYear, lastDue, error, yearOptions, clear };
+  /** Sets both halves from one `YYYY-MM` (or '' for "keeps going") - the single-dropdown picker. */
+  const setEnd = (ym: string) => {
+    setEndYear(ym ? ym.slice(0, 4) : '');
+    setEndMonth(ym ? ym.slice(5, 7) : '');
+  };
+
+  return { endMonth, setEndMonth, endYear, setEndYear, setEnd, lastDue, error, yearOptions, clear, firstDue };
 }
 
 export type LastPayment = ReturnType<typeof useLastPayment>;
+
+/** `YYYY-MM` plus `k` months. */
+export function addMonths(ym: string, k: number): string {
+  const y = Number(ym.slice(0, 4));
+  const m = Number(ym.slice(5, 7)) - 1 + k;
+  const yy = y + Math.floor(m / 12);
+  const mm = ((m % 12) + 12) % 12;
+  return `${yy}-${String(mm + 1).padStart(2, '0')}`;
+}
+
+const MONTH_FMT = new Intl.DateTimeFormat('en-IN', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+const DAY_FMT = new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+
+/** "November 2026". */
+export function monthLabel(ym: string): string {
+  return MONTH_FMT.format(new Date(`${ym}-01T00:00:00Z`));
+}
+
+/** "5 Nov" - the due date inside a month, or null when the day isn't valid yet. */
+export function dueLabel(ym: string, dueDay: number): string | null {
+  if (!Number.isInteger(dueDay) || dueDay < 1 || dueDay > 28) return null;
+  return DAY_FMT.format(new Date(`${ym}-${String(dueDay).padStart(2, '0')}T00:00:00Z`));
+}

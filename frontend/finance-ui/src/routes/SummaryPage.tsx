@@ -5,7 +5,8 @@ import { DebtDown } from '@/features/summary/components/DebtDown';
 import { MonthByMonth } from '@/features/summary/components/MonthByMonth';
 import { PlanKept } from '@/features/summary/components/PlanKept';
 import { WhereItWent } from '@/features/summary/components/WhereItWent';
-import { WhereYouStand } from '@/features/summary/components/WhereYouStand';
+import { SummaryTiles } from '@/features/summary/components/SummaryTiles';
+import { CategoryHeatmap } from '@/features/summary/components/CategoryHeatmap';
 import { useGetDebtTrajectoryQuery, useGetReviewMonthsQuery } from '@/services/reviewService';
 
 const HORIZON = 12;
@@ -76,13 +77,15 @@ export default function SummaryPage() {
         </p>
       </header>
 
-      <WhereYouStand current={current} samePoint={data.samePoint} debt={debt.data} />
+      <SummaryTiles current={current} samePoint={data.samePoint} debt={debt.data} />
 
       <Momentum />
 
       <MonthByMonth months={data.months} monthsRecorded={data.monthsRecorded} samePoint={data.samePoint} />
 
       <WhereItWent months={data.months} />
+
+      <CategoryHeatmap months={data.months} />
 
       {debt.isError ? (
         <ErrorState message="We couldn’t load the debt curve." onRetry={() => debt.refetch()} />

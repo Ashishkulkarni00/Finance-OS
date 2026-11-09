@@ -128,6 +128,7 @@ export default function MonthPage() {
           {mode === 'current' && (
             <InsightList
               surface="MONTH"
+              limit={2}
               calmNote={nextUp ? `Next: ${nextUp.commitmentName}, ${formatShortDate(nextUp.dueDate)}.` : undefined}
             />
           )}

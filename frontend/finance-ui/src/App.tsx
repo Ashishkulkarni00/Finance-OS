@@ -58,7 +58,9 @@ export function App() {
               <Route path="cards" element={<CardsPage />} />
               <Route path="debts" element={<DebtsPage />} />
               <Route path="investments" element={<InvestmentsPage />} />
-              <Route path="cover" element={<CoverPage />} />
+              <Route path="insurance" element={<CoverPage />} />
+              {/* Renamed from "Cover" (user, 2026-11-09) - old links still land. */}
+              <Route path="cover" element={<Navigate to="/money/insurance" replace />} />
             </Route>
             <Route path="/accounts" element={<Navigate to="/money/accounts" replace />} />
             <Route path="/commitments/:instanceId" element={<CommitmentDetailPage />} />

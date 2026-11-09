@@ -39,17 +39,19 @@ function FeasibilityLine({ f }: { f: GoalFeasibility }) {
     UNKNOWN: 'Can’t tell',
   };
   return (
-    <p className="flex gap-space-2 pb-space-2 pl-space-4 text-caption">
+    // Its own panel, set in from the row and spaced off it - it was a caption pressed against
+    // the goal's line and read as part of it (user, 2026-11-09).
+    <div className="mx-space-4 mb-space-4 mt-space-1 flex flex-col gap-space-1 rounded-md bg-sunken px-space-3 py-space-2">
       <span
         className={cn(
-          'shrink-0 text-micro uppercase tracking-[0.08em]',
+          'text-micro uppercase tracking-[0.08em]',
           f.state === 'DOES_NOT_FIT' ? 'text-attention' : f.state === 'FITS' || f.state === 'COVERED_BY_PLAN' ? 'text-positive' : 'text-ink-muted',
         )}
       >
         {label[f.state]}
       </span>
-      <span className="text-ink-soft">{f.reason}</span>
-    </p>
+      <p className="text-caption text-ink-soft">{f.reason}</p>
+    </div>
   );
 }
 

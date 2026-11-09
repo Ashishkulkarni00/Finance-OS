@@ -190,7 +190,8 @@ export function BeforePayday({ items, isLoading, isError, salaryDate, warnings }
                   {DAY.format(new Date(group.date))}
                 </span>
                 <span className="text-caption text-ink-muted">{whenLabel(group.date)}</span>
-                <span aria-hidden className="h-px flex-1 bg-line" />
+                {/* No trailing rule: the user found the line after "tomorrow" stray (2026-11-09) -
+                    the date in caps already marks the group. */}
               </div>
 
               {group.rows.map((item) => {

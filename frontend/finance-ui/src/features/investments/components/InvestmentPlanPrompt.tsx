@@ -75,7 +75,12 @@ function Prompt({ investment, rules }: { investment: InvestmentResponse; rules: 
  */
 export function InvestmentPlanPrompt({ investments }: { investments: InvestmentResponse[] }) {
   const { data: rules } = useGetCommitmentRulesQuery();
-  const unplanned = investments.filter((i) => i.monthlyContribution != null && i.payFromAccount != null && i.planCommitmentId == null);
+  // A ₹0 instalment means contributions stopped (an RD kept but no longer paid into) - there
+  // is nothing to put in the plan, and "₹0 leaves every month" was a warning about nothing
+  // (user, 2026-11-09). A comparison for presence, not arithmetic on money.
+  const unplanned = investments.filter(
+    (i) => i.monthlyContribution != null && Number(i.monthlyContribution) > 0 && i.payFromAccount != null && i.planCommitmentId == null,
+  );
   if (unplanned.length === 0) return null;
   return (
     <section>

@@ -140,6 +140,7 @@ export default function TodayPage() {
           wide enough to read as two unrelated pages.
           Both land after the summary has settled, so the eye reaches "what is coming" only
           once "what can I spend" has been read. */}
+      {/* 26rem right track: must match SpendToday's, so the band's divider and this one are one line. */}
       <div className="grid grid-cols-1 gap-space-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] xl:gap-0">
         <section className="reveal xl:pr-space-8" style={{ '--reveal-delay': '420ms' } as CSSProperties}>
           <SectionHeader

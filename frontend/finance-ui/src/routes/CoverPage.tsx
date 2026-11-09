@@ -142,8 +142,8 @@ export default function CoverPage() {
     <div className="flex flex-col gap-space-8">
       <div className="flex items-start justify-between gap-space-4">
         <div className="flex flex-col gap-space-1">
-          <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">Cover</span>
-          <span className="text-title text-ink">What you wouldn’t have to find</span>
+          <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">Insurance</span>
+          <span className="text-title text-ink">What you’re covered for</span>
           <span className="text-caption text-ink-muted">
             {policies.length} {policies.length === 1 ? 'policy' : 'policies'}
           </span>
