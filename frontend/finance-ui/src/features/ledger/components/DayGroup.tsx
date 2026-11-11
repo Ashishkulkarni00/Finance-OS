@@ -22,14 +22,14 @@ function DayFigure({ subtotal }: { subtotal: DaySubtotalResponse | undefined }) 
     <span className="inline-flex shrink-0 items-baseline gap-space-4">
       {hasOut && (
         <span className="inline-flex items-baseline">
-          <span className="num mr-[0.1em] text-critical">−</span>
+          <span className="num mr-[0.1em] text-ink-muted">−</span>
           <Amount value={subtotal.moneyOut} role="caption" className="text-ink-soft" />
         </span>
       )}
       {hasIn && (
         <span className="inline-flex items-baseline">
-          <span className="num mr-[0.1em] text-positive">+</span>
-          <Amount value={subtotal.moneyIn} role="caption" className="text-positive" />
+          <span className="num mr-[0.1em] text-ink-muted">+</span>
+          <Amount value={subtotal.moneyIn} role="caption" className="text-ink-soft" />
         </span>
       )}
       {hasTransfers && (
@@ -48,6 +48,8 @@ interface DayGroupProps {
   subtotal: DaySubtotalResponse | undefined;
   categories: CategoryResponse[];
   onEdit: (transaction: TransactionResponse) => void;
+  /** Ids currently being deleted - shown dimmed, not hidden. */
+  deleting?: ReadonlySet<number>;
 }
 
 /**
@@ -67,7 +69,7 @@ interface DayGroupProps {
  * are inside a long day the date it belongs to stays on screen. Scrolling a ledger and
  * losing track of which day you are looking at is the specific failure this fixes.
  */
-export function DayGroup({ date, transactions, subtotal, categories, onEdit }: DayGroupProps) {
+export function DayGroup({ date, transactions, subtotal, categories, onEdit, deleting }: DayGroupProps) {
   const parsed = new Date(date);
   const today = isToday(date);
   const relative = today ? 'Today' : isYesterday(date) ? 'Yesterday' : null;
@@ -94,7 +96,7 @@ export function DayGroup({ date, transactions, subtotal, categories, onEdit }: D
       </div>
 
       {transactions.map((t) => (
-        <TransactionRow key={t.id} transaction={t} categories={categories} onClick={() => onEdit(t)} />
+        <TransactionRow key={t.id} transaction={t} categories={categories} onClick={() => onEdit(t)} deleting={deleting?.has(t.id)} />
       ))}
     </div>
   );

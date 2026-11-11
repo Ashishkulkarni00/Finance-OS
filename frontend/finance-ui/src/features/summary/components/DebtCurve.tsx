@@ -58,11 +58,11 @@ export function DebtCurve({ debt }: { debt: DebtTrajectoryResponse }) {
           <XAxis dataKey="label" tickLine={false} axisLine={false} tick={AXIS_TICK} interval="preserveStartEnd" minTickGap={40} />
           <YAxis width={56} tickLine={false} axisLine={false} tick={AXIS_TICK} tickFormatter={(v: number) => compactMoney(String(v))} />
           <Tooltip content={TooltipBody} cursor={{ stroke: 'var(--border)' }} />
-          <Area type="monotone" dataKey="owed" stroke={DEBT} strokeWidth={2} fill={DEBT} fillOpacity={0.1} activeDot={{ r: 5, stroke: 'var(--surface)', strokeWidth: 2 }} />
+          <Area type="monotone" dataKey="owed" stroke={DEBT} strokeWidth={1.5} fill={DEBT} fillOpacity={0.1} activeDot={{ r: 5, stroke: 'var(--surface)', strokeWidth: 2 }} />
           {rows
             .filter((r) => r.clears.length > 0)
             .map((r) => (
-              <ReferenceDot key={r.label} x={r.label} y={r.owed} r={5} fill={DEBT} stroke="var(--surface)" strokeWidth={2} />
+              <ReferenceDot key={r.label} x={r.label} y={r.owed} r={5} fill={DEBT} stroke="var(--surface)" strokeWidth={1.5} />
             ))}
         </AreaChart>
       </ResponsiveContainer>

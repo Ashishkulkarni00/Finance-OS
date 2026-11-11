@@ -77,7 +77,7 @@ export function InvestmentRow({ investment }: { investment: InvestmentResponse }
   };
 
   return (
-    <div {...rowDoc}>
+    <div {...rowDoc} className="row-wrap">
     <LedgerRow
       // There is no /investments/:id page - the row used to link to one, so every click
       // (here and on Accounts) went to a route nothing renders. A holding with a ledger

@@ -41,7 +41,7 @@ export function NumberDisplay({ label, value, of, percent, role = 'section', onE
       className={cn('group flex flex-col items-start gap-space-2 text-left', onExplain && 'cursor-pointer')}
       type={onExplain ? 'button' : undefined}
     >
-      <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">{label}</span>
+      <span className="text-caption text-ink-muted">{label}</span>
       <Amount
         value={value}
         role={role}

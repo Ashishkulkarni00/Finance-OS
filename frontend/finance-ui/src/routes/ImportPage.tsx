@@ -116,7 +116,7 @@ export default function ImportPage() {
       </button>
 
       <div className="flex flex-col gap-space-1">
-        <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">Ledger · Import</span>
+        <span className="text-caption text-ink-muted">Ledger · Import</span>
         <span className="text-title text-ink">Import a statement</span>
         <span className="text-caption text-ink-muted">
           The CSV your bank or card gives you. You check every row before anything is added.

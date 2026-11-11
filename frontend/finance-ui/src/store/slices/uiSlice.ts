@@ -22,7 +22,31 @@ export interface EffectToast {
   effect: WriteEffect;
 }
 
+/**
+ * One transaction delete on its way to the server (UI_UX_REVAMP_PLAN 6.6).
+ *
+ * <pre>
+ * pending (undoable) -> sending -> deleted     the server said so; only now is "deleted" claimed
+ *        |                  \-> failed         the entry is still in the records; Retry offered
+ *      undo -> (entry removed from this map, nothing was ever sent)
+ * </pre>
+ *
+ * Kept in the store, not in a component, so the window survives navigation: leaving the page
+ * must neither cancel the delete nor start a second one.
+ */
+export interface PendingDelete {
+  phase: 'pending' | 'sending' | 'failed' | 'deleted';
+  /** What the entry was called, for the toast. Display only - never logged (ADR-0010). */
+  description: string;
+  /** When the undo window closes (epoch ms). */
+  deadline: number;
+  message?: string;
+  /** The server said 404: someone (or another tab) already deleted it. */
+  alreadyGone?: boolean;
+}
+
 interface UiState {
+  pendingDeletes: Record<number, PendingDelete>;
   addSheetOpen: boolean;
   addSheetPrefill: AddSheetPrefill | null;
   selectedCycleId: string | null;
@@ -40,6 +64,7 @@ interface UiState {
 }
 
 const initialState: UiState = {
+  pendingDeletes: {},
   addSheetOpen: false,
   addSheetPrefill: null,
   selectedCycleId: null,
@@ -79,6 +104,31 @@ const uiSlice = createSlice({
     dismissEffect: (state, action: PayloadAction<number>) => {
       state.effectToasts = state.effectToasts.filter((t) => t.id !== action.payload);
     },
+    deleteQueued: (state, action: PayloadAction<{ id: number; description: string; deadline: number }>) => {
+      const { id, description, deadline } = action.payload;
+      state.pendingDeletes[id] = { phase: 'pending', description, deadline };
+    },
+    deleteCancelled: (state, action: PayloadAction<number>) => {
+      delete state.pendingDeletes[action.payload];
+    },
+    deleteSending: (state, action: PayloadAction<number>) => {
+      const p = state.pendingDeletes[action.payload];
+      if (p) p.phase = 'sending';
+    },
+    deleteDone: (state, action: PayloadAction<{ id: number; alreadyGone: boolean }>) => {
+      const p = state.pendingDeletes[action.payload.id];
+      if (p) {
+        p.phase = 'deleted';
+        p.alreadyGone = action.payload.alreadyGone;
+      }
+    },
+    deleteFailed: (state, action: PayloadAction<{ id: number; description: string; message: string }>) => {
+      const { id, description, message } = action.payload;
+      state.pendingDeletes[id] = { phase: 'failed', description, deadline: 0, message };
+    },
+    deleteCleared: (state, action: PayloadAction<number>) => {
+      delete state.pendingDeletes[action.payload];
+    },
     openPageAdd: (state, action: PayloadAction<{ kind: PageAddKind; cycleId?: number }>) => {
       state.pageAdd = { kind: action.payload.kind, cycleId: action.payload.cycleId ?? null };
     },
@@ -88,6 +138,22 @@ const uiSlice = createSlice({
   },
 });
 
-export const { openAddSheet, closeAddSheet, selectCycle, openSettleSheet, closeSettleSheet, openPageAdd, closePageAdd, showEffect, dismissEffect } =
+export const {
+  openAddSheet,
+  closeAddSheet,
+  selectCycle,
+  openSettleSheet,
+  closeSettleSheet,
+  openPageAdd,
+  closePageAdd,
+  showEffect,
+  dismissEffect,
+  deleteQueued,
+  deleteCancelled,
+  deleteSending,
+  deleteDone,
+  deleteFailed,
+  deleteCleared,
+} =
   uiSlice.actions;
 export default uiSlice.reducer;

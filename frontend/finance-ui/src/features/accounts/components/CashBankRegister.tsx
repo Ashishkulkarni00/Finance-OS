@@ -64,10 +64,10 @@ export function CashBankRegister({ accounts, isLoading }: CashBankRegisterProps)
 
   return (
     <section>
-      <SectionHeader trailing={`${cashBank.length} ${cashBank.length === 1 ? 'account' : 'accounts'}`}>
+      <SectionHeader overCard trailing={`${cashBank.length} ${cashBank.length === 1 ? 'account' : 'accounts'}`}>
         Cash & bank
       </SectionHeader>
-      <div className="flex flex-col">
+      <div className="m-card flex flex-col">
         {cashBank.map((account) => {
           const differs = account.available !== account.currentBalance;
           const balanceNegative = Number(account.currentBalance) < 0;

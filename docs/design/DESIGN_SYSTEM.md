@@ -1,5 +1,14 @@
 # Design System
 
+> **2026-11-09 - partly superseded by [`UI_UX_REVAMP_PLAN.md`](UI_UX_REVAMP_PLAN.md) §5 ("v3").**
+> Philosophy, colour palette, domain hues, number craft, state and chart rules below still hold.
+> **Where the two disagree, the plan wins** - chiefly: type scale and weights (§5.8.2: hero 40/500,
+> body 14, three weights), line weights (hairlines, 1px totals), control sizes (36px, 44 on touch),
+> radii, shadows, scrollbars, the sleek pass (§5.8), the highlight rules (§5.4a), and "answer first,
+> detail on demand" in place of §1's "we rank, we do not hide". A full v3 rewrite of this file is
+> still owed once the revamp settles.
+
+
 **Version 2** — supersedes the v1 sketch. Binding for every screen.
 
 ---

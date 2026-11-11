@@ -7,6 +7,7 @@ import com.finance.commitment.dto.CommitmentPlanProgressResponse;
 import com.finance.commitment.dto.CycleStandingResponse;
 import com.finance.commitment.dto.SetExpectedAmountRequest;
 import com.finance.commitment.dto.SettleCommitmentInstanceRequest;
+import com.finance.commitment.dto.SkipCommitmentInstanceRequest;
 import com.finance.effect.WriteEffects;
 import com.finance.effect.dto.WriteEffectResponse;
 import jakarta.validation.Valid;
@@ -113,9 +114,12 @@ public class CommitmentInstanceController {
         return mapper.toResponse(service.unsettle(id));
     }
 
+    /** Body optional: {@code {reason, note}}. A must-pay commitment needs the reason. */
     @PostMapping("/api/v1/commitment-instances/{id}/skip")
-    public CommitmentInstanceResponse skip(@PathVariable Long id) {
-        return reported(() -> service.skip(id));
+    public CommitmentInstanceResponse skip(@PathVariable Long id,
+                                           @Valid @RequestBody(required = false) SkipCommitmentInstanceRequest request) {
+        return reported(() -> service.skip(id, request == null ? null : request.reason(),
+                request == null ? null : request.note()));
     }
 
     @PostMapping("/api/v1/commitment-instances/{id}/unskip")

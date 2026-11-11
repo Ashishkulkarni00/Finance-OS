@@ -81,7 +81,7 @@ export function ReviewStep({ cycle }: { cycle: CycleResponse }) {
       </div>
 
       <div>
-        <div className="grid grid-cols-[minmax(0,1fr)_8rem_8rem] gap-space-3 pb-space-2 text-micro uppercase tracking-[0.08em] text-ink-muted">
+        <div className="grid grid-cols-[minmax(0,1fr)_8rem_8rem] gap-space-3 pb-space-2 text-caption text-ink-muted">
           <span />
           <span className="text-right">Planned</span>
           <span className="text-right">Happened</span>

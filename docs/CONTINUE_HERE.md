@@ -29,6 +29,592 @@ This changes how much gets *printed*, never how much gets verified.
 
 ## NEXT ACTION
 
+### 2026-11-11 — Today's Standing is now "Your standing" tiles (screenshot-verified, phone + desktop)
+
+User asked for something other than the folded list. `StandingPanel` rewritten: always-visible
+row of five tiles - If income stopped (opens runway basis in a Sheet), Owed (debt basis in a
+Sheet), Usual month (→ /summary, hidden until a baseline exists), Flexible this month "whole
+cycle, not what's left" (→ /month), Net worth (→ /money/accounts, in ink not red - the
+2026-11-01 "nothing is making sense" lesson). Phone: horizontal `ScrollStrip`, snap with
+`scroll-px-space-4`; desktop: 5-column grid. The open/closed state and its
+`kosh.today.standing.open` key are gone; MetricRow/WhyLabel/Basis removed with the old layout.
+
+### 2026-11-11 — Add form: no "Investment" type for new entries
+
+User asked to drop it. `TransactionFormFields` filters INVESTMENT out of the type switch unless
+the entry being edited already is one (so old investment entries still open and edit). SIP/RD
+instalments are recorded via their commitment's "Record it" (settleAs INVESTMENT). Caveat told to
+the user: a one-off lump sum can now only go in as a Transfer to the investment account, which
+the Month "Invested" line does not count. Backend unchanged; Ledger filter still lists Investments.
+
+### 2026-11-11 — Heroes come out of their cards on Month and Money (screenshot-verified)
+
+User: Month and Money tops felt like "cards everywhere". **Rule now (phone):** a page's headline
+figure sits on the ground, unboxed, with a hairline three-across `FactStrip`; cards are for
+lists and the sections below. (Today's hero card and detail-page hero cards unchanged - not
+raised.) Month: new `MonthHero` (phone only) = Flexible + pace + one strip with a
+"The plan | So far" switch (plan: comes in / − committed / − set aside; so far: money in / out /
+left over + "Every entry →") - replaces the two stacked cards; desktop keeps `MonthShape` +
+`CycleInOut` (MonthShape's phone branch removed). Money: `m-card` removed from NetWorthZone and
+the Debt/Investment/Cover/Cards standings; Net worth's "owned · owed" now sits straight under
+the figure.
+
+### 2026-11-11 — Month's "Coming up" now reads like the Ledger (screenshot-verified, phone + desktop)
+
+User: liked the Ledger; asked for Month's sorting/organisation to match. `PlanZone` by-date view:
+Ledger-style toolbar (segmented By date | By category chip, Categories icon, + Add), sticky
+`PlanDayHeader` per date (day figure, weekday, "1 day overdue"/"in 16 days", rule, server
+outstanding + "to pay"/"not settled"; amber when passed, accent today/tomorrow), rows lead with the
+Ledger's `TypeMark` (exported from `TransactionRow`) instead of a `DateBlock`, secondary is
+"Category · Must-pay/Optional". Income is no longer a block above the list: expected income sits
+in its day (`ExpectedIncomeRow`), received income goes to Done (`ReceivedIncomeRow`); Done lists
+both in date order. `IncomeBlock` removed. By-category view keeps GroupBands with a "Coming in" group.
+
+### 2026-11-11 — Phone pass over every screen: cards everywhere (screenshot-verified, light + dark)
+
+The phone layout rule now, so new screens follow it:
+- **Worklist pages (Today, Month, Goals, Money › Overview):** title *above* a card -
+  `<SectionHeader overCard>` + `.m-card` on the body.
+- **Detail pages, Summary, Money's other tabs:** each section *is* a card with its title inside.
+  Detail pages get it from CSS (`.detail-page > section`, `.detail-page > .detail-group > section`
+  in index.css); Money tabs from `.divided > section`; Summary sections carry `m-card` themselves.
+  Detail heroes (hero + FactStrip) are an `m-card` div on all six detail pages.
+- Month's sum on phones: Flexible as the hero, pace bar, then Comes in / − Committed / − Set aside
+  as ruled lines (`MonthShape` phone branch; desktop unchanged).
+- Today › Before payday: payday's date group is a "Payday · Sat, 28 Nov — next month starts" band,
+  because items due on payday belong to the next cycle.
+- Skipped commitments no longer offer "Settle this" on their page.
+- **CSS trap:** the zero-border re-asserts in index.css must out-rank the unlayered two-class
+  hairline rules - single-class ones are doubled (`.max-md\:border-t-0.max-md\:border-t-0`).
+- Seen, not fixed: Bike loan page says "Next EMI 5 Oct" while its schedule's next is 5 Dec (two
+  due dates passed) - looks like a stale/wrong derived date; not a layout issue, worth a look.
+
+### 2026-11-11 — Today's Standing panel restyled (screenshot-verified, phone + desktop)
+
+`StandingPanel` `MetricRow` is now a self-contained block: label + figure on one line, the note
+full width beneath (the old `display: contents` grid kept the note in the label's half-width
+column, so on a phone one-line notes wrapped to four). Runway's bordered pill → plain
+"up to 2.5 months". Each row draws its top rule, so Net worth's heavier rule no longer stacks on
+a hairline. Labels/figures medium weight; Basis totals bold. `first:border-t-0` added to the
+index.css zero-border re-assert list.
+
+### 2026-11-11 — Skip any commitment for one month, with a reason (BUILT, DDL applied)
+
+**Trap learned:** the backend runs under DevTools, so `mvnw compile` restarts the user's live
+app - with a new `@Column` that means it goes down until the DDL is applied. Warn before compiling.
+User asked 2026-11-11: "this month I am not doing Zerodha SIP, I want to skip it."
+- Backend: `SkipReason` enum (MONEY_NEEDED_ELSEWHERE · NOT_NEEDED · PAID_ANOTHER_WAY · POSTPONED ·
+  OTHER - no "cancelled": ending a commitment is a plan edit). `POST …/skip` takes optional
+  `{reason, note}`; must-pay now skippable but needs `reason`; `sourceType=LOAN` refused (lender
+  debits anyway); paid/linked still refused; unskip clears both. Reason/note on the list and
+  detail responses. Old `skip(id)` kept as a default method (OptionalBillsIntegrationTest).
+  `mvnw compile` + `test-compile` pass; tests not run. Postman: new request after "Skip an
+  optional bill", 200 + 422 examples.
+- Frontend: `features/month/skipReasons.ts` (labels + `canSkip`, mirrors the server rule);
+  `SkipSheet` asks why every time (chips + optional note, note required for "Something else"),
+  shows the freed amount and a must-pay's own "If skipped" line. **Skip lives only on the
+  commitment's own page** (tap the row → "Skip this month" beside "Settle this") - the user
+  didn't want it on the Month row beside Settle (2026-11-11). Done row reads "Skipped · Money
+  needed elsewhere" with the note; the commitment page shows the reason too. Sheet opens with
+  focus on the name (`data-autofocus`), so the phone keyboard doesn't cover the reasons.
+- DDL applied by the user 2026-11-11; backend back up on the new code (GET shows `skipReason`).
+  Sheet verified on screen; the skip write itself not yet exercised (writes blocked in checks).
+
+### 2026-11-11 — Today on phones is cards, not prose (built, screenshot-verified light + dark)
+
+User: "today page is looking like some wikipedia information". Phone only (`max-md`/`md:hidden`;
+desktop unchanged): `.m-card` in index.css (white surface, hairline, 18px radius, phone only).
+Hero card = label + "17 days to salary" chip, figure, one short line, then two list rows
+("How it's worked out ›" opening the Breakdown, "Next salary +₹57,700"). `PositionTrio` is three
+across with one-word labels on phones (positive state - not seen on real data, which is short).
+Way back, Before payday and Standing each sit in a card under a rule-less title; Way back's
+catch-up sentence is a one-line "Put back next month · ₹325 a month" chip.
+
+Same day, every page's top summary went into a phone card: Month (the sum, and "So far this
+cycle"), Ledger's fact strip, all five Money tabs' standing blocks, Summary's "Which way things are
+moving". `SectionHeader overCard` = title above a card, rule only on wide screens. `FactStrip`
+carries `fact-strip` so its rules run to the card edge. Emphasis: Month's Flexible in accent,
+"Spent so far" figure and "Left over" bold, net worth's owned · owed line in ink medium, Summary
+headlines medium. **Real bug fixed:** the unlayered retina hairline rule (index.css "Hairlines")
+beat every `last:border-b-0` etc., so on actual phones the last row of every list drew a stray
+line; the zero-width utilities in use are now re-asserted after it - a new `*-0` border variant
+needs adding there too. That exposed a second bug: callers that wrap each `LedgerRow` in a div
+(Transaction/Loan/Investment/Worklist/goal rows) made every row "last", erasing all dividers; the
+wrappers now carry `.row-wrap` and index.css restores the rule on non-last wrappers.
+
+Ledger's top totals (`StatedView`) now show only when the list is narrowed (category, account, type
+or search) - the user: unfiltered they repeat Month. Filtered, they're the answer and exist nowhere else.
+
+### 2026-11-10 — Mobile design pass (built, screenshot-verified at 390px, light + dark)
+
+Reviewed every main route, the overlays and detail pages in headless Chrome at phone width
+(scratch script, writes blocked). Fixed: `LedgerRow` has a dedicated phone layout (identity ·
+name/secondary/one-line meta · figure with action under it; no chevron) - every register and the
+Month worklist inherit it; `MetaFacts` collapses to "Dining · IDBI" in phone rows (`.row-compact`
+in index.css); page subtitles hidden on phones; Ledger header actions icon-only, search full width
+first; Month switcher one full-width control with the day count under it; `SectionHeader` /
+`Disclosure` never break their titles; `FactStrip` goes three across for three facts; detail
+headers reorder (name, identity line, then actions) and step the name down to 26px; Today's
+shortfall state no longer repeats −₹ three times; Money tab toolbar right-aligned; Summary chart
+shorter; goal % rounded. Not done: the Add FAB still overlaps the right edge of rows while
+scrolling (by design - it never hides); Money's toolbar is still its own row under the tabs.
+
+### 2026-11-10 — Month/Ledger polish + OPEN: skip a must-pay commitment, with a reason
+
+Built (type-checks, not eyeballed): Ledger rows coloured by type (`TransactionRow.tsx` `TONE`);
+Month page — "How the month adds up" moved up and always open, "Needs you" full width and
+limit 2, the current-month "Still to pay" block removed (`MonthAnswer` keeps only the INCOMPLETE
+blockers), Skip now opens `SkipSheet` (shows the amount it frees) instead of firing on one tap.
+
+**DONE 2026-11-11 (see top entry) - was OPEN:** they want to skip *any* commitment for one month (e.g. petrol) and
+flag why, with the money released. Today the backend refuses must-pay (`skip()` in
+`CommitmentInstanceServiceImpl`, `INSTANCE_NOT_SKIPPABLE`) and stores no reason. If agreed:
+`POST /commitment-instances/{id}/skip` takes `{reason, note?}`; loan-sourced instances stay
+unskippable; DEFERRED SCHEMA `commitment_instance.skip_reason VARCHAR(30) NULL`,
+`skip_note VARCHAR(200) NULL` (backend won't boot until applied). Reasons to offer: not needed
+this month · paying another way · postponed · cancelled. Show the reason on the Done row.
+
+### 2026-11-10 — Today polish (built, type-checks, not eyeballed in a browser)
+
+User-requested: page `<h1>` bigger everywhere (`--text-page` 22→38px, phone 20→30px, tighter tracking, in
+`index.css`); Today's three numbers redesigned as one visible sum — new
+`features/today/components/PositionTrio.tsx` (free ÷ days = a day, replaces `FactStrip` there
+only); the Needs-you status band and WayBack now `w-full` (they were capped at `--width-read`
+while the shortfall note under a payment row was full width). Next: user eyeballs `/` at desktop
+and phone width; if the bigger h1 crowds `DetailPage`'s back-button row, tune it there.
+
+### ★ 2026-11-09 — now on `feature/complete-ui-ux-revamp`: complete UI revamp
+
+The user asked for a complete UI/UX revamp on this branch. Brief: `design/UI_UX_REVAMP_BRIEF.md`
+(analysis-first, backend untouched). **Plan: `design/UI_UX_REVAMP_PLAN.md` - Revision 2,
+the final version for approval (user's review round done: Breakdown registry, pending-delete,
+native `<dialog>`, notification tiers, capped-backoff connectivity, release gate G1, Part 12
+manual acceptance checklist, dates fixed to Mon 9 Nov 2026, Kosh as the product name, Add
+button always visible). Not approved, nothing built.** Found while revising: FIX_BACKLOG 1.15
+was fixed in code 2026-11-07, but no runtime check is recorded - that is gate G1 (Part 11). User decision this session: **detail on demand** ("Rank the answer,
+fold the proof, never lose it"), which revises DESIGN_SYSTEM §1 / UI_UX_PRINCIPLES §5.
+
+- **IMPLEMENTATION STARTED 2026-11-09 (user: "start the implementation according our plan").**
+  Appendix A decisions are unanswered, so the plan's defaults apply (Kosh; labels Ledger/Summary/
+  Debts unchanged; Standing closed; pay day read-only; first close blocked by G1).
+  - **Phase 1 (tokens & type v3) - code done, compiles (`tsc` + `vite build`), contrast
+    script passes all pairs light+dark (`$TEMP/contrast.mjs`; one fix: `--attention-wash`
+    -> #fdf6ec). NOT yet viewed in a browser (backend was down) - Part 12 T1/A1/A2 still owed.**
+    **COLOURS REVISED 2026-11-09 (user): a mint-tinted ground and a beige ground were both rejected; the v2 neutrals (#FAFAF9 ground etc.) are RESTORED and kept. Freshness = highlights (plan §5.4a), not tinted backgrounds. Do not tint backgrounds again. Also added `--on-accent` (dark-mode buttons had white text on bright teal).**
+    Changed: `index.css` (washes, info, shadows, `--surface-raised`, `--width-read/wide`,
+    `text-page`/`text-sectiontitle`, dark tokens duplicated for `[data-theme]` forcing),
+    `index.html` (pre-paint `kosh.theme` script, `viewport-fit=cover`), `lib/brand.ts` (`APP_NAME`),
+    `SectionHeader` (sentence-case h2, `--line` rule), `Card` (softer edge), `Modal` title
+    (no serif), `NavRail` (APP_NAME).
+  - **Phase 1 ACCEPTED 2026-11-09** (backend up): tokens apply in light+dark on 8 pages, no console
+    errors, no overflow at 1440; phone overflow is the known pre-Phase-3 gap.
+  - **Phase 2 (overlays) built + browser-verified 2026-11-09:** `components/Sheet.tsx` (native
+    `<dialog>`, side panel md+ / bottom sheet phone, drag handle, dirty guard auto-detected from
+    input events + clicks on role=option/radio/switch/aria-pressed), `Dialog.tsx` (confirm; focus on
+    Cancel; backdrop does nothing), `overlay/useModalDialog.ts`, `Breakdown.tsx` (native popover md+,
+    Sheet on phone), `Modal.tsx` is now an alias of Sheet (25 call sites untouched), `lib/portalTarget.ts`
+    (Select/InfoTip portal INTO the open dialog - the top layer hid them otherwise),
+    `Statement` is container-responsive (notes fold under the row below 36rem), `useMediaQuery`.
+    B1 wired on Today (`SpendToday` -> Breakdown{PositionStatement bare}); formula verified in
+    `PositionServiceImpl:231`: real = held - reserved - committed - cardDues. Verified: Add/goal/loan/
+    commitment/account sheets open, focus on first field, Tab never reaches a page element, Esc clean
+    closes + restores focus, dirty Esc -> discard dialog, select-only edit counts as dirty, dropdown
+    visible above sheet, Breakdown figures = server, Esc closes + focus returns.
+    **Not done in Phase 2:** Drawer (built with Needs-you in Phase 5); B2-B5 wiring (Phases 5/7/10,
+    each needs its backend check); HelpOverlay / HelpContextMenu still portal to body (fix in Phase 4);
+    toasts sit under an open dialog (they appear after close; revisit in Phase 8 pending-delete).
+    Real-device checks owed: iOS Safari for `<dialog>`/`popover`/`inert` (A8, user).
+  - **Phase 3 (responsive shell) built, verified at 360/390/430/768/1024/1440:** `AppShell` (h-dvh, focus+title on route
+    change, Suspense skeleton), `NavRail` (72px tablet / 232px desktop, Today badge = CRITICAL+ATTENTION only),
+    `BottomBar` (+More sheet), `AddFab` (always visible, always Add transaction), `ConnectivityBanner` +
+    `connectivitySlice` (2 failures -> banner, backoff 2/4/8/16/30s +-20%, paused when hidden, immediate on
+    online/focus), `NotFoundPage`, `PageSkeleton`. **Connectivity retry timing and writes-disabled NOT yet tested
+    (S2-S4 owed); per-figure stale marking waits for Phase 5/6.**
+  - **OPEN: phone horizontal overflow inside `<main>` on /ledger (614px), /month (459), all /money tabs (421-434);
+    Today/Goals/Summary/Needs-you/Help are clean at 390.** Cause not yet identified (was mid-probe). Fix in the page
+    phases or sooner (Money tabs strip needs overflow-x-auto).
+  - **Phase 1b "sleek pass" IMPLEMENTED 2026-11-09 (Sonnet), measured in headless Chrome.**
+    Tokens (`index.css`): `--shadow-1/2/3`, `--scroll-thumb(-hover)`, type scale (hero 40/44 w500
+    -0.025em, section 22/500, section-title 15/600, body 14/22, label 12.5/16, row 14/20 w500; phone
+    hero 32, page 20), radii (md6 lg7 xl10 2xl14), scrim 32%, sheet radius 14, nav width 220, thin
+    auto-hiding scrollbars (WebKit pseudo-elements; Firefox standard props; width 0 under
+    `pointer: coarse`), `#app-main { scrollbar-gutter: stable }`, `.scroll-strip` + new
+    `components/ScrollStrip.tsx` (edge fade only on the side with more content; used on the Money tabs,
+    category heatmap, month figure table). Hairline block is **unlayered** at the END of index.css
+    (the Tailwind utilities layer outranks `@layer base`; do not move it back).
+    Components: Button 36/30 (44/36 under `pointer-coarse:`), Select field 36, FormRow 36, inline inputs 36,
+    CycleSwitcher/Sheet/Breakdown icon buttons 32 (44 coarse), Select chip 28, Statement total rule 1px
+    ink-soft + sentence-case labels, NavRail (34px items, 13.5px, 2px accent bar on the active item,
+    wordmark 15/600), Sheet/Dialog use `--shadow-3`, popovers/menus/toasts `--shadow-2`.
+    Sweeps: all 161 icon strokes 1.5 (5 small glyphs 1.75); 51 files' uppercase eyebrows -> `text-caption`;
+    `border-ink`/`border-t-2`/`shadow-lg|xl`/bare `h-11` = 0.
+    **Measured (1440, fine pointer):** sidebar 220, Add 34, nav item 34/13.5/400, hero 40/500/-1px, body
+    14/22, section title 15/22/600, FormRow 36 (+rule), Save 36; coarse emulation: Save 44, close 44x44,
+    scrollbar 0px. **K1 K2 K3 K4(code) K6 K7 pass. NOT verifiable headless: (a) the 0.5px hairline - even a
+    plain `0.5px` border computes to 1px under CDP's emulated DSF; the rule is in the build and the media
+    query matches - needs a retina/phone eyeball (K5/K8); (b) K8 the user's "fine and sleek" verdict.**
+  - **Phase 3 finished the same session:** phone overflow FIXED on every page at 390 (LedgerRow is now a
+    two-line flow below md and the grid from md up; page-header action groups wrap); connectivity
+    verified: banner after the browser goes offline, probes back off ~2/4/7/19/29s (jitter), "Back online"
+    on recovery; **writes are now refused in `baseQuery` while offline (code `OFFLINE`, nothing sent,
+    sheet stays open with the entry and the reason)** - verified online vs offline. Per-figure stale marking
+    ("as of 10:42" on the hero) is still owed (Phases 5/6).
+  - **Regression after 1b:** p1 (8 pages x light/dark/phone, no errors), p2 (sheet behaviour), p3
+    (Breakdown) all pass.
+  - **Phase 4 (help consolidation) BUILT + verified 2026-11-09:** deleted 7 `*Primer`, 7 `*GuideSheet` and
+    `components/PagePrimer.tsx` (15 files; their content already lived in the manual as each category's
+    `how-*-works` hub topic - verified, not assumed). New `features/help/PageHelp.tsx`:
+    `PageHelpButton topic=...` (32px icon, 44 on touch, opens the manual overlay at the page's topic) and
+    `PageSubtitle` (the primer's headline sentence, permanent, 13px muted). Wired on Today, Month, Money >
+    Overview, Debts, Investments, Goals, Ledger. `HelpOverlay` is now built on `Sheet` (native dialog:
+    inert page, Esc, focus to the title and back to the `?`, animates); `HelpProvider` keeps it mounted so
+    it can animate out. `HelpContextMenu` portals via `topLayerTarget()` so a right-click menu inside a
+    sheet is visible. **Verified on 7 pages x 1440/390:** icon present, no "How X works" link, no primer
+    close button, subtitle present, overlay opens at the right topic, Esc closes + `?help=` removed + focus
+    back on the icon; menu inside the Add sheet is on top and "Read help" opens help above the sheet.
+    Regression: p1 24/24 no errors, p2 sheets, overflow sweep 12/12 clean at 390.
+    **Leftovers (harmless, not removed):** `help/retrofit.ts` `termsOf(..., onlyPrimer)` and the `primer`
+    flag in `help/types.ts` are now unused by any page; delete them with the manual's next pass.
+    The Cards / Insurance / Needs-you pages never had a primer, so they have no `?` yet (Phase 5/10).
+  - **Sleek pass ACCEPTED by the user 2026-11-09 ("it does pass sleekness").** K8 closed.
+  - **Phase 5 (Today + Needs-you panel) BUILT + verified 2026-11-09 against the live server:**
+    * `routes/TodayPage.tsx` is one FULL-WIDTH column (user asked to expand it right as well; sentences, the status band and Way back are capped at `max-w-(--width-read)`; strip/Before payday/Standing span the page), LEFT-ALIGNED to the page edge (it was centred; the user noticed the extra left inset vs other pages, fixed - every page's content now starts at x=305 @1440; do NOT use `mx-auto` on reading columns): h1 + `PageHelpButton` + subtitle + date line;
+      `SpendToday` (hero = roomLeft, sentence, progress rule, `FactStrip` Free until salary | Days to
+      salary | A day from here, "How is X worked out?" -> Breakdown B1, "Then salary ... expected");
+      `TodayStatus` (amber band naming the top urgent item + "and N more", opens the panel; red only
+      for CRITICAL; or the all-clear line with its reason); `WayBack` (self-hides); Before payday
+      (`BeforePayday` shows the first 5 rows + "Show all N", rows carrying a shortfall always show);
+      `StandingPanel` CLOSED by default (the user's earlier "open by default" is superseded by plan 4.1).
+      Old `InsightList` rail ("Also worth a look") removed from Today.
+    * **Needs-you is a panel, not a page:** `features/attention/NeedsYouPanel.tsx` (on the new
+      `components/Drawer.tsx`, a no-dirty-guard Sheet) mounted once in `AppShell`, driven by `?needs=1`
+      (`lib/needsPanel.ts`, preserves other params). Polls 30s only while open and focused. Entry
+      points verified: status band, nav badge (a real button beside the link; also in `BottomBar`),
+      `/needs-you` (now `<Navigate to="/today?needs=1">`), `InsightList` "see all" on Month (opens it
+      over /month), the toast fallback destination. Badge = CRITICAL+ATTENTION only (4 live = 4).
+    * **Stale marking:** while `connectivity.offline` the hero loses its accent, prints "As of HH:MM. May
+      be out of date.", the Breakdown carries the same line, and the Add form's affordability note is not
+      asked (`TransactionFormFields`). `formatClock` added to `lib/dates.ts`.
+    * New `components/FactStrip.tsx` (label over figure, hairline rules, 2x2 on a phone) - reuse it for
+      Month/Money answer blocks (plan 5.8.6 #4).
+    * Deleted: `NeedsYouPage`, `DayStatus`, `FreeUntilSalaryHero`, `CommitmentRulesSection`,
+      `HistorySection`, `StandingZone`.
+    * **Verified:** column 720px, hero 40px (32 on a phone), fact figures = API (3,168 / 19 / 167),
+      Standing aria-expanded=false, breakdown opens/closes, panel opens/closes with `?needs=` added and
+      removed, offline hero grey + stamp then restored, phone: no overflow, 2-column facts, badge opens
+      the bottom sheet. Regression: p1 24/24, p2, p3, help (14/14), overflow 12/12.
+    * **Not exercised (no data to):** "Show all" with more than 5 payments before payday (live data has
+      exactly 5), the red CRITICAL band colour, an empty Needs-you list.
+  - **Phase 6 (Add transaction) BUILT + verified 2026-11-09 (plan 4.3):**
+    * `AddSheet` is a 440px side sheet (`Sheet size="narrow"`, new prop; full-width bottom sheet on a phone).
+    * Type selector is a compact one-line segmented control (h-32, 40 on touch), labels only. **Colour
+      change:** the red Expense / green Income tinting of the selector and the amount is REMOVED -
+      DESIGN_SYSTEM 4 rule 3 and plan 5.4 say expenses are not red and income is not green; the old
+      code comment called it deliberate but the binding docs forbid it. Amount is ink, 40px/500 (32 on a
+      phone), also used by `SettleCommitmentSheet`.
+    * New `features/transactions/addMemory.ts` (localStorage, try/catch, ids only): last account per
+      entry type (applied on open and when the type changes, re-validated against live eligibility) and
+      the last 4 categories per type, shown as chips under Category. Saved on every successful save.
+    * Date row: Today / Yesterday chips + a native date input; `max` = local today.
+    * **Save & add another** keeps the sheet open with type, account and date; clears the rest; prints a
+      `role=status` line ("Recorded ₹180 · Lunch. Add the next one.") because the toast sits behind an
+      open sheet; focuses the amount; `Sheet cleanToken` stops the discard guard asking over a blank form.
+      **Ctrl/Cmd+Enter** saves + closes from anywhere in the form. Plain Enter still advances fields.
+    * Phone bottom sheet publishes `--kb-inset` from `visualViewport` so the footer sits above the
+      keyboard (`.sheet-panel { bottom: var(--kb-inset) }`) - **logic only; needs a real phone to confirm.**
+    * **Real defect found + fixed: "today" was UTC in 8 places** (`todayIso` x4, onboarding x2, GoalFunding,
+      SettleCommitmentSheet.shiftIso). Between 00:00 and 05:30 IST the Add form defaulted to yesterday and
+      its `max` blocked today. All now use `todayLocalIso` / `shiftIsoDays` (`lib/dates.ts`).
+    * "Towards a commitment?" is unchanged: it already appears (and only appears) when the server-side
+      candidates for the chosen account/type exist; nothing is ever preselected (never guess).
+    * **Verified (stubbed POST /transactions in-page, nothing written):** width 440, segmented 5 labels,
+      amount 40px/500 ink and autofocused, remembered account + chips applied, Yesterday sets 2026-11-08,
+      Income uses its own remembered account, Save & add another / Esc-on-blank / Ctrl+Enter all behave,
+      remembered ids stored after save. Phone (touch emulation): segmented fits (68px each), buttons 44px,
+      chips 36px, no overflow. Offline save still refused before sending. Regression: p1 24/24, sheets, p4.
+    * **Not verified:** a real save end-to-end (needs the user: plan Part 12 N1/N2/N4), the keyboard
+      inset on a real phone, the request body (stub artifact).
+  - **Phase 7 (Month) BUILT + verified 2026-11-09 against the live server (plan 4.5, 4.13, 4.15):**
+    * `routes/MonthPage.tsx`: full-width left-aligned page; h1 + help + subtitle + `CycleSwitcher` + a
+      caption ("28 Oct – 27 Nov · day 13 of 31"). Order: `MonthAnswer` -> Needs you (max 3, the rest in
+      the panel) -> `PlanZone` titled "Coming up" (current month) or "The plan" -> three CLOSED folds
+      (How the month adds up = `MonthShape` + `CycleInOut`; Where day-to-day money went; About this
+      month = `MonthBriefing`).
+    * `MonthAnswer` replaces `MonthOverview` + `MonthCrux` + `CycleBand` (deleted). Current month hero =
+      **`position.breakdown.committed` ("Still to pay before salary")**, then "N of M commitments
+      done" + ProgressRule (integer ratio) + `FactStrip` (Free until salary | Paid so far | Days to
+      salary) + two Breakdown links. **NEVER derive still-to-pay as plannedTotal - settledTotal: live,
+      that is 5,594 vs the server's 5,100.** Past = "How the plan went"; upcoming = "Planned ahead".
+    * **Breakdown B5 verified + shipped** ("What's in ₹5,100?"): server lines `needsYouTotal` 3,100 and
+      `upcomingTotal` 2,000, server total `committed` 5,100 (they reconcile today; the UI prints the
+      server's three numbers and adds nothing). B1 reused for Free until salary.
+    * `PlanZone` split: `PlanRows.tsx` (rows, income block, bandDate) + `PlanZone.tsx` (orchestrator,
+      293 lines). By-date view now lists only dates with something still to do (band = open count +
+      the server's OUTSTANDING total for the date); **Done is a closed fold** (`Done · 14`, paid,
+      received or skipped). By-category view keeps paid rows inline (a review lens). Header controls
+      wrap on a phone; "Manage categories" is now "Categories"; the settled-progress text/rule moved
+      into the answer block.
+    * New `components/Disclosure.tsx` (persisted open state, children mount on first open) - reuse for
+      every "detail on demand" fold. New `lib/releaseGates.ts`: **`MONTH_CLOSE_ENABLED = false`**; the
+      "Close this month" card is not rendered until gate G1 (plan Part 11) passes. The `/month/close`
+      route still exists. Flip the flag as the LAST step of G1.
+    * Settle sheet copy fixed (plan 4.15): with `confirmedAmount > 0` it no longer says "link that entry
+      instead"; it says what is already counted and offers linking only a further, unlinked payment.
+      (Compiles; not exercised - needs a part-paid commitment past its due date.)
+    * **Verified:** header/caption, hero 5,100 = API, "14 of 17" = API, facts 3,168 / 87,368 / 19, B5
+      content, Needs-you 3 cards + "3 of 7 - see all", plan rows, Done 14 rows, all folds start closed and
+      open to the right content, no close card (current/past/upcoming), past shows "How the plan went",
+      upcoming hides day-to-day, phone: no overflow, 32px hero, 2-col facts. Regression: p1 24/24,
+      overflow 12/12, help 14/14, sheets, Needs-you entry points.
+    * **Not verified:** a real commitment settle/skip/edit from the new layout (writes - user, plan Part 12
+      M3-M5), the part-paid settle copy, the by-category view after the refactor (compiled only).
+  - **Phase 8 (Ledger + safe delete) BUILT + verified 2026-11-09/10 (plan 4.4, 6.6):**
+    * **Pending-delete flow:** `features/ledger/pendingDelete.ts` (thunks `requestDelete` / `undoDelete` /
+      `sendDelete` / `dismissDelete`, timers OUTSIDE React so they survive navigation) +
+      `uiSlice.pendingDeletes` (`pending -> sending -> deleted | failed`) + `PendingDeleteHost` (bottom-
+      centre toast; above the bar on a phone). Edit sheet's Delete opens a `Dialog` (alertdialog, focus
+      on Cancel) -> the sheet closes -> the row stays visible, dimmed, struck through, "Deleting…" -> 6s
+      Undo toast -> the request is sent ONLY when the window closes -> "Entry deleted." only after the
+      server's 2xx (404 -> "That entry was already deleted."; other error -> row restored + Retry /
+      Dismiss). Single-flight (a pending id refuses a second request; the mutation has a
+      `fixedCacheKey`). No optimistic cache edit; figures refetch via the mutation's tags. Offline:
+      the Delete button is disabled and `requestDelete` refuses. Tab close/reload inside the window:
+      `beforeunload` prompt while pending or in flight; leaving cancels (nothing was sent). The
+      Dialog's wording ("If it paid a commitment, that commitment shows as unpaid again") is TRUE:
+      `TransactionServiceImpl.delete` soft-deletes and calls `settlementReleaser`. `TransactionResponse`
+      has no commitment link, so the wording is generic by necessity (backend gap, not asked for).
+    * **Verified (DELETE stubbed in-page, nothing removed from your data):** confirm dialog + Cancel;
+      pending state with figures unchanged and 0 requests sent; Undo -> 0 requests after 8s; navigate
+      to Today inside the window -> toast persists, exactly 1 request; success toast then cleared;
+      500 -> failure toast + row restored + Retry -> 2nd request -> deleted; 404 wording; offline ->
+      Delete disabled; reload inside the window -> `beforeunload` shown, after leaving the entry is
+      untouched and 0 requests. (After the stubbed success the row reappears 5s later because the stub
+      did not really delete - expected.)
+    * **Ledger page:** h1 + help + subtitle + Import statement / Categories links; `StatedView` is now a
+      `FactStrip` (Money out | Money in | Entries | Moved between your accounts) + one scope sentence
+      (all server fields); `FilterBar`: period chips + Filters (n) button + search always visible,
+      account/category/type in a collapsible row that opens by itself when the page arrives filtered;
+      "Show older" -> "Load older". Filters remain in the URL (`useLedgerFilters`).
+    * **Colour rule applied:** no red/green in the Ledger rows, type marks, amounts or day figures
+      (arrows + a muted +/- say the direction). New phone fix: effect toasts now sit above the bottom
+      bar / Add pill (`max-md:bottom-...`). baseQuery's offline message now says "Can't make changes".
+    * **Verified:** facts = API (56,599 / 1,06,433 / 65 / 1,04,277), filters closed by default then
+      open to 3 selects, `?category=` arrives open with "(1)" and "Clear filters", phone: no overflow,
+      2-col facts, 28px chip row. Regression p1 24/24, overflow 12/12, sheets, Add form, offline refusal.
+    * **Not done in Phase 8:** 4.4a Import stepper and 4.4b Categories sheet restyle (functional as-is,
+      deferred to Phase 15 polish); the sticky compact header (5.8.6 #12) - day headers are still
+      sticky; "Load older" is a button (no virtualisation, fine at 50/page).
+  - **Phase 9 (detail-page template) BUILT + verified 2026-11-10 (plan 4.8, 4.16):**
+    * New `components/detail/DetailPage.tsx`: `DetailPage` (full-width left-aligned `reveal-shell`, back
+      link - "Back" when there is in-app history, else "Back to <parent>"), `DetailHeader` (h1 + chips +
+      one identity line + actions), `DetailHero` (label / big figure / one sentence), `ArchivedNotice`
+      (the undo for archive/stop: shown instead of the danger zone, with Unarchive / Start it again),
+      `DangerZone` + `DangerItemProps` (Archive/Delete LAST, never in the header, each row says what will
+      happen and asks again in a `Dialog`), `DetailLoading`, `DetailError` (a 404 reads "We couldn't
+      find this <thing>. It may have been deleted." + a way back; other errors keep Retry).
+    * Migrated all six: **Account** (hero balance + as-of; facts Available/Minimum/Opening; working
+      folded; Archive/Delete in the danger zone), **Loan** (hero Outstanding today; sentence debt-free /
+      EMIs left / repaid; facts EMI | Still to pay in all | Rate; Details + Schedule kept; Statement and
+      Loan terms folded), **Credit card** (hero Owed now; facts limit / available / unbilled; Current
+      bill stays primary; "The card" and Statements folded; **statement delete now uses a real Dialog
+      instead of `window.confirm`**), **Goal** (hero Saved + progress bar; facts Target / Set aside a
+      month / Going in a month; Payments, Funding, Saved-in kept; working folded; Archive/Delete in the
+      zone), **Commitment** (hero Still to pay/arrive; facts Expected | Paid so far | Due; the primary
+      action - Settle / Record / Confirm - moved from the page bottom into the header; the old "Back to
+      Months" link is gone), **Commitment rule** (hero Amount; facts Recurs / Due / From; Stop it in the
+      danger zone, Start it again via `ArchivedNotice`).
+    * **Verified (live data, 1440 + 390):** every hero equals its API field (Cash wallet ₹80, HDFC loan
+      ₹1,69,810, card ₹0, Emergency fund ₹71,735, commitment ₹0, rule ₹2,373); all six pages start at
+      x=305 and are 1040 wide (same left edge as every other page); folds start closed; danger zone
+      lists Archive/Delete on account and goal, Stop it on the rule; bad ids show the 404 wording for
+      account and loan; Delete / Archive dialogs open as `alertdialog` with focus on Cancel and were
+      cancelled (nothing archived or deleted); phone: no overflow on any of the six. Regression: p1
+      24/24, overflow 12/12, help 14/14, sheets, Month, delete flow.
+    * **Not exercised (would change data):** actually archiving / unarchiving / deleting an account or
+      goal, stopping a rule, deleting a card statement, settling from the new commitment header button
+      (user - plan Part 12 P2, M3).
+    * **Known thin spots:** an account with nothing extra shows a one-fact strip (Opening balance only);
+      `Cash wallet` has no Breakdown (not in the registry - correct). Account/Loan `Explained` InfoTips
+      kept where the old page had them.
+  - **Phase 10 (Money) BUILT + verified 2026-11-10 against the live server (plan 4.7, 4.7a-d):**
+    * `MoneyLayout` now owns the page title (h1 "Money") and the tab strip; each tab starts with
+      `features/money/components/TabToolbar` (one-sentence subtitle + `PageHelpButton` + the tab's own Add
+      button) and then its answer. All tabs are full-width, left-aligned (x=305 @1440), no boxed panels.
+    * **Overview:** `NetWorthZone` is now a hero (Net worth, -₹2,09,567) + sentence (owned / owed) + the
+      server's debt-progress line from `/momentum` ONLY when direction is BETTER ("₹33,021 of principal
+      repaid since 14 Sep.") + the existing "Approximate" and "Not included" notes + a `FactStrip` of
+      the cash position (Held | Set aside | Yours to move | Owed on cards) + **Breakdown B4 shipped**:
+      Owned / Owed / Net worth = the server's `totalAssets`, `totalLiabilities`, `netWorth`; verified in
+      `PositionServiceImpl.currentNetWorth` (assets - liabilities) and live (97,503.90 - 3,07,070.91 =
+      -2,09,567.01). Then `NeedsALookZone`, `CashBankRegister` (full list, unchanged) and the new
+      `RegistersSummary` ("The rest of your money"): one `LedgerRow` each for Credit cards / Debts /
+      Investments / Insurance (count, one status, the register's own total), each linking to its tab.
+      Deleted `CardsSection`, `DebtsSection`, `InvestmentsRegister`.
+    * **Cards:** hero Owed on credit cards + facts (Bills to pay | Credit available | Card EMIs a month);
+      the card list stays; **Debit cards and "Credit card or debit card?" are closed `Disclosure`s**
+      (the explanation still exists at the point of need, just not as two boxes on every visit).
+    * **Debts:** `DebtStanding` = hero Leaving every month + facts (Still to pay in all | Inside a card bill
+      | Loans); card EMIs are never added into the monthly figure (invariant 4). **Investments:**
+      `InvestmentStanding` = hero Put to work so far + facts (Worth today | Grown by +₹/% | Ready if you
+      need it | Growing for later); gain/loss is a sign and a word, NOT green/red; "Where it's put" is a
+      closed fold. **Insurance:** `CoverStanding` = hero Covered for + facts (Costs you a month - blank,
+      never ₹0, when a premium is unknown | Policies | Renewing soon | Lapsed).
+    * **Verified (1440 + 390):** every tab's hero and facts contain the matching server figures (net
+      worth, cash position, credit-cards, loan summary, investment summary, insurance summary); tabs
+      highlight correctly; B4 popover = API; registers rows navigate (Investments row -> /money/investments);
+      no overflow on any tab on a phone. Regression: p1 24/24, overflow 12/12, help 14/14, sheets,
+      Needs-you, detail pages. Help topics for Cards (`cards.statements-and-paying`) and Insurance
+      (`cover.what-cover-is`) exist.
+    * **Not done in Phase 10:** the tab is still "Debts" (Appendix A #4 unanswered; rename is one label in
+      `MoneyLayout` + the breadcrumbs "Debts" in `DetailPage` backLabel); `InvestmentsCheckIn` max-3
+      and the `Divided` hairlines between sections on Debts/Investments/Insurance were left as they
+      were; no Breakdown for the other tabs' totals (not in the registry - correct); the keep-an-eye
+      "Needs a look" cards on each tab were not restyled.
+  - **Phase 11 (Goals) BUILT + verified 2026-11-10 against the live server (plan 4.9):**
+    * `routes/PlanPage.tsx` (route stays `/ahead`): full-width left-aligned `reveal-shell`; h1 "Goals" +
+      `PageHelpButton goals.how-goals-works` + Add a goal + subtitle. Order: `GoalsSection` (goals with
+      the server's feasibility verdict in its own words) -> "Money freeing up" (contextual headline, now
+      section-size, not a second hero) -> a column of CLOSED `Disclosure`s: A common order for spare
+      money (`SuggestedOrder`), Where the freed money could go (`UnlockChoices` - its
+      `/decisions/unlock-options` call now runs only when opened), Got a lump sum? (`LumpSumPlanner`),
+      Months ahead (the 12-month forecast; keeps "Show N more"). `AheadForecast` lost its `goals` slot
+      and its intro block; it is now only the forecast pieces.
+    * No money arithmetic or verdict logic was touched: the verdict wording, feasibility ordering and
+      all figures are the server's.
+    * **Verified:** header (h1, help, Add a goal, x=305, 1040 wide); 1 goal row = API; the verdict line is
+      the API `reason` ("Needs ₹1,28,265 beyond what the plan puts in by 31 Aug 2027 ..."); freeing-up
+      headline lists the API's two unlocks (MOM - Mobile 2,648; Health Insurance 3,998) with ₹6,646;
+      all four folds start closed and open to the right content (5 steps = API 5, lump-sum input
+      present, month rows + toggle); the goal row opens /goals/1; phone: no overflow. Regression: p1
+      24/24, overflow 12/12, help 14/14, sheets, detail pages 6/6, Money tabs.
+    * **Not exercised:** picking among several unlock chips with more than two unlocks, a lump-sum run
+      (it calls a read-style POST that the harness blocks), an empty goals state.
+  - **Phase 12 (Summary) BUILT + verified 2026-11-10 against the live server (plan 4.10):**
+    * `routes/SummaryPage.tsx`: full-width left-aligned `reveal-shell`; h1 "Summary" (NOT renamed -
+      Appendix A #2 unanswered) + subtitle; **the serif editorial headline and long intro are gone**; the
+      thin-data note shows only under 3 recorded months (live data has 3, so it is hidden today).
+      **No help icon: there is no manual topic for Summary and a `?` onto "still being written" is worse
+      than none** (add a `summary.*` topic to `help/content` to get one).
+    * **The 6-tile `SummaryTiles` grid is deleted** (DESIGN_SYSTEM 14), along with `StatTile` in
+      `viz.tsx`. Each figure it carried is already in the sentence of its own section (owed / interest /
+      clear-by date in Debt; this month vs same day last month in Month; committed share in Where the
+      money goes); net worth lives on Money.
+    * Order: Momentum strip ("Which way things are moving", words + arrows) -> four questions, each
+      with its takeaway sentence ABOVE the chart: **Am I keeping more than I spend?** (`MonthByMonth`),
+      **Where does the money go?** (`WhereItWent`), **Is debt going down?** (`DebtDown`), **Did the plan
+      hold?** (`PlanKept`). Closed folds: "When each loan ends" (`PayoffTimeline`, inside Debt),
+      "How each category moved" (`CategoryHeatmap`, its multi-month fetch now only on first open,
+      its own header removed). Every "Show the figures" table is kept.
+    * **Verified:** header (x=305, no tiles, no help icon); five section titles in order; momentum items
+      3 = API 3 and every headline string present; 4 Recharts SVGs render; the debt sentence equals
+      `/review/debt-trajectory` (₹3,07,071, 5 Oct 2029, ₹57,496 interest); the month sentence is the
+      API's same-point comparison (₹9,902 more than by day 14); heatmap opens with 30 cells; payoff
+      timeline opens with its SVGs; phone: no overflow. Regression: p1 24/24, overflow 12/12, help
+      14/14, sheets.
+    * **Not exercised:** the under-3-months thin note and the "no clear-by date" / "Not enough to draw
+      the curve" empty states (live data has 3 months and complete loans).
+  - **Phase 13 (Onboarding + Month close) BUILT + verified 2026-11-10 (plan 4.11, 4.6):**
+    * New `components/StepProgress.tsx` (named steps: a row of names from tablet up, "Step N of 5 ·
+      <name>" + a thin bar on a phone; `role=progressbar` with `aria-valuetext`). `StepDots` deleted.
+    * **Onboarding** (`routes/OnboardingPage.tsx`, still outside `AppShell`): focus layout with its own
+      wordmark; steps Pay day / Accounts / Income / Commitments / Set aside; a sticky foot strip
+      (`features/onboarding/components/OnboardingStrip`) from step 2: Held − Set aside − Promised (− Owed on
+      cards) = Free until salary, every figure from `/position` (never from the forms; INCOMPLETE shows
+      the server's reason). The three inline `RealBalancePreview`s were removed (file deleted). The
+      existing "I'll add this later" links now carry TRUE consequences: no accounts -> figures stay
+      empty; no salary -> the month can't be set against income; no commitments -> "free" looks higher
+      than it is; no set-asides -> that money counts as free. (The plan's wording "will read incomplete"
+      was not true for these, so it was not used.) Finishing goes to `/today` with router state
+      `{welcome:true}`; `TodayPage` shows ONE serif line ("Welcome to Kosh. Here is what you can spend
+      today.") and clears the state, so refresh/Back does not repeat it.
+    * **Month close:** `AppShell` has a focus mode for `/month/close` (no sidebar, bottom bar or Add pill, no
+      bottom padding). `MonthClosePage`: Exit (X) + "Closing 28 Aug – 27 Sept" + `StepProgress`
+      (Balances / Resolve / Review / What moved / Close) + a sticky Back/Continue bar. **`CloseStep` takes
+      `enabled={MONTH_CLOSE_ENABLED}`: while the gate is off the last step says "Closing is switched off for
+      now" and renders NO close button, so typing `/month/close` cannot close a month.** When the gate
+      opens, the same step shows the original "Ready to close?" + Close button unchanged.
+    * **Verified (writes blocked, 0 attempted):** close flow at 1440 through all five steps (no nav, no Add
+      pill, titles/progress correct, Back and Exit work, no Close button, sticky bar); onboarding through
+      all five steps (named progress, wordmark, no shell nav, strip "Held ₹18,269 − Set aside ₹10,001 −
+      Promised ₹5,100 = Free until salary ₹3,168" = `/position`), landing on Today with the welcome line
+      in Instrument Serif, gone after refresh; phone: no overflow on either flow, no bottom bar on close.
+      Regression: p1 24/24, overflow 12/12, help 14/14, sheets, Today, Month.
+    * **Not exercised:** onboarding on an EMPTY account (needs a dev database; the skip captions only render
+      when a step has nothing), the Close button once the gate opens, a real close.
+    * **G1 reminder for the user:** the close UI is finished, but stays switched off until the three gate
+      steps in plan Part 11 are done (restart on a build containing the 1.15 fix, read-only check of
+      `GET /review/months`, explicit approval). Flip `MONTH_CLOSE_ENABLED` in `lib/releaseGates.ts` last.
+  - **Phase 14 (Settings) BUILT + verified 2026-11-10 (plan 4.17):**
+    * `routes/SettingsPage.tsx` at `/settings` (inside `AppShell`; tab title "Settings · Kosh"): full-width
+      left-aligned `reveal-shell`, sections capped at 34rem. **Your name** (`displayName`, `PATCH /me`
+      via `useUpdateMeMutation`, Save disabled until changed, server error shown, "Saved." status;
+      email shown read-only), **Appearance** (radiogroup: Match my device / Light / Dark -> new
+      `lib/theme.ts`: `applyTheme` sets/removes `data-theme` on <html> and `localStorage kosh.theme`;
+      read before first paint by the script in `index.html`), **Pay day** (read-only "The 28th of every
+      month." + why it can't be edited yet - Appendix A #5 default), **What Kosh remembers on this
+      device** (`clearRemembered()` removes every `kosh.*` localStorage key EXCEPT `kosh.theme`, after a
+      `Dialog` confirm; reports how many were cleared).
+    * Reachable from the sidebar footer (Settings above Help; icon-only on the tablet rail) and the
+      phone's More sheet (Goals | Summary | Settings | Help; More lights up on /settings).
+    * **Verified (PATCH /me stubbed in-page; the real name "Owner" was never changed):** title/h1/x=305; four
+      sections; input = API `displayName`; Save disabled until edited then sent exactly 1 PATCH and showed
+      "Saved."; theme: system -> `data-theme` absent and ground #FAFAF9; Dark -> attribute `dark`, stored,
+      ground #0C0A09, SURVIVES RELOAD with Dark still selected; Light -> `light`; System -> attribute and
+      key removed; pay day text = ordinal of `/me.cycleStartDay` (28th); reset dialog focus on Cancel,
+      then removed 11 `kosh.*` keys including two test keys and KEPT `kosh.theme`; phone: More sheet
+      lists Settings, page has no overflow. Regression: p1 24/24, overflow 12/12, help 14/14, sheets,
+      onboarding/close flows.
+    * **Not done:** editing the pay day (deliberately); a Settings help topic (no manual page exists, so no
+      `?` icon); currency/timezone are not shown (they are fixed, INR / the user's zone).
+  - **Phase 15 (Polish and audit) BUILT + verified 2026-11-10 (plan Part 9 row 15):**
+    * **Contrast** (rendered walker over 14 routes x light+dark, incl. detail pages): fixed (a) the
+      amber nav badge and solid StatusPill used white text on bright dark-mode fills (1.9-2.2:1) -> new
+      `--on-solid` token (white in light, `#1c1917` in dark; Tailwind `text-on-solid`); (b) light
+      `--attention` darkened `#b45309` -> `#a94d08` (5.0:1 on its own 8% tint, was 4.5); (c) `DateBlock`
+      month label lost its `opacity-80`. **Result: no failing text left.** The only remaining reading is
+      the *disabled* "Save name" button (exempt under WCAG). Decorative `aria-hidden` ₹ glyphs are
+      excluded by design.
+    * **Roles:** every route has exactly one h1 + one main, no unnamed buttons/links, no unlabeled
+      inputs, all toggles carry `aria-expanded`; tab titles correct.
+    * **Keyboard:** tabbed Today/Month/Ledger/Money/Summary/Help (13-54 stops each): every stop has a
+      visible ring. **Fixed:** `Select` trigger had `outline-none` and no replacement (now uses the global
+      ring; `row` variant offsets inward), Ledger search chip and Help search box now show
+      `focus-within` border + ring. Add dialog and Needs-you: focus lands inside, 25-40 Tabs stay inside,
+      Esc closes and focus returns to where it was.
+    * **Layout:** 18 routes (incl. detail, Settings, Help, onboarding, close, 404) at 360/390/430 phone,
+      200% (720px) and 400% (360x225): no page or `#app-main` sideways scroll (the only wide spans are
+      truncated text inside `overflow-hidden`).
+    * **Reduced motion:** zero elements animate or transition on Today/Month/Ledger/Money.
+    * **Performance:** at 4x CPU throttle the first load settles in 1.8 s (Today), 3.2 s (Month), 2.9 s
+      (Ledger). `vite build`: main chunk 588 kB (170 kB gz: React, router, RTK Query, shell); only
+      `SummaryPage` (400 kB, Recharts) is over 250 kB and it is lazy and route-only. Nothing else > 85 kB.
+      Possible later win: split the main chunk's RTK endpoints by feature - not worth it now.
+    * **Regression:** p1 pages no errors, 0 console errors in all runs.
+    * **Left as-is on purpose:** `help/retrofit.ts termsOf(onlyPrimer)` and the `primer` flag in help
+      content (harmless, small); `Divided` wrappers on Debts/Investments/Insurance; InvestmentsCheckIn
+      max-3; Import stepper (4.4a) and Categories sheet (4.4b) restyle; Money "Needs a look" card restyle.
+      All cosmetic; none block release.
+  - **USER-ONLY STEPS (cannot be done headless):** (1) eyeball the 0.5px hairlines on a retina screen / real
+    phone (K5, K8); (2) iPhone Safari: dialog, popover and `inert` behaviour, keyboard avoiding the Add
+    sheet; (3) real writes with the backend: archive, delete + undo, settle, save name; (4) onboarding on
+    an empty account; (5) release gate G1 before enabling Month Close (restart, read-only check, your OK);
+    (6) answer Appendix A: final name, Ledger/Summary renames, Debts -> Loans, pay-day editing.
+  - **NEXT ACTION: the revamp is feature-complete.** Ask the user which they want: commit and merge
+    `feature/complete-ui-ux-revamp` (they run git), the optional Phase 16 (keyboard go-to shortcuts, offline
+    capture queue), or the Appendix A decisions. Do not start Phase 16 unprompted.
+  - **Uncommitted** (user commits): everything above + the two design docs.
+- **Waiting on the user:** start the backend (IntelliJ) for browser checks; Appendix A's 6 decisions, one at a time
+  (Kosh final?; Ledger→Activity & Summary→Progress; Standing closed by default; Debts→Loans;
+  pay day read-only; G1 checks + first close).
+- **Next once approved:** Phase 1 (tokens & type v3, contrast-checked) → 2 (Sheet/Dialog/
+  Drawer/Breakdown) → 3 (responsive shell) → 4 (help consolidation). Add the plan to
+  DOC_INDEX §1 and rewrite DESIGN_SYSTEM as v3 at that point.
+- **Uncommitted:** both docs above + this edit. `feature/month-summary` work - check
+  whether the user committed/merged it before this branch was cut (`git log`).
+- Everything below this block is the previous branch's record.
+
+---
+
 On branch **`feature/month-summary`**. Since 2026-11-08 the user works in **auto mode**:
 decide and act, ask only when intervention is genuinely needed (git, real data, SQL/tests,
 the open product decisions below).
@@ -1399,6 +1985,16 @@ building; the build passing is not evidence that it works.**
   until-loop, not `sleep`).
 
 ## DEFERRED SCHEMA
+
+**APPLIED BY HAND 2026-11-11** (the `@Column`s `CommitmentInstance.skipReason/skipNote` need it).
+Because it was applied by hand, the eventual Flyway
+migration (would be V24) must not re-add these columns - MySQL 8.0 has no `ADD COLUMN IF NOT EXISTS`.
+
+```sql
+ALTER TABLE commitment_instances
+  ADD COLUMN skip_reason VARCHAR(30)  NULL,
+  ADD COLUMN skip_note   VARCHAR(200) NULL;
+```
 
 **One pending, asked for but not approved — do not write the migration without asking.**
 

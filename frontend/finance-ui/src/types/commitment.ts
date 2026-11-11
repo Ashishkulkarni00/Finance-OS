@@ -21,6 +21,9 @@ export type CommitmentInstanceStatus =
  *  See AttentionTier.java. */
 export type AttentionTier = 'NEEDS_YOU' | 'WORTH_KNOWING' | 'SETTLED';
 
+/** Why one month of a commitment was skipped (SkipReason.java). */
+export type SkipReason = 'MONEY_NEEDED_ELSEWHERE' | 'NOT_NEEDED' | 'PAID_ANOTHER_WAY' | 'POSTPONED' | 'OTHER';
+
 export interface CommitmentInstanceResponse {
   id: number;
   commitmentId: number;
@@ -60,6 +63,9 @@ export interface CommitmentInstanceResponse {
   attentionTier: AttentionTier;
   /** Positive = cost more than planned, negative = less. Null unless settled with both figures known. */
   variance: Money | null;
+  /** Why this month was skipped, and the user's note. Null unless SKIPPED. */
+  skipReason: SkipReason | null;
+  skipNote: string | null;
   /** What this write just did - absent on reads and when nothing moved (ADR-0017). */
   effect?: WriteEffect;
 }
@@ -209,4 +215,6 @@ export interface CommitmentInstanceDetailResponse {
   toAccountId: number | null;
   linkedTransaction: TransactionResponse | null;
   history: CommitmentInstanceHistoryEntry[];
+  skipReason: SkipReason | null;
+  skipNote: string | null;
 }

@@ -41,9 +41,9 @@ export function PlanKept({ months }: PlanKeptProps) {
   }
 
   return (
-    <section className="flex flex-col gap-space-6">
+    <section className="m-card flex flex-col gap-space-6 max-md:gap-space-4">
       <div>
-        <SectionHeader trailing="kept of planned">Did the plan hold</SectionHeader>
+        <SectionHeader overCard trailing="kept of planned">Did the plan hold?</SectionHeader>
         <p className="max-w-[64ch] pt-space-2 text-body text-ink-soft">
           Commitments that were paid, out of those that fell due. The month in progress counts what has been
           settled so far — the rest has not failed, it has not come round yet.

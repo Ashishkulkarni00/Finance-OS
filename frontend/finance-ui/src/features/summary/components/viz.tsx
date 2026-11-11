@@ -49,7 +49,7 @@ export function FiguresToggle({ children, label = 'Show the figures' }: { childr
         className="inline-flex items-center gap-space-1 self-start text-caption text-accent underline-offset-4 hover:underline"
       >
         {open ? 'Hide the figures' : label}
-        <ChevronDown size={13} strokeWidth={1.75} aria-hidden className={cn('transition-transform duration-150', open && 'rotate-180')} />
+        <ChevronDown size={13} strokeWidth={1.5} aria-hidden className={cn('transition-transform duration-150', open && 'rotate-180')} />
       </button>
       {open && children}
     </div>
@@ -68,16 +68,4 @@ export function compactMoney(value: Money | null | undefined): string {
   if (a >= 100000) return `${sign}₹${trim((a / 100000).toFixed(a >= 1000000 ? 0 : 1))}L`;
   if (a >= 1000) return `${sign}₹${trim((a / 1000).toFixed(a >= 10000 ? 0 : 1))}K`;
   return `${sign}₹${Math.round(a)}`;
-}
-
-/** A small headline figure: label, value, and one line of context. */
-export function StatTile({ label, value, sub, children }: { label: string; value: ReactNode; sub?: ReactNode; children?: ReactNode }) {
-  return (
-    <div className="flex min-w-0 flex-col gap-space-1 rounded-xl border border-line bg-surface p-space-4">
-      <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">{label}</span>
-      <span className="text-section text-ink">{value}</span>
-      {children}
-      {sub && <span className="text-caption text-ink-muted">{sub}</span>}
-    </div>
-  );
 }

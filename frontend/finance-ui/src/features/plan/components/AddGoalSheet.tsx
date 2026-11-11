@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { todayLocalIso } from '@/lib/dates';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -25,7 +26,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+  return todayLocalIso();
 }
 
 interface AddGoalSheetProps {

@@ -1,74 +1,58 @@
 import { Amount } from '@/components/Amount';
+import { DetailHero } from '@/components/detail/DetailPage';
+import { FactStrip, type Fact } from '@/components/FactStrip';
 import { Skeleton } from '@/components/Skeleton';
-import { Statement, StatementRow } from '@/components/Statement';
 import type { LoanSummaryResponse } from '@/types/loan';
 
 /**
- * Zone 1 - the position at a glance, as one panel: what leaves every month on the left,
- * the whole picture on the right. The same two-sided shape as the Months page's and Accounts'
- * overview panels, so the top of every screen is read the same way.
- *
- * <p>The two EMI totals are <strong>never added together</strong>, and the page never
- * shows a combined "monthly debt" number. A card-billed EMI "reaches you inside the card
- * bill, not separately" (the source workbook's own words) - adding it to the bank figure
- * would count the same money twice (rule 4).
- *
- * <p>"Still to pay" is the sum of every EMI still to come, not of outstanding principals:
- * it stays knowable even when a loan's interest terms were never supplied, which is why
- * it's the figure shown - labelled "at least" when some terms are missing.
+ * What the loans cost every month and what is left to repay (UI_UX_REVAMP_PLAN 4.7b): one hero and
+ * one row of facts. The EMIs that arrive inside a card bill are shown as their own fact and never
+ * added into the monthly figure - they are already part of paying that bill, so adding them would
+ * count the same money twice (invariant 4).
  */
 export function DebtStanding({ summary, isLoading }: { summary: LoanSummaryResponse | undefined; isLoading: boolean }) {
   if (isLoading || !summary) {
     return (
-      <div className="grid grid-cols-1 gap-space-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
-        <div className="flex flex-col gap-space-2">
-          <Skeleton className="h-4 w-32" />
-          <Skeleton className="h-12 w-48" />
-          <Skeleton className="h-4 w-64" />
-        </div>
-        <Skeleton className="h-28 w-full" />
+      <div className="flex flex-col gap-space-3">
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-11 w-48" />
+        <Skeleton className="h-16 w-full" />
       </div>
     );
   }
 
-  // Presence checks, not arithmetic.
   const hasCardEmis = Number(summary.cardEmiTotal) > 0;
+  const facts: Fact[] = [
+    { label: 'Still to pay in all', value: <Amount value={summary.remainingPaymentsTotal} role="row" /> },
+    ...(hasCardEmis ? [{ label: 'Inside a card bill', value: <Amount value={summary.cardEmiTotal} role="row" /> }] : []),
+    { label: summary.count === 1 ? 'Loan' : 'Loans', value: summary.count },
+  ];
 
   return (
-    <div className="grid grid-cols-1 gap-space-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] lg:gap-0">
-      <div className="flex flex-col gap-space-2 lg:pr-space-8">
-        <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">Leaving every month</span>
+    <section className="flex flex-col gap-space-5 max-md:gap-space-4">
+      <DetailHero
+        label="Leaving every month"
+        sentence={`straight out of a bank account, across ${summary.count} ${summary.count === 1 ? 'loan' : 'loans'}.`}
+      >
         <Amount value={summary.bankEmiTotal} role="hero" className="text-ink" />
-        <p className="max-w-[40rem] text-body text-ink-soft">
-          straight out of a bank account, across {summary.count} {summary.count === 1 ? 'loan' : 'loans'}.
-        </p>
-        {hasCardEmis && (
-          <p className="max-w-[40rem] text-caption text-ink-muted">
-            <Amount value={summary.cardEmiTotal} role="caption" className="text-ink-soft" /> more arrives inside a card
-            bill — already part of paying that bill, so not added here.
-          </p>
-        )}
-        {summary.tbdCount > 0 && (
-          <p className="max-w-[40rem] text-caption text-attention">
-            {summary.tbdCount} {summary.tbdCount === 1 ? 'loan has' : 'loans have'} no confirmed terms, so no payoff date
-            is shown for {summary.tbdCount === 1 ? 'it' : 'them'} yet.
-          </p>
-        )}
-      </div>
+      </DetailHero>
 
-      <div className="border-t border-line pt-space-6 lg:border-l lg:border-t-0 lg:pl-space-8 lg:pt-0">
-        <span className="mb-space-2 block text-micro uppercase tracking-[0.08em] text-ink-muted">All loans</span>
-        <Statement>
-          <StatementRow label="From a bank account" value={summary.bankEmiTotal} />
-          {hasCardEmis && <StatementRow label="Inside a card bill" value={summary.cardEmiTotal} />}
-          <StatementRow label="Still to pay" value={summary.remainingPaymentsTotal} variant="subtotal" />
-        </Statement>
-        <p className="mt-space-2 text-caption text-ink-muted">
+      <FactStrip facts={facts} className="border-y border-line" />
+
+      <div className="flex max-w-[40rem] flex-col gap-space-1 text-caption text-ink-muted">
+        {hasCardEmis && <p>Card EMIs arrive inside a card bill — already part of paying that bill, so not added to the monthly figure.</p>}
+        <p>
           {summary.tbdCount > 0
-            ? 'At least this much — every EMI still to come, whether or not the terms are known.'
-            : 'Every EMI still to come, across every loan.'}
+            ? 'Still to pay is at least this much — every EMI still to come, whether or not the terms are known.'
+            : 'Still to pay is every EMI still to come, across every loan.'}
         </p>
+        {summary.tbdCount > 0 && (
+          <p className="text-attention">
+            {summary.tbdCount} {summary.tbdCount === 1 ? 'loan has' : 'loans have'} no confirmed terms, so no payoff date is shown for{' '}
+            {summary.tbdCount === 1 ? 'it' : 'them'} yet.
+          </p>
+        )}
       </div>
-    </div>
+    </section>
   );
 }

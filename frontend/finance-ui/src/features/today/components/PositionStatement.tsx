@@ -11,6 +11,8 @@ import type { PositionResponse } from '@/types/position';
 interface PositionStatementProps {
   position: PositionResponse | undefined;
   isLoading: boolean;
+  /** Inside a Breakdown, which supplies the title: skip the section header. */
+  bare?: boolean;
 }
 
 /**
@@ -22,7 +24,7 @@ interface PositionStatementProps {
  * every time it is glanced at" - which a single collapsed line cannot do. Showing the
  * working is also what makes the figure trustworthy (DESIGN_SYSTEM §12 rule 10).
  */
-export function PositionStatement({ position, isLoading }: PositionStatementProps) {
+export function PositionStatement({ position, isLoading, bare }: PositionStatementProps) {
   const [expanded, setExpanded] = useState(false);
   const heldDoc = useDocAnchor('position.held');
   const reservedDoc = useDocAnchor('position.reserved');
@@ -50,6 +52,20 @@ export function PositionStatement({ position, isLoading }: PositionStatementProp
 
   return (
     <section>
+      {bare && hasDetail && !anyBelowZero && (
+        <div className="mb-space-3 flex justify-end">
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            aria-expanded={expanded}
+            className="inline-flex items-center gap-space-1 rounded-md px-space-1 text-caption text-ink-muted transition-colors hover:bg-sunken hover:text-ink"
+          >
+            {expanded ? 'Hide accounts and bills' : 'Show accounts and bills'}
+            <ChevronDown size={13} strokeWidth={1.5} aria-hidden className={cn('transition-transform duration-150', expanded && 'rotate-180')} />
+          </button>
+        </div>
+      )}
+      {!bare && (
       <SectionHeader
         trailing={
           hasDetail &&
@@ -65,7 +81,7 @@ export function PositionStatement({ position, isLoading }: PositionStatementProp
               {expanded ? 'Hide accounts and bills' : 'Show accounts and bills'}
               <ChevronDown
                 size={13}
-                strokeWidth={1.75}
+                strokeWidth={1.5}
                 aria-hidden
                 className={cn('transition-transform duration-150', expanded && 'rotate-180')}
               />
@@ -75,6 +91,7 @@ export function PositionStatement({ position, isLoading }: PositionStatementProp
       >
         Where you stand
       </SectionHeader>
+      )}
 
       <Statement notes>
         <StatementRow label={<span {...heldDoc}>Held across accounts</span>} value={breakdown.held} note="Bank and cash only - not cards, loans or investments." />

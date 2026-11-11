@@ -52,11 +52,20 @@ export function Statement({ children, notes, leaders, dense, className }: Statem
     <NotesColumn.Provider value={notes ?? false}>
       <Leaders.Provider value={leaders ?? false}>
         <Dense.Provider value={dense ?? false}>
-        <div
-          className={cn('grid w-full', className)}
-          style={{ gridTemplateColumns: notes ? '1fr auto minmax(0, 22rem)' : '1fr auto' }}
-        >
-          {children}
+        {/* A container, not the viewport, decides: the same statement sits in a 1100px page
+            column and in a 350px phone sheet. Below 36rem the notes column folds away and each
+            note drops under its own row (spanning both columns), so nothing is squeezed to one
+            word per line. */}
+        <div className="@container w-full">
+          <div
+            className={cn(
+              'grid w-full grid-cols-[1fr_auto]',
+              notes && '@xl:grid-cols-[1fr_auto_minmax(0,22rem)]',
+              className,
+            )}
+          >
+            {children}
+          </div>
         </div>
         </Dense.Provider>
       </Leaders.Provider>
@@ -103,18 +112,18 @@ const VALUE_ROLE: Record<Variant, AmountRole> = {
 };
 
 const LABEL_CLASSES: Record<Variant, string> = {
-  row: 'text-label text-ink-soft',
-  subtotal: 'text-label font-semibold text-ink',
-  total: 'text-label font-semibold uppercase tracking-[0.04em] text-ink',
-  hero: 'text-micro uppercase tracking-[0.04em] text-ink-muted',
+  row: 'text-label font-normal text-ink-soft',
+  subtotal: 'text-label font-medium text-ink',
+  total: 'text-label font-medium text-ink',
+  hero: 'text-caption text-ink-muted',
 };
 
 /** Cells carry the rules, because a `display: contents` row cannot hold a border. */
 const EDGE: Record<Variant, string> = {
   row: 'border-b border-line',
   subtotal: 'border-t border-border',
-  total: 'border-t-2 border-ink',
-  hero: 'border-t-2 border-ink',
+  total: 'border-t border-ink-soft',
+  hero: 'border-t border-ink-soft',
 };
 
 const PAD: Record<Variant, string> = {
@@ -144,13 +153,17 @@ export function StatementRow({
   const dense = useContext(Dense);
   const pad = indent || (dense && (variant === 'row' || variant === 'subtotal')) ? 'py-space-2' : PAD[variant];
   const cell = cn(EDGE[variant], pad, revealDelay != null && 'reveal');
+  // When the notes column folds under the row (narrow container), the note cell carries the
+  // row's rule and the label / value cells give theirs up, so there is one rule per row.
+  const folds = hasNotesColumn && note !== undefined && variant === 'row';
+  const upper = folds ? '@max-xl:border-b-0 @max-xl:pb-space-1' : undefined;
   const cellStyle = revealDelay != null ? ({ '--reveal-delay': `${revealDelay}ms` } as CSSProperties) : undefined;
   const valueRole = indent ? 'caption' : VALUE_ROLE[variant];
   const labelClass = indent ? 'text-caption text-ink-muted' : LABEL_CLASSES[variant];
 
   return (
     <div className="contents">
-      <div className={cn(cell, 'min-w-0 pr-space-5', indent && 'pl-space-4')} style={cellStyle}>
+      <div className={cn(cell, upper, 'min-w-0 pr-space-5', indent && 'pl-space-4')} style={cellStyle}>
         {hasLeader ? (
           <span className="flex items-baseline gap-space-2">
             <span className={cn('min-w-0 truncate', labelClass)}>{label}</span>
@@ -166,7 +179,7 @@ export function StatementRow({
         )}
       </div>
 
-      <div className={cn(cell, 'text-right tabular-nums')} style={cellStyle}>
+      <div className={cn(cell, upper, 'text-right tabular-nums')} style={cellStyle}>
         {valueNode ?? (
           <span className={cn('inline-flex items-baseline', accent && 'text-accent')}>
             {deduct && !accent && <span className="num mr-[0.15em] text-ink-muted">−</span>}
@@ -176,7 +189,14 @@ export function StatementRow({
       </div>
 
       {hasNotesColumn && (
-        <div className={cn(cell, 'pl-space-5')} style={cellStyle}>
+        <div
+          className={cn(
+            cell,
+            'pl-space-5',
+            note !== undefined ? '@max-xl:col-span-2 @max-xl:pl-0 @max-xl:pt-0' : '@max-xl:hidden',
+          )}
+          style={cellStyle}
+        >
           {note !== undefined && <span className="block text-caption text-ink-muted">{note}</span>}
         </div>
       )}

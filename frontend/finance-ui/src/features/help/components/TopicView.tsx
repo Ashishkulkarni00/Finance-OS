@@ -22,7 +22,7 @@ function SectionHeading({ children }: { children: string }) {
   // space and a rule rather than a card.
   return (
     <div className="border-t border-line pt-space-4">
-      <h3 className="text-micro font-medium uppercase tracking-[0.08em] text-ink-muted">{children}</h3>
+      <h3 className="text-caption font-medium text-ink-muted">{children}</h3>
     </div>
   );
 }

@@ -7,7 +7,7 @@ import { formatMoney, type Money } from '@/lib/money';
  */
 export function TooltipCard({ title, children }: { title: ReactNode; children: ReactNode }) {
   return (
-    <div className="min-w-[13rem] rounded-lg border border-line bg-surface px-space-3 py-space-2 text-caption shadow-sm">
+    <div className="min-w-[13rem] rounded-lg border border-line bg-surface px-space-3 py-space-2 text-caption shadow-[var(--shadow-2)]">
       <div className="mb-space-1 font-medium text-ink">{title}</div>
       <div className="flex flex-col gap-[2px]">{children}</div>
     </div>

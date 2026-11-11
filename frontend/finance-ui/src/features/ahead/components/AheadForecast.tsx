@@ -1,7 +1,8 @@
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import { Amount } from '@/components/Amount';
 import { GroupBand } from '@/components/GroupBand';
+import { Disclosure } from '@/components/Disclosure';
 import { SectionHeader } from '@/components/SectionHeader';
 import { Skeleton } from '@/components/Skeleton';
 import { cn } from '@/lib/cn';
@@ -36,17 +37,18 @@ function UnlockCalendar({ months, total }: { months: ForecastMonth[]; total: str
 
   return (
     <section>
-      <SectionHeader trailing={items.length > 1 ? `${items.length} ending` : undefined}>Money freeing up</SectionHeader>
+      <SectionHeader overCard trailing={items.length > 1 ? `${items.length} ending` : undefined}>Money freeing up</SectionHeader>
+      <div className="m-card">
 
       <div className="flex items-start gap-space-3">
         <Sparkles size={18} strokeWidth={1.5} className="mt-1 shrink-0 text-positive" aria-hidden />
         <div className="flex min-w-0 flex-col gap-space-1">
-          <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">
+          <span className="text-caption text-ink-muted">
             {single ? 'Frees up' : `Frees up over ${HORIZON} months`}
           </span>
           {/* One figure, set as the headline. Never a client-side sum: with several
               unlocks the total is the server's own, and with one it is that one's amount. */}
-          <Amount value={single ? single.amount : total} role="hero" className="text-positive" />
+          <Amount value={single ? single.amount : total} role="section" className="text-positive" />
           <span className="text-body text-ink-soft">
             {single ? (
               <>
@@ -75,6 +77,7 @@ function UnlockCalendar({ months, total }: { months: ForecastMonth[]; total: str
           </ul>
         </div>
       )}
+      </div>
     </section>
   );
 }
@@ -91,8 +94,7 @@ function UnlockChoices({ months }: { months: ForecastMonth[] }) {
   const picked = items.find((u) => keyOf(u) === pickedKey) ?? items[0]!;
 
   return (
-    <section>
-      <SectionHeader>Where the freed money could go</SectionHeader>
+    <Disclosure storageKey="kosh.goals.unlock-choices" label="Where the freed money could go" summary="each option costed side by side">
       <p className="mb-space-3 max-w-[40rem] text-caption text-ink-muted">
         Nothing moves on its own. Each option is costed from when the money is actually free, with everything else carried
         forward to then.
@@ -110,7 +112,7 @@ function UnlockChoices({ months }: { months: ForecastMonth[] }) {
                 onClick={() => setPickedKey(keyOf(u))}
                 className={cn(
                   'rounded-full border px-space-3 py-space-1 text-caption transition-colors duration-150',
-                  active ? 'border-ink bg-sunken text-ink' : 'border-border text-ink-muted hover:text-ink-soft',
+                  active ? 'border-ink-soft bg-sunken text-ink' : 'border-border text-ink-muted hover:text-ink-soft',
                 )}
               >
                 {u.name} · from {cycleMonthName(u.monthEnd)}
@@ -120,7 +122,7 @@ function UnlockChoices({ months }: { months: ForecastMonth[] }) {
         </div>
       )}
       <UnlockOptions amount={picked.amount} startsOn={picked.monthStart} />
-    </section>
+    </Disclosure>
   );
 }
 
@@ -201,7 +203,7 @@ function MonthRow({ month, notes }: { month: ForecastMonth; notes: Note[] }) {
  * pure projection cannot - so showing it here only produced a second, worse answer to
  * "what's free". This page starts where Months stops being the better source.
  */
-export function AheadForecast({ goals }: { goals?: ReactNode } = {}) {
+export function AheadForecast() {
   const [expanded, setExpanded] = useState(false);
   const { data, isLoading, isError } = useGetForecastQuery(HORIZON);
 
@@ -209,22 +211,14 @@ export function AheadForecast({ goals }: { goals?: ReactNode } = {}) {
   // a failed forecast must not take the user's goals off the screen with it.
   if (isLoading) {
     return (
-      <div className="flex flex-col gap-space-8">
-        <div className="flex flex-col gap-space-3">
-          <Skeleton className="h-6 w-48" />
-          <Skeleton className="h-32 w-full" />
-        </div>
-        {goals}
+      <div className="flex flex-col gap-space-3">
+        <Skeleton className="h-6 w-48" />
+        <Skeleton className="h-32 w-full" />
       </div>
     );
   }
   if (isError || !data) {
-    return (
-      <div className="flex flex-col gap-space-8">
-        <p className="text-body text-ink-soft">We couldn’t load what’s ahead. Refresh to try again.</p>
-        {goals}
-      </div>
-    );
+    return <p className="text-body text-ink-soft">We couldn’t load what’s ahead. Refresh to try again.</p>;
   }
 
   // months[0] is the current cycle - Months owns it. See the class note above.
@@ -280,50 +274,39 @@ export function AheadForecast({ goals }: { goals?: ReactNode } = {}) {
   };
 
   return (
-    <div className="flex flex-col gap-space-8">
-      <div className="flex flex-col gap-space-1">
-        {/* The section is called Goals in the rail, so the eyebrows here name the two blocks
-            rather than repeating it - "Goals" above both would say nothing about either. */}
-        <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">Looking ahead</span>
-        <span className="text-title text-ink">The months after this one</span>
-        <p className="max-w-[40rem] text-caption text-ink-muted">
-          Your plan carried forward, so you can see where the room is before you get there.
-        </p>
-      </div>
-
+    <div className="flex flex-col gap-10">
       <UnlockCalendar months={data.months} total={data.unlockedMonthlyTotal} />
 
-      {/* The goals sit between what frees up and where it could go: the options below are
-          costed against these goals, so the reader should have just seen them. */}
-      {goals}
+      {/* The detail, closed until asked for: what the freed money could do, a lump sum, and the
+          months ahead one by one. */}
+      <div className="flex flex-col">
+        <UnlockChoices months={data.months} />
 
-      <UnlockChoices months={data.months} />
+        <LumpSumPlanner />
 
-      <LumpSumPlanner />
-
-      <section>
-        <SectionHeader
-          trailing={
-            hidden > 0 && (
+        <Disclosure storageKey="kosh.goals.months-ahead" label="Months ahead" summary="your plan carried forward, month by month">
+          <div className="mb-space-3 flex items-baseline justify-between gap-space-4">
+            <p className="max-w-[40rem] text-caption text-ink-muted">
+              Your plan carried forward, so you can see where the room is before you get there.
+            </p>
+            {hidden > 0 && (
               <button
                 type="button"
                 aria-expanded={expanded}
                 onClick={() => setExpanded((v) => !v)}
-                className="text-caption text-accent underline-offset-4 hover:underline"
+                className="shrink-0 text-caption text-accent underline-offset-4 hover:underline"
               >
                 {expanded ? 'Show just next month' : `Show ${hidden} more`}
               </button>
-            )
-          }
-        >
-          Month by month
-        </SectionHeader>
-        <div className="flex flex-col">
-          {visible.map((m) => (
-            <MonthRow key={m.cycleStart} month={m} notes={notesFor(m)} />
-          ))}
-        </div>
-      </section>
+            )}
+          </div>
+          <div className="flex flex-col">
+            {visible.map((m) => (
+              <MonthRow key={m.cycleStart} month={m} notes={notesFor(m)} />
+            ))}
+          </div>
+        </Disclosure>
+      </div>
     </div>
   );
 }

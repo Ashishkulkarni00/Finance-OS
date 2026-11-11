@@ -38,7 +38,7 @@ export function PayDayStep({ onContinue }: PayDayStepProps) {
             type="button"
             onClick={() => setSelected(d)}
             className={cn(
-              'num flex h-11 items-center justify-center rounded-lg border text-label transition-colors duration-150',
+              'num flex h-9 items-center justify-center rounded-lg border text-label transition-colors duration-150 pointer-coarse:h-11',
               day === d ? 'border-accent bg-accent-wash text-accent' : 'border-border text-ink-soft hover:bg-sunken',
             )}
           >
@@ -52,7 +52,7 @@ export function PayDayStep({ onContinue }: PayDayStepProps) {
           type="button"
           onClick={handleContinue}
           disabled={!day || isLoading}
-          className="h-11 rounded-lg bg-accent px-space-5 text-label font-medium text-white transition-colors duration-150 hover:bg-accent-hover disabled:opacity-40"
+          className="h-9 rounded-lg bg-accent px-[14px] pointer-coarse:h-11 text-label font-medium text-on-accent transition-colors duration-150 hover:bg-accent-hover disabled:opacity-40"
         >
           Continue
         </button>

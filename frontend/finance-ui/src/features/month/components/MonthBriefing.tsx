@@ -5,7 +5,7 @@ import { formatMoney } from '@/lib/money';
 import { useGetCycleSnapshotQuery } from '@/services/cycleService';
 import { PlanChanges } from './PlanChanges';
 import { PlanDecisions } from './PlanDecisions';
-import type { CycleMode } from './MonthOverview';
+import type { CycleMode } from './MonthAnswer';
 import type { CycleResponse } from '@/types/cycle';
 import type { CommitmentPlanProgressResponse } from '@/types/commitment';
 
@@ -56,7 +56,7 @@ export function MonthBriefing({ cycle, mode, progress }: MonthBriefingProps) {
             aria-controls={`month-panel-${tab.id}`}
             onClick={() => setActive(tab.id)}
             className={cn(
-              '-mb-px border-b-2 px-space-3 py-space-2 text-label transition-colors duration-150',
+              '-mb-px border-b-[1.5px] px-space-3 py-space-2 text-label transition-colors duration-150',
               active === tab.id
                 ? 'border-accent font-medium text-accent'
                 : 'border-transparent text-ink-soft hover:text-ink',
@@ -178,7 +178,7 @@ function PlannedVsActual({
 function Figure({ value, label, positive }: { value: string; label: string; positive: boolean }) {
   return (
     <div className="flex flex-col items-start gap-space-2">
-      <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">{label}</span>
+      <span className="text-caption text-ink-muted">{label}</span>
       <span className={cn('num text-hero', positive ? 'text-positive' : 'text-ink')}>{value}</span>
     </div>
   );

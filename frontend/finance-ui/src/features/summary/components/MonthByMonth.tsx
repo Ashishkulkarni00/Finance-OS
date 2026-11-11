@@ -28,10 +28,10 @@ export function MonthByMonth({ months, monthsRecorded, samePoint }: MonthByMonth
   const current = months.find((month) => month.current);
 
   return (
-    <section className="flex flex-col gap-space-6">
+    <section className="m-card flex flex-col gap-space-6 max-md:gap-space-4">
       <div>
-        <SectionHeader trailing={monthsRecorded === 1 ? '1 month recorded' : `${monthsRecorded} months recorded`}>
-          Month by month
+        <SectionHeader overCard trailing={monthsRecorded === 1 ? '1 month recorded' : `${monthsRecorded} months recorded`}>
+          Am I keeping more than I spend?
         </SectionHeader>
       </div>
 

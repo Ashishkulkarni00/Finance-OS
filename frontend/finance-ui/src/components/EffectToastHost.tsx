@@ -76,7 +76,7 @@ function Toast({ toast }: { toast: EffectToast }) {
   // only says money moved has no better destination than the screen you are already on, so
   // it is not made to look clickable.
   const first = toast.effect.started[0] ?? null;
-  const destination = first ? insightDestination(first) ?? '/needs-you' : null;
+  const destination = first ? insightDestination(first) ?? '/today?needs=1' : null;
 
   return (
     <div
@@ -90,8 +90,8 @@ function Toast({ toast }: { toast: EffectToast }) {
           : undefined
       }
       className={[
-        'effect-toast pointer-events-auto w-[27rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-line shadow-lg',
-        destination ? 'cursor-pointer transition-shadow duration-150 hover:shadow-xl' : '',
+        'effect-toast pointer-events-auto w-[27rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-line shadow-[var(--shadow-2)]',
+        destination ? 'cursor-pointer transition-shadow duration-150 hover:shadow-[var(--shadow-3)]' : '',
       ].join(' ')}
       style={{ backgroundColor: tone.tint, borderLeft: `3px solid ${tone.edge}` }}
     >
@@ -144,7 +144,7 @@ export function EffectToastHost() {
     // gone again in ten seconds. Pushing the page down instead would make the whole layout
     // jump for every expense, which is worse than a transient overlap.
     // column-reverse so the newest sits nearest the corner and older ones ride up.
-    <div className="pointer-events-none fixed bottom-space-6 right-space-6 z-50 flex flex-col-reverse gap-space-3">
+    <div className="pointer-events-none fixed bottom-space-6 right-space-6 z-50 flex flex-col-reverse gap-space-3 max-md:bottom-[calc(56px+env(safe-area-inset-bottom)+80px)] max-md:right-space-4">
       {toasts.map((toast) => (
         <Toast key={toast.id} toast={toast} />
       ))}

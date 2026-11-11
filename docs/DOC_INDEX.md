@@ -26,6 +26,7 @@ readable as a record of how we got here, and must not be cited as current truth.
 | `architecture/decisions/` (ADRs) | Binding technical decisions |
 | `architecture/BACKEND_CONVENTIONS.md`, `FRONTEND_CONVENTIONS.md`, `TECHNICAL_ARCHITECTURE.md` | How code is written here |
 | `design/DESIGN_SYSTEM.md`, `design/UI_UX_PRINCIPLES.md` | Visual and interaction language |
+| `design/UI_UX_REVAMP_PLAN.md` (+ `UI_UX_REVAMP_BRIEF.md`, the request) | **The UI/UX revamp on `feature/complete-ui-ux-revamp`**: IA, per-page specs, v3 visual system (§5, incl. the sleek pass §5.8), feedback rules, roadmap, release gates, manual acceptance checklist. Wins over DESIGN_SYSTEM where they differ |
 | `postman/*.json` | The API documentation (no OpenAPI — ADR-0013 §6) |
 
 ---

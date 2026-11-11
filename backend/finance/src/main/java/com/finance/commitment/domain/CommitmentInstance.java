@@ -90,6 +90,16 @@ public class CommitmentInstance extends AuditableEntity {
     @Column(name = "linked_transaction_id")
     private Long linkedTransactionId;
 
+    /** Why this month was skipped. Null unless SKIPPED; cleared again on unskip.
+     *  DEFERRED SCHEMA (2026-11-11): column not yet in the database - see CONTINUE_HERE. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "skip_reason", length = 30)
+    private SkipReason skipReason;
+
+    /** The user's own words about the skip, if any. Free text - never logged (ADR-0010). */
+    @Column(name = "skip_note", length = 200)
+    private String skipNote;
+
     /** What is still owed on this instance. Zero once paid, prepaid or skipped. */
     public BigDecimal outstanding() {
         if (status.isClosed()) {

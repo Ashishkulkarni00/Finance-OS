@@ -41,8 +41,16 @@ public interface CommitmentInstanceService {
     /** Moves an UNVERIFIED instance to PAID. Cycle-scoped by construction - see ADR note on rule 11. */
     CommitmentInstanceView confirm(Long id);
 
-    /** Don't pay this optional bill this cycle - it stops counting against what's free. */
-    CommitmentInstanceView skip(Long id);
+    /**
+     * Don't pay this commitment this cycle - it stops counting against what's free. A must-pay
+     * commitment needs a reason; one a lender debits regardless (a loan EMI) can't be skipped.
+     */
+    CommitmentInstanceView skip(Long id, com.finance.commitment.domain.SkipReason reason, String note);
+
+    /** Skip with no reason - only an optional commitment accepts this. */
+    default CommitmentInstanceView skip(Long id) {
+        return skip(id, null, null);
+    }
 
     /** Undo a skip - the bill is owed again. */
     CommitmentInstanceView unskip(Long id);

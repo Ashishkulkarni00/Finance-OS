@@ -1,4 +1,5 @@
 import { useForm } from 'react-hook-form';
+import { todayLocalIso } from '@/lib/dates';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Modal } from '@/components/Modal';
@@ -64,7 +65,7 @@ const schema = z
 type FormValues = z.infer<typeof schema>;
 
 function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+  return todayLocalIso();
 }
 
 interface AddInvestmentSheetProps {

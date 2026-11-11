@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { todayLocalIso } from '@/lib/dates';
 import { Landmark, Wallet, HandCoins, TrendingUp } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 /** The five account kinds a user can actually create - `AccountType` minus `SYSTEM`,
@@ -13,7 +14,7 @@ export const ACCOUNT_TYPES: { value: CreatableAccountType; label: string; icon: 
 ];
 
 export function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+  return todayLocalIso();
 }
 
 export const accountFormSchema = z.object({

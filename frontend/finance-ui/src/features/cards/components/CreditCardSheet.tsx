@@ -189,7 +189,7 @@ export function CreditCardSheet({ open, onClose, card }: CreditCardSheetProps) {
         </div>
 
         <div>
-          <p className="mb-space-2 text-micro uppercase tracking-[0.08em] text-ink-muted">Limit and bill</p>
+          <p className="mb-space-2 text-caption text-ink-muted">Limit and bill</p>
           <div className="rounded-lg border border-line">
             <FormRow label="Credit limit" error={errors.creditLimit?.message} hint="The total limit shown in your card app or on the statement.">
               <span className="flex items-center gap-space-1">
@@ -232,7 +232,7 @@ export function CreditCardSheet({ open, onClose, card }: CreditCardSheetProps) {
 
         {!editing && (
           <div>
-            <p className="mb-space-2 text-micro uppercase tracking-[0.08em] text-ink-muted">Where it stands</p>
+            <p className="mb-space-2 text-caption text-ink-muted">Where it stands</p>
             <div className="rounded-lg border border-line">
               <FormRow label="Owed today" error={errors.outstanding?.message} hint="Everything owed on the card right now, billed and unbilled, from your card app.">
                 <span className="flex items-center gap-space-1">

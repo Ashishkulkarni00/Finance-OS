@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { todayLocalIso } from '@/lib/dates';
 import { Row } from '@/components/Row';
 import { Button } from '@/components/Button';
 import { Select } from '@/components/Select';
@@ -57,7 +58,7 @@ export function IncomeStep({ onContinue }: IncomeStepProps) {
         categoryId: salaryCategory?.id ?? null,
         mandatory: true,
         settleAs: 'INCOME',
-        activeFrom: cycle?.startDate ?? new Date().toISOString().slice(0, 10),
+        activeFrom: cycle?.startDate ?? todayLocalIso(),
       }).unwrap();
       setName('');
       setAmount('');
@@ -99,7 +100,7 @@ export function IncomeStep({ onContinue }: IncomeStepProps) {
               onChange={(e) => setName(e.target.value)}
               placeholder="Salary"
               aria-label="What it is"
-              className="col-span-3 h-11 rounded-lg border border-border bg-surface px-space-3 text-label text-ink sm:col-span-1"
+              className="col-span-3 h-9 pointer-coarse:h-11 rounded-lg border border-border bg-surface px-space-3 text-label text-ink sm:col-span-1"
             />
             <input
               value={amount}
@@ -107,7 +108,7 @@ export function IncomeStep({ onContinue }: IncomeStepProps) {
               inputMode="decimal"
               placeholder="Take-home amount"
               aria-label="Take-home amount"
-              className="num h-11 rounded-lg border border-border bg-surface px-space-3 text-label text-ink"
+              className="num h-9 pointer-coarse:h-11 rounded-lg border border-border bg-surface px-space-3 text-label text-ink"
             />
             <Select
               ariaLabel="Account it lands in"
@@ -136,6 +137,11 @@ export function IncomeStep({ onContinue }: IncomeStepProps) {
           </button>
         )}
       </div>
+      {incomeRules.length === 0 && (
+        <p className="-mt-space-4 max-w-[40rem] text-caption text-ink-muted">
+          Without your salary the month can’t be set against what comes in. You can add it any time on Month.
+        </p>
+      )}
     </div>
   );
 }

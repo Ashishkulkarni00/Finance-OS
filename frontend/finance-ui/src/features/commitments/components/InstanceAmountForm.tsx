@@ -68,7 +68,7 @@ export function InstanceAmountForm({ instanceId, name }: { instanceId: number; n
   return (
     <div onClick={(e) => e.stopPropagation()} className="flex flex-col gap-space-1">
       <div className="flex items-center gap-space-2">
-        <label className="flex h-9 items-center gap-space-1 rounded-lg border border-border bg-surface px-space-3 transition-colors focus-within:border-accent">
+        <label className="flex h-9 pointer-coarse:h-11 items-center gap-space-1 rounded-lg border border-border bg-surface px-space-3 transition-colors focus-within:border-accent">
           <span aria-hidden className="num text-label text-ink-muted">
             ₹
           </span>

@@ -28,13 +28,17 @@ export function WayBack() {
 
   return (
     <section>
-      <SectionHeader>{broken ? 'A way back this month' : 'Running tighter than usual'}</SectionHeader>
+      {/* Phone: the title sits above a card, as every section on Today does there. */}
+      <SectionHeader overCard>
+        {broken ? 'A way back this month' : 'Running tighter than usual'}
+      </SectionHeader>
+      <div className="m-card">
       <p className={cn('mb-space-3 text-caption', broken ? 'text-attention' : 'text-ink-soft')}>{data.reason}</p>
       <ol className="flex flex-col">
         {data.steps.map((s, i) => (
-          <li key={`${s.kind}-${s.refId ?? i}`} className="flex items-baseline justify-between gap-space-3 border-b border-line py-space-2 last:border-b-0">
+          <li key={`${s.kind}-${s.refId ?? i}`} className="flex items-baseline justify-between gap-space-3 border-t border-line py-space-2 max-md:py-space-3 max-md:last:pb-0">
             <span className="min-w-0 text-label text-ink">
-              <span className="block text-micro uppercase tracking-[0.08em] text-ink-muted">
+              <span className="block text-caption text-ink-muted">
                 {data.steps.length > 1 ? `${i + 1}. ` : ''}{s.kind === 'SPEND_LESS' && i > 0 ? 'The rest' : STEP_VERB[s.kind]}
               </span>
               {s.kind === 'SPEND_LESS' && s.perDayLess ? (
@@ -49,8 +53,16 @@ export function WayBack() {
           </li>
         ))}
       </ol>
+      {data.catchUp && Number(data.catchUp) > 0 && data.catchUpMonths != null && data.catchUpPerMonth && (
+        <p className="mt-space-3 flex items-baseline justify-between gap-space-3 rounded-lg bg-sunken px-space-3 py-space-2 text-caption text-ink-soft md:hidden">
+          <span>Put back {data.catchUpMonths === 1 ? 'next month' : `over ${data.catchUpMonths} months`}</span>
+          <span className="shrink-0">
+            <Amount value={data.catchUpPerMonth} role="caption" className="text-ink" /> a month
+          </span>
+        </p>
+      )}
       {data.catchUp && Number(data.catchUp) > 0 && (
-        <p className="mt-space-3 text-caption text-ink-muted">
+        <p className={cn('mt-space-3 text-caption text-ink-muted', data.catchUpMonths != null && data.catchUpPerMonth && 'max-md:hidden')}>
           {data.catchUpMonths != null && data.catchUpPerMonth ? (
             <>
               Putting back <Amount value={data.catchUp} role="caption" className="text-ink" /> afterwards takes{' '}
@@ -66,6 +78,7 @@ export function WayBack() {
           )}
         </p>
       )}
+      </div>
     </section>
   );
 }

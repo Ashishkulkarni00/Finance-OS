@@ -1,364 +1,37 @@
-import { Fragment, useState } from 'react';
-import { ListChecks } from 'lucide-react';
+import { useState } from 'react';
+import { ListChecks, Plus, Tags } from 'lucide-react';
 import { Button } from '@/components/Button';
 import { Amount } from '@/components/Amount';
 import { Skeleton } from '@/components/Skeleton';
 import { EmptyState } from '@/components/EmptyState';
 import { SectionHeader } from '@/components/SectionHeader';
-import { ProgressRule } from '@/components/ProgressRule';
 import { GroupBand } from '@/components/GroupBand';
-import { DateBlock } from '@/components/DateBlock';
-import { MetaFacts } from '@/components/LedgerRow';
-import { InstanceAmountForm } from '@/features/commitments/components/InstanceAmountForm';
+import { Disclosure } from '@/components/Disclosure';
 import { AddCommitmentSheet } from '@/features/plan/components/AddCommitmentSheet';
 import { EditCommitmentSheet } from '@/features/plan/components/EditCommitmentSheet';
 import { ManageCategoriesSheet } from '@/features/ledger/components/ManageCategoriesSheet';
 import { StoppedBills, useStoppedBills } from '@/features/plan/components/StoppedBills';
-import { WorklistRow } from './WorklistRow';
-import { formatShortDate, daysBetween } from '@/lib/dates';
-import { formatMoney, splitMoney } from '@/lib/money';
+import { SettledRow, UnsettledRow, ExpectedIncomeRow, ReceivedIncomeRow, PlanDayHeader } from './PlanRows';
+import { daysBetween } from '@/lib/dates';
+import { formatMoney } from '@/lib/money';
 import { cn } from '@/lib/cn';
-import { useAppDispatch } from '@/store/hooks';
-import { openSettleSheet } from '@/store/slices/uiSlice';
-import { useSkipCommitmentInstanceMutation, useUnskipCommitmentInstanceMutation } from '@/services/commitmentInstanceService';
 import { useGetMeQuery } from '@/services/userService';
 import type { CommitmentInstanceResponse, CommitmentPlanProgressResponse } from '@/types/commitment';
 import type { CycleResponse } from '@/types/cycle';
 
 interface PlanZoneProps {
-  /** The month being shown - new bills added from here start in it. */
   cycle?: CycleResponse;
   instances: CommitmentInstanceResponse[] | undefined;
   progress: CommitmentPlanProgressResponse | undefined;
   isLoading: boolean;
   isError: boolean;
-}
-
-/** "₹350 more than planned" - magnitude via splitMoney (never a raw Number() on the
- *  amount), direction from the value's sign, both already computed server-side. */
-function varianceNote(instance: CommitmentInstanceResponse): string | undefined {
-  // Null means we never had both figures - stay silent rather than claim it matched.
-  if (instance.variance == null) return undefined;
-  if (Number(instance.variance) === 0) return 'Matched what was planned';
-  const { symbol, digits } = splitMoney(instance.variance);
-  const direction = Number(instance.variance) > 0 ? 'more' : 'less';
-  return `${symbol}${digits} ${direction} than planned`;
-}
-
-/** "in 3 days" reads as a decision; "12 Sep" needs mental arithmetic first. Date maths
- *  client-side is fine - see the note at the top of lib/dates.ts. */
-function duePhrase(dueDate: string): { value: string; tone: 'neutral' | 'soon' | 'overdue' } {
-  const days = daysBetween(dueDate);
-  if (days < 0) return { value: `${Math.abs(days)} ${Math.abs(days) === 1 ? 'day' : 'days'} ago`, tone: 'overdue' };
-  if (days === 0) return { value: 'today', tone: 'soon' };
-  if (days === 1) return { value: 'tomorrow', tone: 'soon' };
-  if (days <= 6) return { value: `in ${days} days`, tone: 'neutral' };
-  return { value: formatShortDate(dueDate), tone: 'neutral' };
-}
-
-/**
- * "₹500 of ₹2,500 paid", with the rule showing how far in.
- *
- * <p>A part-paid bill used to look exactly like an untouched one - the row showed what was
- * still outstanding and said "Mandatory", so the ₹500 already paid was invisible and the
- * only clue was that the figure had changed since you last looked.
- *
- * <p>The fraction is a proportion, not a figure: it sets a bar's width and is never shown
- * as money, so it is outside FRONTEND_CONVENTIONS §4 rule 2 - every rupee amount here is
- * still the server's own string, rendered by `Amount`. `ProgressRule` is the same
- * instrument the cycle band and the plan's settled count use, so three different kinds of
- * progress on one screen cannot drift into looking like three different kinds of thing.
- */
-function PartPaidNote({ instance }: { instance: CommitmentInstanceResponse }) {
-  const expected = Number(instance.expectedAmount);
-  const fraction = expected > 0 ? Number(instance.confirmedAmount) / expected : 0;
-  return (
-    <span className="flex flex-col gap-space-1">
-      <span>
-        <Amount value={instance.confirmedAmount} role="caption" className="text-positive" /> of{' '}
-        <Amount value={instance.expectedAmount} role="caption" /> paid
-      </span>
-      <ProgressRule fraction={fraction} className="max-w-[9rem]" />
-    </span>
-  );
-}
-
-/**
- * One unsettled bill. Its own component because a bill with no amount can open an
- * inline estimate form under the row, and that toggle is per row.
- *
- * <p>Rendered as a Fragment, not wrapped in a div: `LedgerRow` rules itself off with
- * `last:border-b-0`, so a wrapper per row would make every row its wrapper's last child
- * and erase every rule in the list.
- */
-function UnsettledRow({ instance, onEdit }: { instance: CommitmentInstanceResponse; onEdit: () => void }) {
-  const dispatch = useAppDispatch();
-  const [skip, { isLoading: skipping }] = useSkipCommitmentInstanceMutation();
-  const [estimating, setEstimating] = useState(false);
-  const due = duePhrase(instance.dueDate);
-  const unknownAmount = instance.expectedAmount == null;
-  const partPaid = instance.status === 'PART_PAID' && instance.confirmedAmount != null && instance.expectedAmount != null;
-  const passed = due.tone === 'overdue';
-
-  const secondary = passed
-    ? unknownAmount
-      ? 'Due date passed · needs an amount'
-      : 'Due date passed · paid already? Settle it, or link the Ledger entry'
-    : instance.sourceType === 'LOAN'
-      ? 'Loan EMI · amount and dates follow the loan'
-      : // "If skipped: …" used to sit here, ahead of Mandatory/Optional. Removed with its
-        // input: in practice it restated the bill's own name, and it outranked the one word
-        // that actually tells you whether this row can wait.
-        instance.mandatory
-        ? 'Mandatory'
-        : 'Optional';
-
-  return (
-    <Fragment>
-      <WorklistRow
-        instanceId={instance.id}
-        tone="pending"
-        onEdit={onEdit}
-        leading={<DateBlock date={instance.dueDate} tone={due.tone} />}
-        primary={instance.commitmentName}
-        secondary={partPaid ? <PartPaidNote instance={instance} /> : secondary}
-        richSecondary={partPaid}
-        meta={
-          <MetaFacts
-            items={[
-              { label: 'Due', value: due.value, className: passed ? 'text-attention' : undefined },
-              { label: 'Pay from', value: instance.account.name },
-            ]}
-          />
-        }
-        amount={
-          unknownAmount ? (
-            <span className="text-caption text-attention">Amount unknown</span>
-          ) : (
-            <span className="flex flex-col items-end">
-              <Amount value={instance.outstanding} role="row" className="text-ink" />
-              {/* Says what it differs *from*, not just that it differs - "changed" alone
-                  raises the question it is meant to answer (FIX_BACKLOG 2.9). */}
-              {instance.amountOverridden && instance.ruleAmount != null && (
-                <span className="text-micro text-ink-muted">
-                  this month · usually <span className="num">{formatMoney(instance.ruleAmount)}</span>
-                </span>
-              )}
-            </span>
-          )
-        }
-        action={
-          // Settle records (or links) a payment; a bill with no amount needs a number
-          // first, and "Estimate" gets it one without pretending money has moved.
-          unknownAmount ? (
-            <Button size="sm" variant="secondary" onClick={() => setEstimating((v) => !v)} aria-expanded={estimating}>
-              Estimate
-            </Button>
-          ) : (
-            <span className="flex items-center gap-space-2">
-              {/* An optional bill you won't pay this month frees its money - only while untouched. */}
-              {!instance.mandatory && instance.confirmedAmount == null && (
-                <Button size="sm" variant="ghost" disabled={skipping} onClick={() => skip(instance.id)}>
-                  Skip
-                </Button>
-              )}
-              <Button size="sm" variant="secondary" onClick={() => dispatch(openSettleSheet(instance.id))}>
-                {instance.settleAs === 'EXPENSE' ? 'Settle' : 'Record it'}
-              </Button>
-            </span>
-          )
-        }
-      />
-      {unknownAmount && estimating && (
-        <div className="border-b border-line pb-space-3 pl-[56px]">
-          <InstanceAmountForm instanceId={instance.id} name={instance.commitmentName} />
-        </div>
-      )}
-    </Fragment>
-  );
-}
-
-/** One paid (or skipped) bill - what it cost against the plan, and when and from where it left. */
-function SettledRow({ instance, onEdit }: { instance: CommitmentInstanceResponse; onEdit: () => void }) {
-  const [unskip, { isLoading }] = useUnskipCommitmentInstanceMutation();
-  if (instance.status === 'SKIPPED') {
-    return (
-      <WorklistRow
-        instanceId={instance.id}
-        tone="skipped"
-        onEdit={onEdit}
-        primary={instance.commitmentName}
-        secondary="Skipped this month - not counted against what's free"
-        meta={<MetaFacts items={[{ label: 'Was due', value: formatShortDate(instance.dueDate) }]} />}
-        amount={<Amount value={instance.expectedAmount} role="row" className="text-ink-muted line-through" />}
-        action={
-          <Button size="sm" variant="ghost" disabled={isLoading} onClick={() => unskip(instance.id)}>
-            Undo
-          </Button>
-        }
-      />
-    );
-  }
-  return (
-    <WorklistRow
-      instanceId={instance.id}
-      tone="paid"
-      onEdit={onEdit}
-      primary={instance.commitmentName}
-      secondary={varianceNote(instance)}
-      meta={
-        <MetaFacts
-          items={[
-            // settledOn, not dueDate - labelling a due date "Paid on" states
-            // a date the money did not actually move on.
-            ...(instance.settledOn ? [{ label: 'Paid on', value: formatShortDate(instance.settledOn) }] : []),
-            // The account the money actually left, not the one the bill plans on - they are
-            // allowed to differ, so printing the plan's would misreport the payment.
-            { label: 'Paid from', value: (instance.settledFromAccount ?? instance.account).name },
-          ]}
-        />
-      }
-      // Green, not grey: the row is already muted to say "nothing to do here", and the
-      // figure is the one thing worth seeing at a glance when you scan the month for what
-      // is done. Not struck through - a strikethrough is the language of cancellation.
-      amount={<Amount value={instance.confirmedAmount} role="row" className="text-positive" />}
-    />
-  );
-}
-
-/**
- * "Coming in" - the month's expected income, above the bills it pays for. Expected until
- * it's recorded; then what arrived, with how it compared. Never a bill: no Skip, no
- * "pay from", and it isn't in the plan's settled count.
- */
-function IncomeBlock({
-  income,
-  progress,
-  onEdit,
-  onAdd,
-  onAddExtra,
-}: {
-  income: CommitmentInstanceResponse[];
-  progress: CommitmentPlanProgressResponse | undefined;
-  onEdit: (instance: CommitmentInstanceResponse) => () => void;
-  onAdd: () => void;
-  /** A one-off this month - a bonus, arrears, a deposit coming back. */
-  onAddExtra: () => void;
-}) {
-  const dispatch = useAppDispatch();
-  if (income.length === 0) {
-    return (
-      <p className="mb-space-6 text-caption text-ink-soft">
-        No salary in this plan yet, so the month can’t be set against what comes in.{' '}
-        <button type="button" onClick={onAdd} className="text-accent underline-offset-4 hover:underline">
-          Add your salary
-        </button>
-      </p>
-    );
-  }
-  return (
-    <div className="mb-space-8 flex flex-col">
-      <GroupBand
-        label="Coming in"
-        count={income.length}
-        figure={
-          progress && (
-            <Amount
-              value={Number(progress.incomeExpectedTotal) > 0 ? progress.incomeExpectedTotal : progress.incomeReceivedTotal}
-              role="caption"
-              className="text-ink"
-            />
-          )
-        }
-        caption={progress && Number(progress.incomeExpectedTotal) > 0 ? 'still expected' : 'arrived'}
-      />
-      <button
-        type="button"
-        onClick={onAddExtra}
-        className="self-start py-space-2 text-caption text-accent underline-offset-4 hover:underline"
-      >
-        + Extra income this month (bonus, arrears…)
-      </button>
-      {income
-        .slice()
-        .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
-        .map((instance) => {
-          const received = instance.attentionTier === 'SETTLED';
-          const late = !received && daysBetween(instance.dueDate) < 0;
-          return received ? (
-            <WorklistRow
-              key={instance.id}
-              instanceId={instance.id}
-              tone="paid"
-              doneLabel="Received"
-              onEdit={onEdit(instance)}
-              primary={instance.commitmentName}
-              secondary={instance.variance == null || Number(instance.variance) === 0 ? 'Arrived as expected' : `${varianceNote(instance)?.replace('than planned', 'than expected')}`}
-              meta={
-                <MetaFacts
-                  items={[
-                    ...(instance.settledOn ? [{ label: 'Arrived', value: formatShortDate(instance.settledOn) }] : []),
-                    { label: 'Into', value: instance.account.name },
-                  ]}
-                />
-              }
-              amount={<Amount value={instance.confirmedAmount} role="row" signed className="text-positive" />}
-            />
-          ) : (
-            <WorklistRow
-              key={instance.id}
-              instanceId={instance.id}
-              tone="pending"
-              onEdit={onEdit(instance)}
-              leading={<DateBlock date={instance.dueDate} tone={late ? 'overdue' : 'neutral'} />}
-              primary={instance.commitmentName}
-              secondary={
-                late
-                  ? 'Expected by now - arrived? Record it, or link the Ledger entry'
-                  : 'Expected - counted in this month’s standing, not in what you can spend'
-              }
-              meta={
-                <MetaFacts
-                  items={[
-                    { label: 'Expected', value: duePhrase(instance.dueDate).value, className: late ? 'text-attention' : undefined },
-                    { label: 'Into', value: instance.account.name },
-                  ]}
-                />
-              }
-              amount={
-                instance.expectedAmount == null ? (
-                  <span className="text-caption text-attention">Amount unknown</span>
-                ) : (
-                  <Amount value={instance.outstanding} role="row" signed className="text-positive" />
-                )
-              }
-              action={
-                <Button size="sm" variant="secondary" onClick={() => dispatch(openSettleSheet(instance.id))}>
-                  Received
-                </Button>
-              }
-            />
-          );
-        })}
-    </div>
-  );
-}
-
-const BAND_DATE = new Intl.DateTimeFormat('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
-
-/** "Mon, 5 Oct", with "today" / "tomorrow" where that's quicker to read. */
-function bandDate(iso: string): string {
-  const days = daysBetween(iso);
-  const label = BAND_DATE.format(new Date(`${iso}T00:00:00`));
-  if (days === 0) return `Today · ${label}`;
-  if (days === 1) return `Tomorrow · ${label}`;
-  return label;
+  /** "Coming up" for the month in progress; "The plan" for any other. */
+  title?: string;
 }
 
 type Grouping = 'category' | 'when';
 const GROUPING_KEY = 'kosh.month.plan.grouping';
 
-/** The chosen grouping is a per-browser convenience; forgetting it costs one click. */
 function readGrouping(): Grouping {
   try {
     // By date is the default: the month is read as "what leaves next". Category is a choice.
@@ -369,32 +42,18 @@ function readGrouping(): Grouping {
 }
 
 /**
- * Zone 4 - "the plan": every bill in this cycle, not only the ones still ahead.
+ * The month's worklist (UI_UX_REVAMP_PLAN 4.5): **what is still to do, by date**, with what is
+ * already done folded away. Done items are reassurance, not work - they sit under a closed "Done"
+ * section rather than between the things that need acting on.
  *
- * <p>This used to list Tier 2 (Worth knowing) and Tier 3 (Settled) and leave Tier 1 to
- * the Needs You cards above - so a bill whose due date had passed unpaid appeared only
- * as an alert, and the plan itself read as "future bills". That broke the plan's one
- * job: MONTH_EXPERIENCE's rule is that Month shows *completeness* - every obligation in
- * the cycle, with its status. Needs You is the urgent shortlist on top of that; it
- * doesn't replace any of it. So the list is grouped by when, not by tier:
- * <ol>
- *   <li><strong>Due date passed</strong> - unsettled and past due: including a bill added
- *       after its date, which is exactly the case people forget to record.</li>
- *   <li><strong>Still to come</strong></li>
- *   <li><strong>Settled</strong></li>
- * </ol>
- *
- * <p>Grouped <strong>by date</strong> by default (2026-09-18): one band per due date, in
- * order, each with the server's planned and still-to-pay figures (`progress.byDueDate`) -
- * the month read as "what leaves next". Within a band, unpaid bills first, then paid.
- * "By category" groups the same bills under the Ledger's categories
- * (`progress.byCategory`), with uncategorised bills last.
+ * <p>In the by-date view each band shows the server's *outstanding* total for its date (what is still
+ * to pay), and only counts the rows in front of the reader. The by-category view is a review lens
+ * and keeps paid rows inline.
  */
-export function PlanZone({ cycle, instances: allInstances, progress, isLoading, isError }: PlanZoneProps) {
+export function PlanZone({ cycle, instances: allInstances, progress, isLoading, isError, title = 'The plan' }: PlanZoneProps) {
   const [adding, setAdding] = useState(false);
   const [addingIncome, setAddingIncome] = useState<'salary' | 'extra' | null>(null);
   const { data: me } = useGetMeQuery();
-  /** The occurrence whose pencil was clicked - Edit changes its commitment, and "This time" is its own amount. */
   const [editing, setEditing] = useState<CommitmentInstanceResponse | null>(null);
   const [managingCategories, setManagingCategories] = useState(false);
   const [showStopped, setShowStopped] = useState(false);
@@ -412,7 +71,7 @@ export function PlanZone({ cycle, instances: allInstances, progress, isLoading, 
   if (isLoading) {
     return (
       <section>
-        <SectionHeader>The plan</SectionHeader>
+        <SectionHeader>{title}</SectionHeader>
         <div className="flex flex-col gap-space-2">
           {[0, 1, 2, 3].map((i) => (
             <Skeleton key={i} className="h-12 w-full" />
@@ -426,13 +85,13 @@ export function PlanZone({ cycle, instances: allInstances, progress, isLoading, 
   if (isError) {
     return (
       <section>
-        <SectionHeader>The plan</SectionHeader>
-        <p className="text-body text-ink-soft">We couldn’t load this cycle’s bills. Refresh to try again.</p>
+        <SectionHeader>{title}</SectionHeader>
+        <p className="text-body text-ink-soft">We couldn’t load this cycle’s commitments. Refresh to try again.</p>
       </section>
     );
   }
 
-  // Adding from a month's plan starts the bill in that month - planning October from
+  // Adding from a month's plan starts the commitment in that month - planning October from
   // October's page shouldn't need the start picked again.
   const addSheet = (
     <>
@@ -455,7 +114,7 @@ export function PlanZone({ cycle, instances: allInstances, progress, isLoading, 
   if (!allInstances || allInstances.length === 0) {
     return (
       <section>
-        <SectionHeader>The plan</SectionHeader>
+        <SectionHeader>{title}</SectionHeader>
         <EmptyState
           icon={ListChecks}
           headline="No commitments in this month yet."
@@ -473,110 +132,142 @@ export function PlanZone({ cycle, instances: allInstances, progress, isLoading, 
 
   const byDueDate = (a: CommitmentInstanceResponse, b: CommitmentInstanceResponse) => a.dueDate.localeCompare(b.dueDate);
   const edit = (instance: CommitmentInstanceResponse) => () => setEditing(instance);
-  // Expected income has its own block; everything below is bills.
+  // Income is part of the month's timeline, not a block above it (2026-11-11): what is still to
+  // arrive sits in its day like any other row; what has arrived is done, so it goes to Done.
   const income = allInstances.filter((i) => i.settleAs === 'INCOME');
+  const expectedIncome = income.filter((i) => i.attentionTier !== 'SETTLED');
+  const receivedIncome = income.filter((i) => i.attentionTier === 'SETTLED');
   const instances = allInstances.filter((i) => i.settleAs !== 'INCOME');
   const unsettled = instances.filter((i) => i.attentionTier !== 'SETTLED');
-  const settled = instances.filter((i) => i.attentionTier === 'SETTLED').sort(byDueDate);
+  const settled = instances.filter((i) => i.attentionTier === 'SETTLED');
+  // Done, in date order, income and commitments together.
+  const done = [...settled, ...receivedIncome].sort(byDueDate);
   // Needs the server's per-category subtotals. Until they arrive - or while they lag a
-  // just-edited bill, so a row would have no heading to sit under - show the timing view
-  // rather than drop a bill from the list.
+  // just-edited commitment, so a row would have no heading to sit under - show the by-date view
+  // rather than drop a commitment from the list.
   const groupIds = new Set(progress?.byCategory.map((g) => g.category?.id ?? null));
   const byCategory =
     grouping === 'category' && progress && instances.every((i) => groupIds.has(i.category?.id ?? null))
       ? progress.byCategory
       : null;
-  // "By when": one band per due date. The figures are the server's; if they lag a just-edited
-  // bill, the bands still show (dates are known here) but without money figures.
-  const billDates = [...new Set(instances.map((i) => i.dueDate))].sort();
+  // "By date": one day per due date that still has something to do. The day's figure is the
+  // server's outstanding total; if it lags a just-edited commitment the day still shows, without it.
+  const openDates = [...new Set([...unsettled, ...expectedIncome].map((i) => i.dueDate))].sort();
   const serverDates = new Map((progress?.byDueDate ?? []).map((g) => [g.dueDate, g]));
-  const dateGroups: { dueDate: string; count: number; plannedTotal?: string; outstandingTotal?: string }[] = billDates.every((d) =>
-    serverDates.has(d),
-  )
-    ? billDates.map((d) => serverDates.get(d)!)
-    : billDates.map((d) => ({ dueDate: d, count: instances.filter((i) => i.dueDate === d).length }));
+
+  // The Ledger's toolbar, so the two pages work the same way: a segmented control for the view,
+  // and quiet tools to its right - icon-only on a phone.
+  const CHIP = 'h-8 rounded-full border text-label transition-colors duration-150 pointer-coarse:h-9';
+  const toolbar = (
+    <div className="mb-space-2 flex flex-wrap items-center gap-space-2">
+      <span className={cn('inline-flex overflow-hidden border-border', CHIP)} role="group" aria-label="Group the plan">
+        {(['when', 'category'] as const).map((g) => (
+          <button
+            key={g}
+            type="button"
+            aria-pressed={grouping === g}
+            onClick={() => setGrouping(g)}
+            className={cn(
+              'px-space-3 transition-colors duration-150',
+              grouping === g ? 'bg-accent-wash font-medium text-ink' : 'text-ink-soft hover:bg-sunken',
+            )}
+          >
+            {g === 'category' ? 'By category' : 'By date'}
+          </button>
+        ))}
+      </span>
+      {/* Only when there is something stopped - an always-on "0 stopped" would be noise. */}
+      {stoppedBills.length > 0 && (
+        <button
+          type="button"
+          aria-expanded={showStopped}
+          onClick={() => setShowStopped((v) => !v)}
+          className={cn(CHIP, 'px-space-3', showStopped ? 'border-ink-soft bg-sunken text-ink' : 'border-border text-ink-soft hover:bg-sunken')}
+        >
+          {stoppedBills.length} stopped
+        </button>
+      )}
+      <span className="ml-auto flex items-center gap-space-2">
+        <button
+          type="button"
+          onClick={() => setManagingCategories(true)}
+          aria-label="Categories"
+          title="Categories"
+          className={cn(CHIP, 'flex items-center gap-space-1 border-border px-space-3 text-ink-soft hover:bg-sunken max-md:w-8 max-md:justify-center max-md:px-0 pointer-coarse:max-md:w-9')}
+        >
+          <Tags size={15} strokeWidth={1.5} aria-hidden />
+          <span className="max-md:sr-only">Categories</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setAdding(true)}
+          className={cn(CHIP, 'flex items-center gap-space-1 border-accent px-space-3 font-medium text-accent hover:bg-accent-wash')}
+        >
+          <Plus size={15} strokeWidth={1.75} aria-hidden />
+          Add
+        </button>
+      </span>
+    </div>
+  );
+
+  const incomeNote =
+    income.length === 0 ? (
+      <p className="mt-space-4 text-caption text-ink-soft">
+        No salary in this plan yet, so the month can’t be set against what comes in.{' '}
+        <button type="button" onClick={() => setAddingIncome('salary')} className="text-accent underline-offset-4 hover:underline">
+          Add your salary
+        </button>
+      </p>
+    ) : (
+      <button
+        type="button"
+        onClick={() => setAddingIncome('extra')}
+        className="mt-space-4 self-start text-caption text-accent underline-offset-4 hover:underline"
+      >
+        + Extra income this month (bonus, arrears…)
+      </button>
+    );
 
   return (
     <section>
-      <SectionHeader
-        // The settled-progress rule sits directly beneath this; a second hairline above
-        // it just doubles the line.
-        rule={false}
-        trailing={
-          <span className="flex items-baseline gap-space-4">
-            {progress && (
-              <span className="num">
-                <Amount value={progress.settledTotal} role="caption" className="text-ink-muted" /> of{' '}
-                <Amount value={progress.plannedTotal} role="caption" className="text-ink-muted" /> settled ·{' '}
-                {progress.settledCount} of {progress.totalCount}
-              </span>
-            )}
-            <span className="flex items-baseline gap-space-2" role="group" aria-label="Group the plan">
-              {(['when', 'category'] as const).map((g) => (
-                <button
-                  key={g}
-                  type="button"
-                  aria-pressed={grouping === g}
-                  onClick={() => setGrouping(g)}
-                  className={cn('underline-offset-4 hover:underline', grouping === g ? 'font-medium text-ink' : 'text-ink-muted')}
-                >
-                  {g === 'category' ? 'By category' : 'By date'}
-                </button>
-              ))}
-            </span>
-            {/* Only when there is something stopped - an always-on "0 stopped" would be
-                noise, and the point of this is that a stopped bill stops being findable. */}
-            {stoppedBills.length > 0 && (
-              <button
-                type="button"
-                aria-expanded={showStopped}
-                onClick={() => setShowStopped((v) => !v)}
-                className={cn('underline-offset-4 hover:underline', showStopped ? 'font-medium text-ink' : 'text-ink-muted')}
-              >
-                {stoppedBills.length} stopped
-              </button>
-            )}
-            <button type="button" onClick={() => setManagingCategories(true)} className="text-accent underline-offset-4 hover:underline">
-              Manage categories
-            </button>
-            <button type="button" onClick={() => setAdding(true)} className="text-accent underline-offset-4 hover:underline">
-              + Add a commitment
-            </button>
-          </span>
-        }
-      >
-        The plan
+      <SectionHeader rule={false} className="mb-space-2">
+        {title}
       </SectionHeader>
-
-      {/* "What's different" and "What you changed" used to sit here. They moved to the
-          MonthBriefing tab strip directly under the month's numbers: they describe the
-          shape of the month, and belonged above the plan rather than inside it. */}
+      {toolbar}
 
       {showStopped && <StoppedBills bills={stoppedBills} onClose={() => setShowStopped(false)} />}
 
-      <IncomeBlock
-        income={income}
-        progress={progress}
-        onEdit={edit}
-        onAdd={() => setAddingIncome('salary')}
-        onAddExtra={() => setAddingIncome('extra')}
-      />
-
-      {progress && (
-        // Counts, not money - a ratio of two integers is safe to take here.
-        <ProgressRule
-          className="mb-space-6"
-          fraction={progress.totalCount > 0 ? progress.settledCount / progress.totalCount : 0}
-        />
-      )}
-
       {byCategory ? (
-        <div className="flex flex-col gap-space-8">
+        <div className="flex flex-col gap-space-6 md:gap-space-8">
+          {income.length > 0 && (
+            <div className="flex flex-col">
+              <GroupBand
+                label="Coming in"
+                count={income.length}
+                figure={
+                  progress && (
+                    <Amount
+                      value={Number(progress.incomeExpectedTotal) > 0 ? progress.incomeExpectedTotal : progress.incomeReceivedTotal}
+                      role="caption"
+                      className="text-ink"
+                    />
+                  )
+                }
+                caption={progress && Number(progress.incomeExpectedTotal) > 0 ? 'still expected' : 'arrived'}
+              />
+              {expectedIncome.sort(byDueDate).map((instance) => (
+                <ExpectedIncomeRow key={instance.id} instance={instance} onEdit={edit(instance)} />
+              ))}
+              {receivedIncome.sort(byDueDate).map((instance) => (
+                <ReceivedIncomeRow key={instance.id} instance={instance} onEdit={edit(instance)} />
+              ))}
+            </div>
+          )}
           {byCategory.map((group) => {
             const categoryId = group.category?.id ?? null;
             const inGroup = (i: CommitmentInstanceResponse) => (i.category?.id ?? null) === categoryId;
             const open = unsettled.filter(inGroup).sort(byDueDate);
-            const paid = settled.filter(inGroup);
+            const paid = settled.filter(inGroup).sort(byDueDate);
             return (
               <div key={categoryId ?? 'none'} className="flex flex-col">
                 <GroupBand
@@ -600,39 +291,63 @@ export function PlanZone({ cycle, instances: allInstances, progress, isLoading, 
               </div>
             );
           })}
+          {incomeNote}
         </div>
       ) : (
-        <div className="flex flex-col gap-space-8">
-          {dateGroups.map((group) => {
-            const inGroup = (i: CommitmentInstanceResponse) => i.dueDate === group.dueDate;
-            const open = unsettled.filter(inGroup);
-            const paid = settled.filter(inGroup);
-            const passed = daysBetween(group.dueDate) < 0;
-            return (
-              <div key={group.dueDate} className="flex flex-col">
-                <GroupBand
-                  label={bandDate(group.dueDate)}
-                  count={group.count}
-                  figure={group.plannedTotal != null ? <Amount value={group.plannedTotal} role="caption" className="text-ink" /> : undefined}
-                  caption={
-                    group.outstandingTotal == null
-                      ? passed && open.length > 0 ? 'date passed · not settled yet' : undefined
-                      : open.length === 0
-                        ? 'planned · all settled'
-                        : passed
-                          ? `planned · ${formatMoney(group.outstandingTotal)} not settled - date passed`
-                          : `planned · ${formatMoney(group.outstandingTotal)} still to pay`
-                  }
-                />
-                {open.map((instance) => (
-                  <UnsettledRow key={instance.id} instance={instance} onEdit={edit(instance)} />
-                ))}
-                {paid.map((instance) => (
-                  <SettledRow key={instance.id} instance={instance} onEdit={edit(instance)} />
-                ))}
-              </div>
-            );
-          })}
+        <div className="flex flex-col">
+          {openDates.length === 0 ? (
+            <p className="py-space-3 text-body text-ink-soft">Everything in this month’s plan is dealt with.</p>
+          ) : (
+            <div className="flex flex-col gap-space-4 md:gap-space-6">
+              {openDates.map((dueDate) => {
+                const open = unsettled.filter((i) => i.dueDate === dueDate);
+                const arriving = expectedIncome.filter((i) => i.dueDate === dueDate);
+                const server = serverDates.get(dueDate);
+                const passed = daysBetween(dueDate) < 0;
+                return (
+                  <div key={dueDate} className="flex flex-col">
+                    <PlanDayHeader
+                      date={dueDate}
+                      figure={
+                        open.length > 0 && server?.outstandingTotal != null ? (
+                          <Amount
+                            value={server.outstandingTotal}
+                            role="caption"
+                            className={cn('font-medium', passed ? 'text-attention' : 'text-ink')}
+                          />
+                        ) : undefined
+                      }
+                      caption={open.length > 0 ? (passed ? 'not settled' : 'to pay') : undefined}
+                    />
+                    {arriving.map((instance) => (
+                      <ExpectedIncomeRow key={instance.id} instance={instance} onEdit={edit(instance)} />
+                    ))}
+                    {open.map((instance) => (
+                      <UnsettledRow key={instance.id} instance={instance} onEdit={edit(instance)} />
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {incomeNote}
+
+          {done.length > 0 && (
+            <div className="mt-space-6 md:mt-space-8">
+              <Disclosure storageKey="kosh.month.done" label={`Done · ${done.length}`} summary="paid, received or skipped">
+                <div className="flex flex-col">
+                  {done.map((instance) =>
+                    instance.settleAs === 'INCOME' ? (
+                      <ReceivedIncomeRow key={instance.id} instance={instance} onEdit={edit(instance)} />
+                    ) : (
+                      <SettledRow key={instance.id} instance={instance} onEdit={edit(instance)} />
+                    ),
+                  )}
+                </div>
+              </Disclosure>
+            </div>
+          )}
         </div>
       )}
 

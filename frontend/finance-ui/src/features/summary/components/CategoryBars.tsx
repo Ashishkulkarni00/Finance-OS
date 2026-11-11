@@ -31,6 +31,8 @@ function TooltipBody({ active, payload }: TooltipContentProps<ValueType, NameTyp
 export function CategoryBars({ categories }: { categories: ReviewCategory[] }) {
   const rows: Row[] = categories.map((c) => ({ name: c.name, committed: Number(c.committed), flexible: Number(c.flexible), raw: c }));
   const height = Math.max(120, rows.length * 34 + 24);
+  // A phone cannot give half its width to category names.
+  const narrow = typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches;
 
   return (
     <div className="w-full" style={{ height }} role="img" aria-label="Spending by category, largest first, split into planned bills and day-to-day. Hover a category for its figures.">
@@ -38,10 +40,10 @@ export function CategoryBars({ categories }: { categories: ReviewCategory[] }) {
         <BarChart data={rows} layout="vertical" barCategoryGap={8} margin={{ top: 0, right: 12, bottom: 0, left: 0 }}>
           <CartesianGrid horizontal={false} stroke="var(--line)" />
           <XAxis type="number" tickLine={false} axisLine={false} tick={AXIS_TICK} tickFormatter={(v: number) => compactMoney(String(v))} />
-          <YAxis type="category" dataKey="name" width={140} tickLine={false} axisLine={false} tick={{ ...AXIS_TICK, fill: 'var(--ink)' }} />
+          <YAxis type="category" dataKey="name" width={narrow ? 104 : 140} tickLine={false} axisLine={false} tick={{ ...AXIS_TICK, fill: 'var(--ink)' }} />
           <Tooltip content={TooltipBody} cursor={{ fill: 'var(--sunken)' }} />
-          <Bar dataKey="committed" stackId="c" fill={SERIES.committed} maxBarSize={18} stroke="var(--surface)" strokeWidth={2} />
-          <Bar dataKey="flexible" stackId="c" fill={SERIES.flexible} maxBarSize={18} stroke="var(--surface)" strokeWidth={2} radius={[0, 4, 4, 0]} />
+          <Bar dataKey="committed" stackId="c" fill={SERIES.committed} maxBarSize={18} stroke="var(--surface)" strokeWidth={1.5} />
+          <Bar dataKey="flexible" stackId="c" fill={SERIES.flexible} maxBarSize={18} stroke="var(--surface)" strokeWidth={1.5} radius={[0, 4, 4, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>

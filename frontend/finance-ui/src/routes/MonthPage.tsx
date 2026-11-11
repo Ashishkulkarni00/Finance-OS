@@ -1,54 +1,52 @@
-import { useState } from 'react';
-import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CircleHelp } from 'lucide-react';
 import { useGetPositionQuery } from '@/services/positionService';
 import { useGetCommitmentInstancesForCycleQuery, useGetCommitmentPlanProgressQuery } from '@/services/commitmentInstanceService';
-import { MonthOverview } from '@/features/month/components/MonthOverview';
-import type { CycleMode } from '@/features/month/components/MonthOverview';
+import { MonthAnswer } from '@/features/month/components/MonthAnswer';
+import type { CycleMode } from '@/features/month/components/MonthAnswer';
 import { InsightList } from '@/components/InsightList';
-import { formatShortDate, cycleProgress } from '@/lib/dates';
+import { formatShortDate, cycleProgress, cycleProgressLabel } from '@/lib/dates';
 import { PlanZone } from '@/features/month/components/PlanZone';
 import { MonthBriefing } from '@/features/month/components/MonthBriefing';
+import { MonthHero } from '@/features/month/components/MonthHero';
+import { MonthShape } from '@/features/month/components/MonthShape';
+import { CycleInOut } from '@/features/month/components/CycleInOut';
 import { FlexibleSpendingSection } from '@/features/month/components/FlexibleSpendingSection';
-import { MonthPrimer } from '@/features/month/components/MonthPrimer';
-import { MonthGuideSheet } from '@/features/month/components/MonthGuideSheet';
 import { CycleSwitcher } from '@/features/month/components/CycleSwitcher';
 import { useSelectedCycle } from '@/features/month/useSelectedCycle';
+import { PageHelpButton, PageSubtitle } from '@/features/help/PageHelp';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { Disclosure } from '@/components/Disclosure';
+import { SectionHeader } from '@/components/SectionHeader';
 import { ErrorState } from '@/components/ErrorState';
 import { useDocAnchor } from '@/features/help/useDocAnchor';
-
-/** A full-width hairline above each section after the overview. */
-function Divided({ children }: { children: ReactNode }) {
-  return <div className="border-t border-line pt-space-8">{children}</div>;
-}
-
-/** {@link Divided}, but only when asked - for a section whose rule depends on whether
- *  anything was rendered above it. */
-function Maybe({ divided, children }: { divided: boolean; children: ReactNode }) {
-  return divided ? <Divided>{children}</Divided> : <>{children}</>;
-}
+import { MONTH_CLOSE_ENABLED } from '@/lib/releaseGates';
 
 /**
- * "The Briefing" - docs/product/MONTH_EXPERIENCE.md, docs/design/MONTH_TAB_UX_SPEC.md -
- * now for any month, not only the current one.
+ * Month - "what still has to be paid before my next salary, and how did this month go?"
  *
- * <p>The switcher in the header moves between cycles; `?cycle=<id>` holds the choice. What
- * the page shows depends on which kind of month it is:
- * <ul>
- *   <li><strong>This month</strong>: unchanged - overview, Needs you, the plan, day-to-day spending.</li>
- *   <li><strong>Upcoming</strong>: what's planned, and the plan itself. Needs you and
- *       day-to-day spending are hidden - nothing needs acting on today in a month that
- *       hasn't started, and nothing has been spent in it.</li>
- *   <li><strong>Past</strong>: how the plan went, the plan (with what was left unpaid), and
- *       what was spent. Needs you is hidden - it's a list of things to do today.</li>
- * </ul>
+ * <p>Revamped 2026-11-09 (UI_UX_REVAMP_PLAN 4.5): **the answer, then the worklist, then the
+ * working.** A full-width, left-aligned page in reading order:
+ *
+ * <ol>
+ *   <li>The month switcher (real dates) and, for the month in progress, what is still to pay.</li>
+ *   <li>What needs the user (at most three; the rest are in the Needs-you panel).</li>
+ *   <li>The worklist by date, with what is done folded away.</li>
+ *   <li>How the month adds up, open, directly under the answer (moved back up 2026-11-10).</li>
+ *   <li>Closed sections for the rest of the working: where day-to-day money went, and what is
+ *       different about this month.</li>
+ * </ol>
+ *
+ * <p>The switcher in the header moves between cycles; `?cycle=<id>` holds the choice. What the page
+ * shows depends on which kind of month it is: the month in progress, an upcoming month (nothing
+ * to act on yet, nothing spent), or a past one (how the plan went, and what was left unpaid).
+ *
+ * <p><strong>No "Close this month" until release gate G1 passes</strong> (`MONTH_CLOSE_ENABLED`,
+ * Part 11 of the plan). The close writes an immutable snapshot, and that must not be offered while
+ * the figures it records are unverified.
  */
 export default function MonthPage() {
   const navigate = useNavigate();
-  const [guideOpen, setGuideOpen] = useState(false);
   const selected = useSelectedCycle();
   const { cycle, isCurrent, isFuture } = selected;
   const closeDoc = useDocAnchor('month.close');
@@ -64,10 +62,9 @@ export default function MonthPage() {
 
   const mode: CycleMode = isCurrent ? 'current' : isFuture ? 'future' : 'past';
   // One definition of "ended" for the whole frontend (`cycleProgress`), so this can never
-  // disagree with the band above it or with the server. It used to be its own instant
-  // comparison, duplicated again on MonthClosePage, and both were a day early.
+  // disagree with the server or the other pages.
   const canClose = cycle ? cycleProgress(cycle.startDate, cycle.endDate).ended : false;
-  // Bills only: expected income is shown in the plan's "Coming in" block, not as a payment.
+  // Commitments only: expected income is shown in the plan's "Coming in" block, not as a payment.
   const bills = (instances ?? []).filter((i) => i.settleAs !== 'INCOME');
   // A late salary is flagged too (only once late) - it needs recording like any planned item.
   const nextUp = bills
@@ -77,41 +74,44 @@ export default function MonthPage() {
   // so no zone shows the previous month's plan under the new month's name.
   const instancesPending = instancesLoading || !cycle || (instancesFetching && !instances);
 
-  return (
-    <div className="flex flex-col gap-space-8">
-      <div className="flex flex-col gap-space-6">
-        <div className="flex items-start justify-between gap-space-4">
-          <div className="flex flex-col gap-space-2">
-            <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">Months · salary to salary</span>
-            <CycleSwitcher
-              cycle={cycle}
-              currentCycle={selected.currentCycle}
-              isCurrent={isCurrent}
-              isFuture={isFuture}
-              moving={selected.moving}
-              onPrevious={selected.goPrevious}
-              onNext={selected.goNext}
-              onCurrent={selected.goCurrent}
-            />
-          </div>
-          <button
-            type="button"
-            onClick={() => setGuideOpen(true)}
-            className="flex shrink-0 items-center gap-space-1 rounded-md px-space-1 text-caption text-ink-muted transition-colors hover:bg-sunken hover:text-ink"
-          >
-            <CircleHelp size={14} strokeWidth={1.5} aria-hidden />
-            How Months works
-          </button>
-        </div>
+  const caption = !cycle
+    ? null
+    : mode === 'current'
+      ? // The switcher already prints the dates; only the day count is new here.
+        cycleProgressLabel(cycle.startDate, cycle.endDate).split(' · ').pop()
+      : mode === 'future'
+        ? `Starts ${formatShortDate(cycle.startDate)}`
+        : 'This month has ended';
 
-        <MonthPrimer onOpenGuide={() => setGuideOpen(true)} />
-      </div>
+  return (
+    <div className="reveal-shell flex w-full flex-col gap-space-6 md:gap-10">
+      <header className="flex flex-col gap-space-3">
+        <div className="flex items-center justify-between gap-space-4">
+          <h1 className="text-page text-ink">Month</h1>
+          <PageHelpButton topic="months.how-months-works" />
+        </div>
+        <PageSubtitle>
+          One month, salary to salary: what still has to be paid before your next salary, and what’s free after it.
+        </PageSubtitle>
+        <CycleSwitcher
+          cycle={cycle}
+          currentCycle={selected.currentCycle}
+          isCurrent={isCurrent}
+          isFuture={isFuture}
+          moving={selected.moving}
+          onPrevious={selected.goPrevious}
+          onNext={selected.goNext}
+          onCurrent={selected.goCurrent}
+          note={mode === 'current' ? (caption ?? undefined) : undefined}
+        />
+        {caption && mode !== 'current' && <p className="num -mt-space-1 text-caption text-ink-muted">{caption}</p>}
+      </header>
 
       {selected.isError ? (
         <ErrorState message="We couldn't load this month. Check your connection and try again." onRetry={selected.refetch} />
       ) : (
         <>
-          <MonthOverview
+          <MonthAnswer
             mode={mode}
             cycle={cycle}
             cycleLoading={selected.isLoading}
@@ -121,59 +121,68 @@ export default function MonthPage() {
             instances={instances}
           />
 
-          {/* No rule directly under the overview: it closes with its own edge, and a
-              hairline straight after it reads as a double line. Whichever section comes
-              first here goes undivided - Needs you on the current month, the plan on any
-              other - and the ones after it are ruled as usual. */}
+          {/* How the month adds up sits straight under the answer, always open (2026-11-10: the
+              closed section buried the working the figure above depends on). */}
+          {/* Phone: the figure on the page and one switchable strip (MonthHero) - two stacked
+              cards read as "cards everywhere" (2026-11-11). Wide screens keep both halves open. */}
+          <div className="md:hidden">
+            <MonthHero cycle={cycle} showSoFar={mode !== 'future'} />
+          </div>
+          <section className="max-md:hidden">
+            <SectionHeader>How the month adds up</SectionHeader>
+            <div className="flex flex-col gap-space-6">
+              <MonthShape cycle={cycle} />
+              {mode !== 'future' && <CycleInOut cycle={cycle} />}
+            </div>
+          </section>
+
           {mode === 'current' && (
-            <InsightList
-              surface="MONTH"
-              limit={2}
-              calmNote={nextUp ? `Next: ${nextUp.commitmentName}, ${formatShortDate(nextUp.dueDate)}.` : undefined}
-            />
+            <div className="w-full">
+              <InsightList
+                surface="MONTH"
+                limit={2}
+                calmNote={nextUp ? `Next: ${nextUp.commitmentName}, ${formatShortDate(nextUp.dueDate)}.` : undefined}
+              />
+            </div>
           )}
 
-          <Maybe divided={mode === 'current'}>
-            <PlanZone
-              cycle={cycle}
-              instances={instances}
-              progress={planProgress}
-              isLoading={instancesPending}
-              isError={instancesError}
-            />
-          </Maybe>
+          <PlanZone
+            cycle={cycle}
+            instances={instances}
+            progress={planProgress}
+            isLoading={instancesPending}
+            isError={instancesError}
+            title={mode === 'current' ? 'Coming up' : 'The plan'}
+          />
 
-          {mode !== 'future' && (
-            <Divided>
-              <FlexibleSpendingSection cycle={cycle} />
-            </Divided>
-          )}
+          {/* The working, closed until asked for. Each says what is inside, so none is a mystery. */}
+          <div className="flex flex-col">
+            {mode !== 'future' && <FlexibleSpendingSection cycle={cycle} />}
 
-          {/* The shape of the month - why it differs from the last, what you decided in it,
-              whether you kept to it - after the plan itself. Context for the month rather
-              than work to do in it, so it sits below the things you act on.
+            <Disclosure
+              storageKey="kosh.month.about"
+              label="About this month"
+              summary="what’s different, what you changed, commitments kept"
+            >
+              <MonthBriefing cycle={cycle} mode={mode} progress={planProgress} />
+            </Disclosure>
+          </div>
 
-              Deliberately NOT wrapped in `Divided`: the tab strip carries its own hairline,
-              and a second rule above it reads as a mistake. */}
-          <MonthBriefing cycle={cycle} mode={mode} progress={planProgress} />
-
-          {canClose && cycle && !cycle.closed && (
+          {MONTH_CLOSE_ENABLED && canClose && cycle && !cycle.closed && (
             <Card className="flex items-center justify-between" {...closeDoc}>
               <div>
-                <p className="text-body text-ink">This cycle has ended.</p>
+                <p className="text-body text-ink">This month has ended.</p>
                 <p className="text-caption text-ink-muted">Close it with understanding, not just a tap.</p>
               </div>
               {/* Carries the cycle being viewed - the close flow used to always act on the
                   current cycle, which is the wrong one once you can view a past month. */}
               <Button variant="primary" onClick={() => navigate(`/month/close?cycle=${cycle.id}`)}>
-                Close cycle
+                Close this month
               </Button>
             </Card>
           )}
         </>
       )}
-
-      <MonthGuideSheet open={guideOpen} onClose={() => setGuideOpen(false)} />
     </div>
   );
 }

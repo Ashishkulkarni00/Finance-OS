@@ -1,5 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { portalTarget } from '@/lib/portalTarget';
 import { Info } from 'lucide-react';
 
 const WIDTH = 280;
@@ -97,7 +98,7 @@ export function InfoTip({ label, children }: { label: string; children: ReactNod
           (open ? 'text-ink' : 'text-ink-muted')
         }
       >
-        <Info size={14} strokeWidth={1.75} aria-hidden />
+        <Info size={14} strokeWidth={1.5} aria-hidden />
       </button>
       {open &&
         pos &&
@@ -106,11 +107,11 @@ export function InfoTip({ label, children }: { label: string; children: ReactNod
             id={tipId}
             role="tooltip"
             style={{ position: 'fixed', width: WIDTH, zIndex: 9999, ...pos }}
-            className="pointer-events-none rounded-md border border-line bg-surface px-space-3 py-space-2 text-left text-caption font-normal normal-case tracking-normal text-ink-soft shadow-lg"
+            className="pointer-events-none rounded-md border border-line bg-surface px-space-3 py-space-2 text-left text-caption font-normal normal-case tracking-normal text-ink-soft shadow-[var(--shadow-2)]"
           >
             {children}
           </div>,
-          document.body,
+          portalTarget(buttonRef.current),
         )}
     </>
   );

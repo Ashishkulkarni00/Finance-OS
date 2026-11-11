@@ -1,4 +1,5 @@
 import { Amount } from '@/components/Amount';
+import { FactStrip, type Fact } from '@/components/FactStrip';
 import { Skeleton } from '@/components/Skeleton';
 import type { LedgerFilterState } from '../useLedgerFilters';
 import type { TransactionViewSummaryResponse } from '@/types/transaction';
@@ -22,23 +23,20 @@ interface StatedViewProps {
 }
 
 /**
- * Zone 1 - the screen's reason to exist. States what you're looking at and what it
- * totals, in one place, so a figure elsewhere in the product can link straight here and
- * the user lands somewhere that proves the number rather than a bare list
- * (LEDGER_EXPERIENCE.md §1, §4).
+ * What the list below adds up to, as the server states it (UI_UX_REVAMP_PLAN 4.4): money out, money
+ * in, how many entries, and - only when there are any - what moved between the user's own accounts.
+ * One quiet row of facts and one sentence saying what "this view" is. It replaced two hero-sized
+ * figures; the ledger's job is the list, and the summary is the caption to it.
  *
- * <p>Never a single net. Money in and money out stay two figures - a "₹45,000" that is
- * secretly ₹57,700 income minus ₹12,700 expense explains nothing - and a transfer is
- * stated separately again, never folded into either: it's the same money in a different
- * pocket, not a gain or a loss (LEDGER_UX_SPEC.md §4).
+ * <p>Every figure is the server's `summary`; nothing is added up here. Direction is said by the
+ * word, not by colour (income is not green).
  */
 export function StatedView({ filters, summary, isLoading, cycle, accountName, categoryName }: StatedViewProps) {
   if (isLoading || !summary) {
     return (
       <div className="flex flex-col gap-space-2">
-        <Skeleton className="h-4 w-24" />
-        <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-4 w-48" />
+        <Skeleton className="h-14 w-full" />
+        <Skeleton className="h-4 w-64" />
       </div>
     );
   }
@@ -50,49 +48,22 @@ export function StatedView({ filters, summary, isLoading, cycle, accountName, ca
     filters.q ? `matching "${filters.q}"` : undefined,
   ].filter(Boolean);
 
-  const timeframe =
-    filters.cycle === 'all' ? 'all time' : cycle ? `this cycle · ${cycle.label}` : 'this cycle';
+  const timeframe = filters.cycle === 'all' ? 'all time' : cycle ? `this cycle · ${cycle.label}` : 'this cycle';
+  const sentence = scope.length > 0 ? `${scope.join(' · ')} · ${timeframe}` : `everything · ${timeframe}`;
 
-  const sentence =
-    scope.length > 0
-      ? `${scope.join(' · ')} · ${timeframe}`
-      : `everything · ${timeframe}`;
-
-  const hasIn = Number(summary.moneyIn) > 0;
-  const hasOut = Number(summary.moneyOut) > 0;
-  const hasTransfers = Number(summary.transferred) > 0;
+  const facts: Fact[] = [
+    { label: 'Money out', value: <Amount value={summary.moneyOut} role="row" /> },
+    { label: 'Money in', value: <Amount value={summary.moneyIn} role="row" /> },
+    { label: summary.entryCount === 1 ? 'Entry' : 'Entries', value: summary.entryCount },
+  ];
+  if (Number(summary.transferred) > 0) {
+    facts.push({ label: 'Between accounts', value: <Amount value={summary.transferred} role="row" className="text-ink-muted" /> });
+  }
 
   return (
-    <div className="flex flex-col gap-space-2">
-      <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">Ledger</span>
-
-      <div className="flex flex-wrap items-baseline gap-x-space-6 gap-y-space-1">
-        {hasOut && (
-          <div className="flex items-baseline gap-space-2">
-            <Amount value={summary.moneyOut} role="hero" className="text-ink" />
-            <span className="text-caption text-ink-muted">out</span>
-          </div>
-        )}
-        {hasIn && (
-          <div className="flex items-baseline gap-space-2">
-            <Amount value={summary.moneyIn} role={hasOut ? 'section' : 'hero'} className="text-positive" signed />
-            <span className="text-caption text-ink-muted">in</span>
-          </div>
-        )}
-        {!hasIn && !hasOut && (
-          <Amount value="0.00" role="hero" className="text-ink-muted" />
-        )}
-      </div>
-
-      <p className="text-body text-ink-soft">
-        {summary.entryCount} {summary.entryCount === 1 ? 'entry' : 'entries'} · {sentence}
-        {hasTransfers && (
-          <>
-            {' · '}
-            <Amount value={summary.transferred} role="caption" className="text-ink-muted" /> moved between your own accounts
-          </>
-        )}
-      </p>
+    <div className="m-card flex flex-col gap-space-2">
+      <FactStrip facts={facts} className="border-y border-line" />
+      <p className="text-caption text-ink-muted">{sentence}</p>
     </div>
   );
 }

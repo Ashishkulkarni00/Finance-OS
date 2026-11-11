@@ -1,4 +1,5 @@
 import { createPortal } from 'react-dom';
+import { topLayerTarget } from '@/lib/portalTarget';
 import { HelpCircle } from 'lucide-react';
 
 export interface HelpMenuState {
@@ -21,7 +22,7 @@ export function HelpContextMenu({ menu, onDismiss }: { menu: HelpMenuState; onDi
       <div
         role="menu"
         style={{ position: 'fixed', left: Math.min(menu.x, window.innerWidth - 260), top: Math.min(menu.y, window.innerHeight - 90) }}
-        className="z-[9999] w-60 overflow-hidden rounded-lg border border-line bg-surface shadow-lg"
+        className="z-[9999] w-60 overflow-hidden rounded-lg border border-line bg-surface shadow-[var(--shadow-2)]"
       >
         <button
           type="button"
@@ -33,13 +34,13 @@ export function HelpContextMenu({ menu, onDismiss }: { menu: HelpMenuState; onDi
           className="flex w-full flex-col gap-space-1 px-space-4 py-space-3 text-left transition-colors duration-150 hover:bg-sunken"
         >
           <span className="flex items-center gap-space-2 text-label text-ink">
-            <HelpCircle size={15} strokeWidth={1.75} className="shrink-0 text-accent" aria-hidden />
+            <HelpCircle size={15} strokeWidth={1.5} className="shrink-0 text-accent" aria-hidden />
             Read help about this
           </span>
           <span className="truncate text-caption text-ink-muted">{menu.title}</span>
         </button>
       </div>
     </>,
-    document.body,
+    topLayerTarget(),
   );
 }

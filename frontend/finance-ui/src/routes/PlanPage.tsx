@@ -1,64 +1,43 @@
 import { useState } from 'react';
-import { CircleHelp, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { Button } from '@/components/Button';
+import { PageHelpButton, PageSubtitle } from '@/features/help/PageHelp';
 import { GoalsSection } from '@/features/plan/components/GoalsSection';
-import { GoalsPrimer } from '@/features/plan/components/GoalsPrimer';
-import { GoalsGuideSheet } from '@/features/plan/components/GoalsGuideSheet';
 import { AddGoalSheet } from '@/features/plan/components/AddGoalSheet';
 import { AheadForecast } from '@/features/ahead/components/AheadForecast';
 
 /**
- * Goals - served at /goals (with /plan redirecting here).
+ * Goals - "what am I saving towards, and what can my money do next?" (UI_UX_REVAMP_PLAN 4.9).
  *
- * <p>This screen used to be "Plan": Standing, Goals, Commitment rules and History stacked
- * together. By the user's decision it now holds goals only. The other three components
- * (StandingZone, CommitmentRulesSection, HistorySection) are left in place, unused, so any
- * of them can be given a new home without being rewritten - and recurring bills are still
- * added and worked through on Months.
- *
- * <p>Same frame as every other screen: header, guide, dismissible primer, then the content.
- * "Add a goal" lives in the header and is shared with the empty state, so there is one
- * add sheet rather than one per section.
+ * <p>Goals first, each with its verdict (the server's feasibility judgement, in its own words), then
+ * what is freeing up, then the tools - a suggested order, where freed money could go, a lump sum,
+ * and the months ahead - all closed until asked for. Route stays `/ahead`: `/goals/:id` is a goal's
+ * own page, so `/goals` cannot also be this page's address (it redirects here).
  */
 export default function PlanPage() {
   const [adding, setAdding] = useState(false);
-  const [guideOpen, setGuideOpen] = useState(false);
 
   return (
-    <div className="flex flex-col gap-space-8">
-      <AheadForecast
-        goals={
-          <div className="flex flex-col gap-space-6 border-t border-line pt-space-8">
-            <div className="flex items-start justify-between gap-space-4">
-              <div className="flex flex-col gap-space-1">
-                <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">Goals</span>
-                <span className="text-title text-ink">What you’re saving towards</span>
-              </div>
-              <div className="flex shrink-0 items-center gap-space-4">
-                <button
-                  type="button"
-                  onClick={() => setGuideOpen(true)}
-                  className="flex items-center gap-space-1 rounded-md px-space-1 text-caption text-ink-muted transition-colors hover:bg-sunken hover:text-ink"
-                >
-                  <CircleHelp size={14} strokeWidth={1.5} aria-hidden />
-                  How Goals works
-                </button>
-                <Button variant="secondary" size="sm" onClick={() => setAdding(true)}>
-                  <Plus size={14} strokeWidth={1.5} />
-                  Add a goal
-                </Button>
-              </div>
-            </div>
-
-            <GoalsPrimer onOpenGuide={() => setGuideOpen(true)} />
-
-            <GoalsSection onAdd={() => setAdding(true)} />
+    <div className="reveal-shell flex w-full flex-col gap-10">
+      <header className="flex flex-col gap-space-1">
+        <div className="flex items-center justify-between gap-space-4">
+          <h1 className="text-page text-ink">Goals</h1>
+          <div className="flex shrink-0 items-center gap-space-2">
+            <PageHelpButton topic="goals.how-goals-works" />
+            <Button variant="secondary" size="sm" onClick={() => setAdding(true)}>
+              <Plus size={14} strokeWidth={1.5} />
+              Add a goal
+            </Button>
           </div>
-        }
-      />
+        </div>
+        <PageSubtitle>What you’re saving towards, how far you’ve got, and what it takes each month.</PageSubtitle>
+      </header>
+
+      <GoalsSection onAdd={() => setAdding(true)} />
+
+      <AheadForecast />
 
       <AddGoalSheet open={adding} onClose={() => setAdding(false)} />
-      <GoalsGuideSheet open={guideOpen} onClose={() => setGuideOpen(false)} />
     </div>
   );
 }

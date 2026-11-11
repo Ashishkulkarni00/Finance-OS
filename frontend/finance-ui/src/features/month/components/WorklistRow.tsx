@@ -57,7 +57,8 @@ export function WorklistRow({ instanceId, primary, secondary, meta, amount, acti
             onClick={onEdit}
             aria-label="Edit"
             title="Edit"
-            className="rounded-md p-space-1 text-ink-muted transition-colors hover:bg-sunken hover:text-ink"
+            // Phones edit from the detail page the row opens - the pencil cost the name its width.
+            className="rounded-md p-space-1 text-ink-muted transition-colors hover:bg-sunken hover:text-ink max-md:hidden"
           >
             <Pencil size={15} strokeWidth={1.5} aria-hidden />
           </button>
@@ -77,7 +78,7 @@ export function WorklistRow({ instanceId, primary, secondary, meta, amount, acti
     //
     // A tag is an object *in* the row, in the flow, next to the thing it describes. It also
     // says a word, so it does not depend on a reader knowing what green means.
-    <div data-doc="month.plan-row">
+    <div data-doc="month.plan-row" className="row-wrap">
       <LedgerRow
         to={`/commitments/${instanceId}`}
         leading={
@@ -95,9 +96,12 @@ export function WorklistRow({ instanceId, primary, secondary, meta, amount, acti
           paid ? (
             <span className="flex items-center gap-space-2">
               <span className="truncate">{primary}</span>
-              <StatusPill tone="positive" solid>
-                {doneLabel ?? 'Paid'}
-              </StatusPill>
+              {/* The tick and the green figure already say it on a phone. */}
+              <span className="max-md:hidden">
+                <StatusPill tone="positive" solid>
+                  {doneLabel ?? 'Paid'}
+                </StatusPill>
+              </span>
             </span>
           ) : (
             primary

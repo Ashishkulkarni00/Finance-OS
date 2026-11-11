@@ -15,6 +15,9 @@ export default defineConfig({
     },
   },
   server: {
+    // Listen on the LAN so a phone on the same Wi-Fi can open http://<this-pc-ip>:5173.
+    // The /api proxy below runs on this machine, so the backend stays on localhost.
+    host: true,
     proxy: {
       '/api': {
         target: 'http://localhost:8080',

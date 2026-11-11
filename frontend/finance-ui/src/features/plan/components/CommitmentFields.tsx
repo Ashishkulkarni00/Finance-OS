@@ -348,7 +348,7 @@ export function CommitmentFields({
               .filter(Boolean)
               .join(' · ')}
           </span>
-          <ChevronDown size={14} strokeWidth={1.75} aria-hidden className={cn('shrink-0 transition-transform duration-150', moreOpen && 'rotate-180')} />
+          <ChevronDown size={14} strokeWidth={1.5} aria-hidden className={cn('shrink-0 transition-transform duration-150', moreOpen && 'rotate-180')} />
         </span>
       </button>
 

@@ -1,6 +1,8 @@
+import { SkipSheet } from '@/features/month/components/SkipSheet';
+import { canSkip, SKIP_REASON_LABEL } from '@/features/month/skipReasons';
 import { useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Pencil } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Pencil } from 'lucide-react';
 import { EditCommitmentSheet } from '@/features/plan/components/EditCommitmentSheet';
 import { Row } from '@/components/Row';
 import { Button } from '@/components/Button';
@@ -8,15 +10,15 @@ import { StatusPill } from '@/components/StatusPill';
 import { SectionHeader } from '@/components/SectionHeader';
 import { Statement, StatementRow } from '@/components/Statement';
 import { Amount } from '@/components/Amount';
-import { Skeleton } from '@/components/Skeleton';
-import { ErrorState } from '@/components/ErrorState';
+import { Disclosure } from '@/components/Disclosure';
+import { FactStrip, type Fact } from '@/components/FactStrip';
+import { DetailError, DetailHeader, DetailHero, DetailLoading, DetailPage } from '@/components/detail/DetailPage';
 import { formatShortDate, formatFullDate, ordinalDay } from '@/lib/dates';
 import { useAppDispatch } from '@/store/hooks';
 import { openSettleSheet } from '@/store/slices/uiSlice';
 import {
   useGetCommitmentInstanceDetailQuery,
   useConfirmCommitmentInstanceMutation,
-  useSkipCommitmentInstanceMutation,
   useUnskipCommitmentInstanceMutation,
 } from '@/services/commitmentInstanceService';
 import type { CommitmentInstanceStatus } from '@/types/commitment';
@@ -58,57 +60,51 @@ export default function CommitmentDetailPage() {
   const id = Number(instanceId);
   const [editing, setEditing] = useState(false);
 
-  const { data, isLoading, isError, refetch } = useGetCommitmentInstanceDetailQuery(id, { skip: !id });
+  const { data, isLoading, isError, error, refetch } = useGetCommitmentInstanceDetailQuery(id, { skip: !id });
   const [confirm, { isLoading: confirming }] = useConfirmCommitmentInstanceMutation();
-  const [skip] = useSkipCommitmentInstanceMutation();
+  const [skipping, setSkipping] = useState(false);
   const [unskip] = useUnskipCommitmentInstanceMutation();
 
-  if (isLoading) {
-    return (
-      <div className="mx-auto flex max-w-2xl flex-col gap-space-6 py-space-6">
-        <Skeleton className="h-6 w-32" />
-        <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-40 w-full" />
-      </div>
-    );
-  }
-
+  if (isLoading) return <DetailLoading />;
   if (isError || !data) {
-    return (
-      <div className="mx-auto max-w-2xl py-space-8">
-        <ErrorState message="We couldn't load this commitment." onRetry={refetch} />
-      </div>
-    );
+    return <DetailError what="commitment" backTo="/month" backLabel="Month" error={error} onRetry={refetch} />;
   }
 
   const isSettled = data.status === 'PAID' || data.status === 'SETTLED_EARLIER';
   // Expected income (salary) reads as money arriving, not a bill being paid.
   const isIncome = data.settleAs === 'INCOME';
   const statusLabel = isIncome && data.status === 'PAID' ? 'Received' : STATUS_LABEL[data.status].split(' - ')[0];
-  // Skipping is for optional bills nothing has been paid on yet - the server enforces the same.
-  const canSkip = !data.mandatory && (data.status === 'PENDING' || data.status === 'OVERDUE') && data.confirmedAmount == null;
+  // Anything but a loan EMI, while nothing has been paid or linked - the server enforces the same.
+  const skippable = canSkip({ ...data, linkedTransactionId: data.linkedTransaction?.id ?? null });
   const history = data.history.filter((h) => h.instanceId !== data.id);
 
-  return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-space-8 py-space-6">
-      <button
-        type="button"
-        onClick={() => navigate(-1)}
-        className="flex items-center gap-space-2 self-start text-caption text-ink-muted transition-colors hover:text-ink"
-      >
-        <ArrowLeft size={16} strokeWidth={1.5} />
-        Back
-      </button>
+  // The one action that moves this commitment forward, in the header where it is found first.
+  const primary = isSettled || data.status === 'SKIPPED' ? null : data.status === 'UNVERIFIED' ? (
+    <Button variant="primary" size="sm" onClick={() => confirm(data.id)} disabled={confirming}>
+      Confirm with the bank
+    </Button>
+  ) : (
+    <Button variant="primary" size="sm" onClick={() => dispatch(openSettleSheet(data.id))}>
+      {isIncome ? 'Record it' : 'Settle this'}
+    </Button>
+  );
 
-      <div className="flex flex-col gap-space-3">
-        <div className="flex flex-wrap items-center justify-between gap-space-3">
-          <div className="flex items-center gap-space-3">
-            <h1 className="text-title text-ink">{data.commitmentName}</h1>
-            <StatusPill tone={STATUS_TONE[data.status]}>{statusLabel}</StatusPill>
-          </div>
-          <span className="flex items-center gap-space-2">
-            {canSkip && (
-              <Button variant="secondary" size="sm" onClick={() => skip(data.id)}>
+  const facts: Fact[] = [
+    { label: 'Expected', value: <Amount value={data.expectedAmount} role="row" /> },
+    { label: isIncome ? 'Received' : 'Paid so far', value: <Amount value={data.confirmedAmount} role="row" /> },
+    { label: isIncome ? 'Expected on' : 'Due', value: formatShortDate(data.dueDate) },
+  ];
+
+  return (
+    <DetailPage backLabel="Month" backTo="/month">
+      <DetailHeader
+        title={data.commitmentName}
+        chips={<StatusPill tone={STATUS_TONE[data.status]}>{statusLabel}</StatusPill>}
+        actions={
+          <>
+            {primary}
+            {skippable && (
+              <Button variant="secondary" size="sm" onClick={() => setSkipping(true)}>
                 Skip this month
               </Button>
             )}
@@ -117,14 +113,21 @@ export default function CommitmentDetailPage() {
                 Undo skip
               </Button>
             )}
-            <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
+            <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>
               <Pencil size={14} strokeWidth={1.5} />
               Edit
             </Button>
-          </span>
-        </div>
-        {data.why && <p className="font-serif text-editorial text-ink">{data.why}</p>}
-      </div>
+          </>
+        }
+      />
+      {data.why && <p className="max-w-[62ch] font-serif text-editorial text-ink">{data.why}</p>}
+      {data.status === 'SKIPPED' && data.skipReason && (
+        <p className="text-body text-ink-soft">
+          Skipped this month · <span className="font-medium text-ink">{SKIP_REASON_LABEL[data.skipReason]}</span>
+          {data.skipNote && <> · {data.skipNote}</>}
+        </p>
+      )}
+      <SkipSheet instance={skipping ? data : null} onClose={() => setSkipping(false)} />
       <EditCommitmentSheet
         commitmentId={editing ? data.commitmentId : null}
         onClose={() => setEditing(false)}
@@ -135,25 +138,18 @@ export default function CommitmentDetailPage() {
       />
 
       {(data.status === 'UNVERIFIED' || data.status === 'NEEDS_REVIEW') && (
-        <p className="text-body text-ink-soft">{STATUS_LABEL[data.status]}</p>
+        <p className="max-w-[62ch] text-body text-ink-soft">{STATUS_LABEL[data.status]}</p>
       )}
 
-      <Statement notes>
-        {isIncome ? (
-          <>
-            <StatementRow label="Expected" value={data.expectedAmount} note="What you expect to arrive - counted in the month's standing, not in what you can spend." />
-            <StatementRow label="Received" value={data.confirmedAmount} note="What actually arrived. It replaces the expected figure." />
-            <StatementRow variant="total" label="Still to arrive" value={data.outstanding} note={`Expected ${formatShortDate(data.dueDate)}`} />
-          </>
-        ) : (
-          <>
-            <StatementRow label="Expected" value={data.expectedAmount} note="What this commitment is set to cost." />
-            <StatementRow label="Confirmed" value={data.confirmedAmount} note="What's actually been recorded against it." />
-            <StatementRow variant="total" label="Outstanding" value={data.outstanding} note={`Due ${formatShortDate(data.dueDate)}`} />
-          </>
-        )}
-      </Statement>
-
+      <div className="m-card flex flex-col gap-space-5 max-md:gap-space-4">
+        <DetailHero
+          label={isIncome ? 'Still to arrive' : 'Still to pay'}
+          sentence={isIncome ? `Expected ${formatShortDate(data.dueDate)}.` : `Due ${formatShortDate(data.dueDate)}.`}
+        >
+          <Amount value={data.outstanding} role="hero" />
+        </DetailHero>
+        <FactStrip facts={facts} className="border-y border-line" />
+      </div>
 
       <section>
         <SectionHeader>How it recurs</SectionHeader>
@@ -196,22 +192,23 @@ export default function CommitmentDetailPage() {
         </section>
       )}
 
-      {!isSettled && (
-        <div className="flex gap-space-3">
-          {data.status === 'UNVERIFIED' ? (
-            <Button variant="primary" onClick={() => confirm(data.id)} disabled={confirming}>
-              Confirm with the bank
-            </Button>
-          ) : (
-            <Button variant="primary" onClick={() => dispatch(openSettleSheet(data.id))}>
-              {isIncome ? 'Record it' : 'Settle this'}
-            </Button>
-          )}
-          <Link to="/month" className="flex items-center text-label text-ink-muted hover:text-ink-soft">
-            Back to Months
-          </Link>
-        </div>
-      )}
-    </div>
+      <Disclosure storageKey="kosh.commitment.figures" label="How these figures are worked out" summary="expected, confirmed, outstanding">
+        <Statement notes>
+        {isIncome ? (
+          <>
+            <StatementRow label="Expected" value={data.expectedAmount} note="What you expect to arrive - counted in the month's standing, not in what you can spend." />
+            <StatementRow label="Received" value={data.confirmedAmount} note="What actually arrived. It replaces the expected figure." />
+            <StatementRow variant="total" label="Still to arrive" value={data.outstanding} note={`Expected ${formatShortDate(data.dueDate)}`} />
+          </>
+        ) : (
+          <>
+            <StatementRow label="Expected" value={data.expectedAmount} note="What this commitment is set to cost." />
+            <StatementRow label="Confirmed" value={data.confirmedAmount} note="What's actually been recorded against it." />
+            <StatementRow variant="total" label="Outstanding" value={data.outstanding} note={`Due ${formatShortDate(data.dueDate)}`} />
+          </>
+        )}
+      </Statement>
+      </Disclosure>
+    </DetailPage>
   );
 }

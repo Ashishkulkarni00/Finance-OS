@@ -201,7 +201,7 @@ function CategoryManageRow({
               title="Confirm delete"
               className="rounded-md p-space-2 text-critical transition-colors hover:bg-critical/10"
             >
-              <Check size={15} strokeWidth={2} />
+              <Check size={15} strokeWidth={1.5} />
             </button>
             <button
               type="button"
@@ -209,7 +209,7 @@ function CategoryManageRow({
               title="Cancel"
               className="rounded-md p-space-2 text-ink-muted transition-colors hover:bg-sunken"
             >
-              <X size={15} strokeWidth={2} />
+              <X size={15} strokeWidth={1.5} />
             </button>
           </span>
         ) : (
@@ -279,10 +279,10 @@ function NewCategoryRow({
         aria-label="Save category"
         className="shrink-0 text-positive disabled:opacity-40"
       >
-        <Check size={16} strokeWidth={2} />
+        <Check size={16} strokeWidth={1.5} />
       </button>
       <button type="button" onClick={onDone} aria-label="Cancel" className="shrink-0 text-ink-muted hover:text-ink-soft">
-        <X size={14} strokeWidth={2} />
+        <X size={14} strokeWidth={1.5} />
       </button>
     </div>
   );
@@ -343,7 +343,7 @@ export function ManageCategoriesSheet({ open, onClose }: ManageCategoriesSheetPr
         {grouped.map(({ group, tops }) => (
           <div key={group}>
             <div className="mb-space-2 flex items-baseline justify-between gap-space-4">
-              <p className="text-micro font-medium uppercase tracking-[0.08em] text-ink-muted">
+              <p className="text-caption font-medium text-ink-muted">
                 {CATEGORY_GROUP_LABELS[group]}
               </p>
               {group !== 'NON_SPEND' && (
@@ -352,7 +352,7 @@ export function ManageCategoriesSheet({ open, onClose }: ManageCategoriesSheetPr
                   onClick={() => setAdding({ group, parentId: null })}
                   className="flex items-center gap-space-1 text-caption text-ink-muted transition-colors hover:text-accent"
                 >
-                  <Plus size={12} strokeWidth={2} aria-hidden />
+                  <Plus size={12} strokeWidth={1.75} aria-hidden />
                   Add
                 </button>
               )}

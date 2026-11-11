@@ -34,7 +34,7 @@ export function CycleInOut({ cycle }: { cycle: CycleResponse | undefined }) {
   return (
     <div className="flex flex-col gap-space-2">
       <div className="flex items-baseline justify-between gap-space-3">
-        <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">So far this cycle</span>
+        <span className="text-caption text-ink-muted">So far this cycle</span>
         {cycle && (
           <Link to={ledger()} className="text-caption text-accent underline-offset-4 hover:underline">
             Every entry →
@@ -62,7 +62,7 @@ export function CycleInOut({ cycle }: { cycle: CycleResponse | undefined }) {
               variant="subtotal"
               label={
                 <>
-                  Left over
+                  <span className="font-semibold">Left over</span>
                   {data.savingsRate != null && (
                     <span className="ml-space-2 text-caption text-ink-muted">{formatPercent(data.savingsRate)} saved</span>
                   )}

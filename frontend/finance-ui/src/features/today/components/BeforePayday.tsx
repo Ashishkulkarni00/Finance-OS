@@ -1,4 +1,4 @@
-import { Fragment, useMemo, type CSSProperties } from 'react';
+import { Fragment, useMemo, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle } from 'lucide-react';
 import { Amount } from '@/components/Amount';
@@ -136,7 +136,11 @@ interface BeforePaydayProps {
  * right-aligned column across all date groups. Nothing here is computed: amounts, dates
  * and the warning's own wording all arrive from the server.
  */
+/** How many payments show before "Show all". Rows that carry a shortfall warning always show. */
+const PREVIEW = 5;
+
 export function BeforePayday({ items, isLoading, isError, salaryDate, warnings }: BeforePaydayProps) {
+  const [expanded, setExpanded] = useState(false);
   if (isLoading) {
     return (
       <div className="flex flex-col gap-space-2">
@@ -166,8 +170,11 @@ export function BeforePayday({ items, isLoading, isError, salaryDate, warnings }
 
   // Grouping, not aggregating - the server already sorted by due date, so equal dates are
   // adjacent and this only walks them. No subtotal per day: that would be arithmetic.
+  const shown = expanded ? within : within.filter((it, idx) => idx < PREVIEW || warnings.has(rowKey(it)));
+  const hidden = within.length - shown.length;
+
   const groups: { date: string; rows: TimelineItemResponse[] }[] = [];
-  for (const item of within) {
+  for (const item of shown) {
     const last = groups[groups.length - 1];
     if (last && last.date === item.dueDate) last.rows.push(item);
     else groups.push({ date: item.dueDate, rows: [item] });
@@ -180,13 +187,44 @@ export function BeforePayday({ items, isLoading, isError, salaryDate, warnings }
       <div className="grid w-full" style={{ gridTemplateColumns: 'minmax(0,1fr) auto' }}>
         {groups.map((group) => {
           const soon = daysBetween(group.date) <= 1;
+          // Payday is the first day of the *next* month: the salary and whatever falls due with
+          // it belong to that month, not this one. Under a plain date header they read as this
+          // month's last bills (2026-11-11), so payday gets a band that says so.
+          if (salaryDate && group.date === salaryDate) {
+            return (
+              <Fragment key={group.date}>
+                <div
+                  style={{ gridColumn: '1 / -1' }}
+                  className="mb-space-2 mt-space-5 flex items-baseline justify-between gap-space-3 rounded-lg bg-sunken px-space-3 py-space-2 first:mt-0"
+                >
+                  <span className="text-caption font-semibold text-ink">
+                    Payday · {DAY.format(new Date(group.date))}
+                  </span>
+                  <span className="text-caption text-ink-muted">next month starts · {whenLabel(group.date)}</span>
+                </div>
+                {group.rows.map((item) => {
+                  const warning = warnings.get(rowKey(item));
+                  index += 1;
+                  return (
+                    <PaymentRow
+                      key={rowKey(item)}
+                      item={item}
+                      warning={warning}
+                      last={index === shown.length}
+                      revealDelay={Math.min(index, 8) * 35}
+                    />
+                  );
+                })}
+              </Fragment>
+            );
+          }
           return (
             <Fragment key={group.date}>
               <div
                 style={{ gridColumn: '1 / -1' }}
                 className="flex items-baseline gap-space-3 pb-space-2 pt-space-5 first:pt-0"
               >
-                <span className={cn('text-micro uppercase tracking-[0.08em]', soon ? 'text-attention' : 'text-ink')}>
+                <span className={cn('text-caption', soon ? 'text-attention' : 'text-ink')}>
                   {DAY.format(new Date(group.date))}
                 </span>
                 <span className="text-caption text-ink-muted">{whenLabel(group.date)}</span>
@@ -198,13 +236,30 @@ export function BeforePayday({ items, isLoading, isError, salaryDate, warnings }
                 const warning = warnings.get(rowKey(item));
                 index += 1;
                 return (
-                  <PaymentRow key={rowKey(item)} item={item} warning={warning} revealDelay={Math.min(index, 8) * 35} />
+                  <PaymentRow
+                    key={rowKey(item)}
+                    item={item}
+                    warning={warning}
+                    last={index === shown.length}
+                    revealDelay={Math.min(index, 8) * 35}
+                  />
                 );
               })}
             </Fragment>
           );
         })}
       </div>
+
+      {(hidden > 0 || (expanded && within.length > PREVIEW)) && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+          className="mt-space-3 inline-block rounded-md text-caption text-accent underline-offset-4 hover:underline"
+        >
+          {expanded ? 'Show fewer' : `Show all ${within.length} →`}
+        </button>
+      )}
 
       {beyond > 0 && (
         <Link
@@ -230,15 +285,18 @@ export function BeforePayday({ items, isLoading, isError, salaryDate, warnings }
 function PaymentRow({
   item,
   warning,
+  last,
   revealDelay,
 }: {
   item: TimelineItemResponse;
   warning?: InsightItem;
+  /** The final row draws no rule: on a phone it sits on the card's own edge. */
+  last: boolean;
   revealDelay: number;
 }) {
   const style = { '--reveal-delay': `${revealDelay}ms` } as CSSProperties;
   const income = item.type === 'INCOME';
-  const cell = cn('reveal py-space-2', !warning && 'border-b border-line');
+  const cell = cn('reveal py-space-2', !warning && !last && 'border-b border-line', last && 'max-md:pb-0');
 
   return (
     <div className="contents">

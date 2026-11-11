@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { shallowEqual, useSelector } from 'react-redux';
-import { SectionHeader } from '@/components/SectionHeader';
 import { Skeleton } from '@/components/Skeleton';
+import { ScrollStrip } from '@/components/ScrollStrip';
 import { cycleMonthName } from '@/lib/dates';
 import { formatMoney } from '@/lib/money';
 import { reviewService } from '@/services/reviewService';
@@ -49,7 +49,6 @@ export function CategoryHeatmap({ months }: { months: ReviewMonth[] }) {
   if (results.some((r) => !r)) {
     return (
       <section className="flex flex-col gap-space-4">
-        <SectionHeader>How each category moved</SectionHeader>
         <Skeleton className="h-64 w-full" />
       </section>
     );
@@ -73,12 +72,12 @@ export function CategoryHeatmap({ months }: { months: ReviewMonth[] }) {
 
   return (
     <section className="flex flex-col gap-space-4">
-      <SectionHeader trailing={`top ${shown.length} categories`}>How each category moved</SectionHeader>
+      <p className="text-caption text-ink-muted">{`Top ${shown.length} categories, month by month`}</p>
       <p className="max-w-[64ch] text-caption text-ink-muted">
         Darker is more. Read across a row to see a category grow or shrink from one month to the next.
       </p>
 
-      <div className="overflow-x-auto">
+      <ScrollStrip>
         <div
           className="grid min-w-[28rem] gap-[2px]"
           style={{ gridTemplateColumns: `minmax(7rem,11rem) repeat(${recorded.length}, minmax(4.5rem,1fr))` }}
@@ -87,7 +86,7 @@ export function CategoryHeatmap({ months }: { months: ReviewMonth[] }) {
         >
           <span role="columnheader" />
           {recorded.map((m) => (
-            <span key={m.cycleId} role="columnheader" className="pb-space-1 text-center text-micro uppercase tracking-[0.08em] text-ink-muted">
+            <span key={m.cycleId} role="columnheader" className="pb-space-1 text-center text-caption text-ink-muted">
               {cycleMonthName(m.endDate)}
               {m.current ? ' ·' : ''}
             </span>
@@ -116,7 +115,7 @@ export function CategoryHeatmap({ months }: { months: ReviewMonth[] }) {
             </div>
           ))}
         </div>
-      </div>
+      </ScrollStrip>
       {recorded.some((m) => m.current) && (
         <p className="text-caption text-ink-muted">The last month is still running, so its row will fill in.</p>
       )}
@@ -124,7 +123,7 @@ export function CategoryHeatmap({ months }: { months: ReviewMonth[] }) {
       <FiguresToggle>
         <table className="w-full text-left">
           <thead>
-            <tr className="border-b border-line text-micro uppercase tracking-[0.08em] text-ink-muted">
+            <tr className="border-b border-line text-caption text-ink-muted">
               <th className="py-space-2 font-normal">Category</th>
               {recorded.map((m) => (
                 <th key={m.cycleId} className="py-space-2 text-right font-normal">

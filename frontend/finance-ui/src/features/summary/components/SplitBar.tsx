@@ -45,7 +45,7 @@ export function SplitBar({ parts, title }: { parts: SplitPart[]; title: string }
               stackId="w"
               fill={p.colour}
               stroke="var(--surface)"
-              strokeWidth={2}
+              strokeWidth={1.5}
               barSize={28}
               radius={i === 0 && parts.length === 1 ? 4 : i === 0 ? [4, 0, 0, 4] : i === parts.length - 1 ? [0, 4, 4, 0] : 0}
             >

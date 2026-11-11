@@ -1,6 +1,7 @@
 package com.finance.commitment.dto;
 
 import com.finance.commitment.domain.CommitmentSource;
+import com.finance.commitment.domain.SkipReason;
 import com.finance.transaction.domain.TransactionType;
 import com.finance.account.dto.AccountSummary;
 import com.finance.category.dto.CategorySummary;
@@ -85,6 +86,10 @@ public record CommitmentInstanceResponse(
         @JsonSerialize(using = MoneySerializer.class)
         BigDecimal variance,
 
+        /** Why this month was skipped, and the user's note. Null unless SKIPPED. */
+        SkipReason skipReason,
+        String skipNote,
+
         /** What this write just did (ADR-0017). Absent on reads, and on writes that moved
          *  nothing - settling a bill is the moment "what did that cost me?" is asked. */
         WriteEffectResponse effect
@@ -94,6 +99,6 @@ public record CommitmentInstanceResponse(
         return new CommitmentInstanceResponse(id, commitmentId, commitmentName, cycleId, dueDate, expectedAmount,
                 status, confirmedAmount, outstanding, confirmedAt, settledOn, linkedTransactionId, mandatory,
                 ifSkipped, amountOverridden, ruleAmount, account, settledFromAccount, category, sourceType, sourceId,
-                settleAs, toAccountId, attentionTier, variance, effect);
+                settleAs, toAccountId, attentionTier, variance, skipReason, skipNote, effect);
     }
 }

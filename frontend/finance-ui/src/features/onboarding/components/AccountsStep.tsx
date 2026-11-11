@@ -2,7 +2,6 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Row } from '@/components/Row';
 import { Button } from '@/components/Button';
-import { RealBalancePreview } from './RealBalancePreview';
 import { Amount } from '@/components/Amount';
 import { AccountFormFields } from '@/features/accounts/components/AccountFormFields';
 import { accountFormSchema, ACCOUNT_FORM_DEFAULTS, type AccountFormValues } from '@/features/accounts/components/accountForm';
@@ -85,7 +84,6 @@ export function AccountsStep({ onContinue }: AccountsStepProps) {
         </div>
       )}
 
-      {accounts.length > 0 && <RealBalancePreview />}
 
       <form onSubmit={handleSubmit(onSubmit)} onKeyDown={handleEnterAdvance} autoComplete="off" className="flex flex-col gap-space-4 rounded-xl border border-line bg-surface p-space-5">
         <AccountFormFields
@@ -112,6 +110,11 @@ export function AccountsStep({ onContinue }: AccountsStepProps) {
           </button>
         )}
       </div>
+      {accounts.length === 0 && (
+        <p className="-mt-space-4 max-w-[40rem] text-caption text-ink-muted">
+          Without an account there is nothing for Kosh to count, so the figures stay empty until you add one.
+        </p>
+      )}
     </div>
   );
 }

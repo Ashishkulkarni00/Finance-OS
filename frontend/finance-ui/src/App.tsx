@@ -4,7 +4,6 @@ import { AppShell } from '@/components/layout/AppShell';
 import { useGetAccountsQuery } from '@/services/accountService';
 
 const TodayPage = lazy(() => import('./routes/TodayPage'));
-const NeedsYouPage = lazy(() => import('./routes/NeedsYouPage'));
 const MonthPage = lazy(() => import('./routes/MonthPage'));
 const MonthClosePage = lazy(() => import('./routes/MonthClosePage'));
 const MoneyPage = lazy(() => import('./routes/MoneyPage'));
@@ -27,6 +26,8 @@ const ImportPage = lazy(() => import('./routes/ImportPage'));
 const HelpHomePage = lazy(() => import('./routes/HelpHomePage'));
 const HelpCategoryPage = lazy(() => import('./routes/HelpCategoryPage'));
 const HelpTopicPage = lazy(() => import('./routes/HelpTopicPage'));
+const NotFoundPage = lazy(() => import('./routes/NotFoundPage'));
+const SettingsPage = lazy(() => import('./routes/SettingsPage'));
 
 /** No persisted "onboarding done" flag exists (and shouldn't need one) - a user with
  *  zero accounts has nothing for the rest of the product to show, which is exactly
@@ -47,8 +48,9 @@ export function App() {
           <Route element={<AppShell />}>
             <Route index element={<RootRedirect />} />
             <Route path="/today" element={<TodayPage />} />
-            {/* A drill-down of Today's "Needs you", not a sibling of it - see NeedsYouPage. */}
-            <Route path="/needs-you" element={<NeedsYouPage />} />
+            {/* Needs you is a panel over the current page now (`?needs=1`); old links and the
+                toast's fallback destination land on Today with it open. */}
+            <Route path="/needs-you" element={<Navigate to="/today?needs=1" replace />} />
             <Route path="/month" element={<MonthPage />} />
             <Route path="/month/close" element={<MonthClosePage />} />
             {/* Money: the four registers as tabs (STRATEGY_DEEP_DIVE §D). Old addresses redirect. */}
@@ -86,9 +88,12 @@ export function App() {
             <Route path="/cards/:accountId" element={<CreditCardDetailPage />} />
             {/* The in-app manual - registered inside AppShell so the rail stays visible
                 and a reader is never stranded (IN_APP_MANUAL.md §5). */}
+            <Route path="/settings" element={<SettingsPage />} />
             <Route path="/help" element={<HelpHomePage />} />
             <Route path="/help/:category" element={<HelpCategoryPage />} />
             <Route path="/help/:category/:slug" element={<HelpTopicPage />} />
+            {/* Anything else: a page inside the shell, so navigation is still there. */}
+            <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Routes>
       </Suspense>

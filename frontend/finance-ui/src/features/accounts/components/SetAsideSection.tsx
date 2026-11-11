@@ -66,7 +66,7 @@ function ReservationForm({
   return (
     <div className="flex flex-col gap-space-2 border-b border-line py-space-3 last:border-b-0">
       <div className="flex flex-wrap items-center gap-space-3">
-        <label className="flex h-9 items-center gap-space-1 rounded-lg border border-border bg-surface px-space-3 focus-within:border-accent">
+        <label className="flex h-9 pointer-coarse:h-11 items-center gap-space-1 rounded-lg border border-border bg-surface px-space-3 focus-within:border-accent">
           <span aria-hidden className="num text-label text-ink-muted">
             ₹
           </span>
@@ -96,7 +96,7 @@ function ReservationForm({
           }}
           aria-label="What this is for"
           placeholder="What it’s for - rent held for a flatmate, emergency fund…"
-          className={FORM_ROW_CONTROL + ' h-9 flex-1 rounded-lg border border-border bg-surface px-space-3'}
+          className={FORM_ROW_CONTROL + ' h-9 pointer-coarse:h-11 flex-1 rounded-lg border border-border bg-surface px-space-3'}
         />
         <Button type="button" size="sm" variant="secondary" disabled={saving} onClick={() => void submit()}>
           {saving ? 'Saving…' : submitLabel}
@@ -154,13 +154,15 @@ function ReservationRow({ reservation }: { reservation: ReservationResponse }) {
 
   return (
     <div className="flex flex-col gap-space-2 border-b border-line py-space-3 last:border-b-0">
-      <div className="flex items-baseline justify-between gap-space-3">
-        <div className="flex min-w-0 flex-col">
-          <span className="text-row text-ink">{reservation.purpose}</span>
+      {/* Phone: purpose and figure on one line, the two actions under them - a long purpose
+          wedged beside two buttons wrapped to five lines. */}
+      <div className="flex flex-wrap items-baseline justify-between gap-x-space-3 gap-y-space-1">
+        <div className="flex min-w-0 flex-1 flex-col">
+          <span className="text-row text-ink max-md:line-clamp-2">{reservation.purpose}</span>
           {reservation.goalId != null && <span className="text-caption text-ink-muted">Counts as progress on a goal</span>}
         </div>
-        <span className="flex items-center gap-space-3">
-          <Amount value={reservation.amount} role="row" className="text-ink" />
+        <Amount value={reservation.amount} role="row" className="text-ink md:order-2" />
+        <span className="flex items-center gap-space-3 max-md:-ml-space-3 max-md:basis-full md:order-3">
           <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>
             Change
           </Button>

@@ -21,8 +21,8 @@ export const FORM_ROW_CONTROL = 'w-full min-w-0 bg-transparent text-label text-i
 export function FormRow({ label, error, hint, children }: { label: string; error?: string; hint?: ReactNode; children: ReactNode }) {
   return (
     <div className="border-b border-line last:border-b-0">
-      <div className="flex items-center gap-space-4 px-space-4 py-space-3 transition-colors duration-150 focus-within:bg-sunken">
-        <span className="flex w-24 shrink-0 items-center gap-space-1 text-label text-ink-soft">
+      <div className="flex items-center gap-space-4 px-space-4 py-[7px] transition-colors duration-150 focus-within:bg-sunken">
+        <span className="flex w-24 shrink-0 items-center gap-space-1 text-label font-normal text-ink-soft">
           {label}
           {hint && <InfoTip label={label}>{hint}</InfoTip>}
         </span>

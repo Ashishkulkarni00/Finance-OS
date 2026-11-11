@@ -11,25 +11,46 @@
  * ------------------------------------------------------------------------- */
 
 :root {
-  /* Neutrals - warm, not blue-grey */
+  /* Neutrals - warm paper, not blue-grey. v3 (UI_UX_REVAMP_PLAN §5.2): the ground is a step
+     deeper than v2 so white cards separate from it without a border. */
   --ground: #fafaf9;
   --surface: #ffffff;
+  --surface-raised: #ffffff;
   --sunken: #f5f5f4;
   --line: #e7e5e4;
   --border: #d6d3d1;
-  --ink-muted: #78716c;
+  --ink-muted: #6f6a66;
   --ink-soft: #44403c;
   --ink: #1c1917;
 
-  /* Brand */
+  /* Brand. Hover goes DARKER (pressed in); v2's lighter hover read as disabled. */
   --accent: #0f766e;
-  --accent-hover: #0d9488;
+  --accent-hover: #115e59;
   --accent-wash: #f0fdfa;
+  /* Text on a solid accent fill: white on the deep light teal, near-black on the bright dark one. */
+  --on-accent: #ffffff;
+  --on-solid: #ffffff;
 
-  /* Semantic - meaning, never decoration */
+  /* Semantic - meaning, never decoration. Washes are the banner / toast backgrounds. */
   --positive: #047857;
-  --attention: #b45309;
+  --positive-wash: #ecf8f2;
+  --attention: #a94d08;
+  --attention-wash: #fff3df;
   --critical: #b91c1c;
+  --critical-wash: #fcedeb;
+  --info: #1f5fa8;
+  --info-wash: #ecf2fa;
+
+  /* Fine, not thick (UI_UX_REVAMP_PLAN 5.8). Elevation is a hairline ring plus soft layered
+     shadows - never one heavy blur. shadow-1: a sticky header's edge. shadow-2: popover, menu,
+     toast. shadow-3: sheet, dialog. */
+  --shadow-1: 0 1px 0 var(--line);
+  --shadow-2: 0 0 0 1px rgb(0 0 0 / 0.04), 0 4px 12px -2px rgb(0 0 0 / 0.08), 0 12px 32px -8px rgb(0 0 0 / 0.1);
+  --shadow-3: 0 0 0 1px rgb(0 0 0 / 0.05), 0 24px 64px -12px rgb(0 0 0 / 0.22);
+
+  /* Scrollbar thumb: invisible until the scroller is hovered or focused. */
+  --scroll-thumb: color-mix(in srgb, var(--ink) 18%, transparent);
+  --scroll-thumb-hover: color-mix(in srgb, var(--ink) 32%, transparent);
 
   /* Domain hues - identity, not fill */
   --commit: #52525b;
@@ -84,24 +105,40 @@
   --viz-seq-6: #184f95;
 }
 
+/* Dark follows the system unless the user forces a theme (Settings, Phase 14) by setting
+   data-theme on <html>. The two blocks below carry the SAME values: CSS cannot share a
+   declaration list between a media query and an attribute selector. Edit both together. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --ground: #0c0a09;
     --surface: #1c1917;
-    --sunken: #26221f;
+    --surface-raised: #26221f;
+    --sunken: #151311;
     --line: #34302c;
     --border: #47413c;
     --ink-muted: #a8a29e;
     --ink-soft: #d6d3d1;
     --ink: #faf9f8;
 
+    /* Calmer than v2's #2dd4bf, which glows on near-black. */
     --accent: #2dd4bf;
     --accent-hover: #5eead4;
     --accent-wash: #0f2e2b;
+  --on-accent: #04201c;
+  --on-solid: #1c1917;
 
     --positive: #34d399;
+    --positive-wash: color-mix(in srgb, #34d399 12%, #1c1917);
     --attention: #f59e0b;
+    --attention-wash: color-mix(in srgb, #f59e0b 12%, #1c1917);
     --critical: #f87171;
+    --critical-wash: color-mix(in srgb, #f87171 12%, #1c1917);
+    --info: #7fb0ee;
+    --info-wash: color-mix(in srgb, #7fb0ee 12%, #1c1917);
+
+    --shadow-1: 0 1px 0 var(--line);
+    --shadow-2: 0 0 0 1px rgb(255 255 255 / 0.06), 0 4px 12px -2px rgb(0 0 0 / 0.2), 0 12px 32px -8px rgb(0 0 0 / 0.25);
+    --shadow-3: 0 0 0 1px rgb(255 255 255 / 0.06), 0 24px 64px -12px rgb(0 0 0 / 0.55);
 
     --commit: #a1a1aa;
     --goal: #a78bfa;
@@ -132,37 +169,112 @@
   }
 }
 
+:root[data-theme='dark'] {
+  --ground: #0c0a09;
+  --surface: #1c1917;
+  --surface-raised: #26221f;
+  --sunken: #151311;
+  --line: #34302c;
+  --border: #47413c;
+  --ink-muted: #a8a29e;
+  --ink-soft: #d6d3d1;
+  --ink: #faf9f8;
+
+  /* Calmer than v2's #2dd4bf, which glows on near-black. */
+  --accent: #2dd4bf;
+  --accent-hover: #5eead4;
+  --accent-wash: #0f2e2b;
+  --on-accent: #04201c;
+  --on-solid: #1c1917;
+
+  --positive: #34d399;
+  --positive-wash: color-mix(in srgb, #34d399 12%, #1c1917);
+  --attention: #f59e0b;
+  --attention-wash: color-mix(in srgb, #f59e0b 12%, #1c1917);
+  --critical: #f87171;
+  --critical-wash: color-mix(in srgb, #f87171 12%, #1c1917);
+  --info: #7fb0ee;
+  --info-wash: color-mix(in srgb, #7fb0ee 12%, #1c1917);
+
+  --shadow-1: 0 1px 0 var(--line);
+  --shadow-2: 0 0 0 1px rgb(255 255 255 / 0.06), 0 4px 12px -2px rgb(0 0 0 / 0.2), 0 12px 32px -8px rgb(0 0 0 / 0.25);
+  --shadow-3: 0 0 0 1px rgb(255 255 255 / 0.06), 0 24px 64px -12px rgb(0 0 0 / 0.55);
+
+  --commit: #a1a1aa;
+  --goal: #a78bfa;
+  --debt: #e07a4f;
+  --invest: #60a5fa;
+
+  /* Chosen for the dark surface, not flipped from the light steps - see the note
+   * above. #3b82f6 rather than `--invest`'s #60a5fa so both fills sit inside one
+   * lightness band and neither shouts over the other. */
+  --chart-committed: #a1a1aa;
+  --chart-flexible: #7d7d86;
+  --chart-invest: #3b82f6;
+  --chart-neutral: #a8a29e;
+  --chart-income: #2dd4bf;
+  --chart-debt: #e07a4f;
+  --viz-1: #3987e5;
+  --viz-2: #d95926;
+  --viz-3: #199e70;
+  --viz-4: #c98500;
+  --viz-5: #d55181;
+  --viz-seq-0: #22272e;
+  --viz-seq-1: #0d366b;
+  --viz-seq-2: #104281;
+  --viz-seq-3: #184f95;
+  --viz-seq-4: #1c5cab;
+  --viz-seq-5: #2a78d6;
+  --viz-seq-6: #5598e7;
+}
+
 @theme {
   /* Typography - two families, strict division of labour */
   --font-sans: 'Inter', -apple-system, 'Segoe UI', sans-serif;
   --font-serif: 'Instrument Serif', Georgia, serif;
 
-  /* Type scale, per DESIGN_SYSTEM.md §3 - paired line-heights via --text-*--line-height */
-  --text-hero: 44px;
-  --text-hero--line-height: 48px;
-  --text-hero--font-weight: 600;
+  /* Type scale - UI_UX_REVAMP_PLAN 5.8.2 "fine, not thick": lighter at size, smaller at body.
+     Inter ships 400/500/600 only. 600 is for titles; 500 for figures, buttons and labels;
+     everything else is 400. Phone overrides for hero and page title sit in the base layer. */
+  --text-hero: 40px;
+  --text-hero--line-height: 44px;
+  --text-hero--font-weight: 500;
+  --text-hero--letter-spacing: -0.025em;
 
   --text-editorial: 28px;
   --text-editorial--line-height: 34px;
   --text-editorial--font-weight: 400;
 
-  --text-section: 24px;
-  --text-section--line-height: 30px;
-  --text-section--font-weight: 600;
+  --text-section: 22px;
+  --text-section--line-height: 28px;
+  --text-section--font-weight: 500;
+  --text-section--letter-spacing: -0.02em;
 
-  --text-row: 16px;
-  --text-row--line-height: 22px;
+  --text-page: 38px;
+  --text-page--line-height: 44px;
+  --text-page--font-weight: 600;
+  --text-page--letter-spacing: -0.03em;
+
+  --text-sectiontitle: 15px;
+  --text-sectiontitle--line-height: 22px;
+  --text-sectiontitle--font-weight: 600;
+  --text-sectiontitle--letter-spacing: -0.005em;
+
+  /* The figure role of a row (Amount role="row"). Row text is body / label at 400. */
+  --text-row: 14px;
+  --text-row--line-height: 20px;
   --text-row--font-weight: 500;
+  --text-row--letter-spacing: -0.01em;
 
   --text-title: 18px;
   --text-title--line-height: 26px;
   --text-title--font-weight: 600;
 
-  --text-body: 15px;
-  --text-body--line-height: 24px;
+  --text-body: 14px;
+  --text-body--line-height: 22px;
 
-  --text-label: 13px;
-  --text-label--line-height: 18px;
+  --text-label: 12.5px;
+  --text-label--line-height: 16px;
   --text-label--font-weight: 500;
 
   --text-caption: 12px;
@@ -172,9 +284,20 @@
   --text-micro--line-height: 14px;
   --text-micro--font-weight: 500;
 
+  /* Radii (5.8.4): chips 6, controls 7, cards 10, overlays 14. */
+  --radius-md: 6px;
+  --radius-lg: 7px;
+  --radius-xl: 10px;
+  --radius-2xl: 14px;
+
+  /* Any leftover shadow utility resolves to the soft tokens, never a heavy default. */
+  --shadow-lg: 0 0 0 1px rgb(0 0 0 / 0.04), 0 4px 12px -2px rgb(0 0 0 / 0.08), 0 12px 32px -8px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 0 0 1px rgb(0 0 0 / 0.05), 0 24px 64px -12px rgb(0 0 0 / 0.22);
+
   /* Colour tokens as Tailwind theme colours (bg-ground, text-ink, border-line, ...) */
   --color-ground: var(--ground);
   --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
   --color-sunken: var(--sunken);
   --color-line: var(--line);
   --color-border: var(--border);
@@ -185,10 +308,17 @@
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
   --color-accent-wash: var(--accent-wash);
+  --color-on-accent: var(--on-accent);
+  --color-on-solid: var(--on-solid);
 
   --color-positive: var(--positive);
   --color-attention: var(--attention);
   --color-critical: var(--critical);
+  --color-positive-wash: var(--positive-wash);
+  --color-attention-wash: var(--attention-wash);
+  --color-critical-wash: var(--critical-wash);
+  --color-info: var(--info);
+  --color-info-wash: var(--info-wash);
 
   --color-commit: var(--commit);
   --color-goal: var(--goal);
@@ -214,7 +344,10 @@
 
   /* Content measure */
   --width-content: 1120px;
-  --width-nav-rail: 240px;
+  /* v3 page widths (UI_UX_REVAMP_PLAN §5.6). --width-content stays until every page has moved. */
+  --width-read: 720px;
+  --width-wide: 1120px;
+  --width-nav-rail: 220px;
   /* The manual's own mode (IN_APP_MANUAL.md §5): the app rail's 240px is freed, and goes
      to the reading column's margin and right rail, not to prose measure - §5a fixes body
      text at 68ch regardless of how much width is available. */
@@ -225,15 +358,99 @@
   html {
     color-scheme: light dark;
   }
+  html[data-theme='light'] {
+    color-scheme: light;
+  }
+  html[data-theme='dark'] {
+    color-scheme: dark;
+  }
 
   body {
     background: var(--ground);
     color: var(--ink);
     font-family: var(--font-sans);
     font-size: var(--text-body);
-    line-height: 24px;
+    line-height: 22px;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+  }
+
+  /* Phone type (5.8.2): the hero and page title step down one size. The base layer outranks
+     the theme layer, so this overrides the :root variables the utilities read. */
+  @media (max-width: 767px) {
+    :root {
+      --text-hero: 32px;
+      --text-hero--line-height: 38px;
+      --text-page: 30px;
+      --text-page--line-height: 36px;
+    }
+  }
+
+  /* Thin, calm scrollbars (5.8.5). The thumb is invisible until the scroller is hovered or holds
+     focus; touch devices keep the OS overlay bars. Blink/WebKit use the pseudo-elements (10px
+     track, 6px visible thumb); Firefox gets the standard properties. */
+  @supports (-moz-appearance: none) {
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: transparent transparent;
+    }
+    *:hover,
+    *:focus-within {
+      scrollbar-color: var(--scroll-thumb) transparent;
+    }
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: transparent;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    border-radius: 9999px;
+  }
+  *:hover::-webkit-scrollbar-thumb,
+  *:focus-within::-webkit-scrollbar-thumb {
+    background-color: var(--scroll-thumb);
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scroll-thumb-hover);
+  }
+  @media (pointer: coarse) {
+    ::-webkit-scrollbar {
+      width: 0;
+      height: 0;
+    }
+  }
+  /* The main column never shifts sideways when content grows past one screen. */
+  #app-main {
+    scrollbar-gutter: stable;
+  }
+
+  /* Horizontal strips (tab rows, chip rows): no visible bar. ScrollStrip sets data-fade-start /
+     data-fade-end so an edge fades only on the side that has more content. */
+  .scroll-strip {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .scroll-strip::-webkit-scrollbar {
+    display: none;
+  }
+  .scroll-strip[data-fade-start='true'] {
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 16px);
+    mask-image: linear-gradient(to right, transparent, #000 16px);
+  }
+  .scroll-strip[data-fade-end='true'] {
+    -webkit-mask-image: linear-gradient(to left, transparent, #000 16px);
+    mask-image: linear-gradient(to left, transparent, #000 16px);
+  }
+  .scroll-strip[data-fade-start='true'][data-fade-end='true'] {
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 16px, #000 calc(100% - 16px), transparent);
+    mask-image: linear-gradient(to right, transparent, #000 16px, #000 calc(100% - 16px), transparent);
   }
 
   /* Tabular numerals everywhere a number appears, without exception - DESIGN_SYSTEM §3 */
@@ -423,5 +640,263 @@
 
   .pressable:active:not(:disabled) {
     transform: none;
+  }
+}
+
+/* ===========================================================================
+   Overlays - native <dialog> (UI_UX_REVAMP_PLAN §5.7, §6.8).
+   The browser provides the top layer, the inert page behind, Tab containment and Esc.
+   `.sheet-dialog` fills the viewport and is transparent: it is the hit area for the scrim, and
+   the panel sits inside it. A phone gets a bottom sheet, md+ a right-hand side panel.
+   No fill-mode on the entrance: a lingering transform would re-base `position: fixed`
+   dropdowns portalled into the dialog.
+   =========================================================================== */
+dialog.sheet-dialog,
+dialog.confirm-dialog {
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  overflow: visible;
+}
+
+dialog.sheet-dialog {
+  width: 100vw;
+  height: 100dvh;
+}
+
+dialog.sheet-dialog::backdrop,
+dialog.confirm-dialog::backdrop {
+  background: color-mix(in srgb, var(--ink) 32%, transparent);
+  animation: scrim-in var(--motion-normal) var(--motion-ease-out);
+}
+
+dialog[data-closing]::backdrop {
+  opacity: 0;
+  transition: opacity 180ms var(--motion-ease-in-out);
+}
+
+.sheet-panel {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: var(--kb-inset, 0px);
+  max-height: min(92dvh, calc(100dvh - var(--kb-inset, 0px) - env(safe-area-inset-top)));
+  border-radius: 14px 14px 0 0;
+  animation: sheet-up 300ms var(--motion-ease-out);
+}
+
+@media (min-width: 768px) {
+  .sheet-panel {
+    left: auto;
+    top: 0;
+    width: min(520px, 100vw);
+    max-height: none;
+    height: 100dvh;
+    border-radius: 14px 0 0 14px;
+    animation-name: sheet-in;
+    animation-duration: 260ms;
+  }
+}
+
+@media (min-width: 768px) {
+  .sheet-panel[data-size='narrow'] {
+    width: min(440px, 100vw);
+  }
+}
+
+dialog[data-closing] .sheet-panel {
+  animation: sheet-down 200ms var(--motion-ease-in-out) forwards;
+}
+
+@media (min-width: 768px) {
+  dialog[data-closing] .sheet-panel {
+    animation-name: sheet-out;
+  }
+}
+
+.confirm-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: fit-content;
+  height: fit-content;
+}
+
+.confirm-panel {
+  animation: confirm-in 180ms var(--motion-ease-out);
+}
+
+dialog[data-closing] .confirm-panel {
+  animation: confirm-out 150ms var(--motion-ease-in-out) forwards;
+}
+
+@keyframes scrim-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sheet-in { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
+@keyframes sheet-out { from { opacity: 1; } to { opacity: 0; transform: translateX(24px); } }
+@keyframes sheet-up { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes sheet-down { from { transform: none; } to { transform: translateY(100%); } }
+@keyframes confirm-in { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes confirm-out { from { opacity: 1; } to { opacity: 0; transform: scale(0.98); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet-panel,
+  .confirm-panel,
+  dialog::backdrop {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* ===========================================================================
+   Hairlines (UI_UX_REVAMP_PLAN 5.8.1). Deliberately UNLAYERED: Tailwind's utilities live in a
+   cascade layer, and any unlayered rule outranks every layered one. A ruled edge (border-line)
+   becomes half a pixel on dense (retina) screens; chaining the two classes also keeps it more
+   specific. Controls use border-border and stay 1px so they remain findable.
+   =========================================================================== */
+@media (min-resolution: 2dppx) {
+  .border.border-line,
+  .border.border-line\/60 {
+    border-width: 0.5px;
+  }
+  .border-b.border-line {
+    border-bottom-width: 0.5px;
+  }
+  .border-t.border-line {
+    border-top-width: 0.5px;
+  }
+  .border-l.border-line {
+    border-left-width: 0.5px;
+  }
+  .border-r.border-line {
+    border-right-width: 0.5px;
+  }
+  /* Being unlayered, the rules above also beat every "no rule here" utility - so on a real phone
+     `last:border-b-0` drew a stray line under the last row of every list (found 2026-11-11).
+     The zero-width utilities in use are re-asserted here, after them - single-class ones doubled
+     (`.x.x`) so they out-rank the two-class hairline selectors. */
+  .border-b-0.border-b-0,
+  .last\:border-b-0:last-child {
+    border-bottom-width: 0;
+  }
+  .first\:border-l-0:first-child {
+    border-left-width: 0;
+  }
+  .first\:border-t-0:first-child {
+    border-top-width: 0;
+  }
+  @media (min-width: 40rem) {
+    .sm\:border-t-0.sm\:border-t-0 {
+      border-top-width: 0;
+    }
+  }
+  @media (max-width: 47.98rem) {
+    .max-md\:border-0.max-md\:border-0 {
+      border-width: 0;
+    }
+    .max-md\:border-t-0.max-md\:border-t-0 {
+      border-top-width: 0;
+    }
+  }
+  @media (max-width: 79.98rem) {
+    .max-xl\:border-b-0.max-xl\:border-b-0 {
+      border-bottom-width: 0;
+    }
+  }
+}
+
+/* Phone rows (LedgerRow .row-compact): labelled meta facts collapse into one dotted line. */
+.row-compact .meta-facts {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.row-compact .meta-facts .mf-label {
+  display: none;
+}
+.row-compact .meta-facts .mf-value {
+  display: inline;
+}
+.row-compact .meta-facts > span + span .mf-value::before {
+  content: '·';
+  margin: 0 0.4em;
+  color: var(--ink-muted);
+}
+
+/* Phone cards (Today, 2026-11-11). On a phone the page reads as a stack of grouped surfaces, the
+   way native money apps do; prose under a heading read like an article ("looks like Wikipedia").
+   Wide screens keep the ruled, open layout. White surface on the #FAFAF9 ground with a hairline -
+   no tint, no heavy shadow. */
+@media (max-width: 767px) {
+  .m-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: var(--spacing-space-4);
+  }
+}
+/* A Breakdown trigger used as a full-width list row: a row is not a link, so no dotted underline. */
+.trigger-row {
+  text-decoration: none !important;
+}
+/* Inside a phone card a FactStrip's rules run edge to edge, like a grouped list's separators; the
+   strip's own bottom rule is dropped when it ends the card, so it never doubles the card's edge. */
+@media (max-width: 767px) {
+  .m-card .fact-strip {
+    margin-inline: calc(-1 * var(--spacing-space-4));
+    padding-inline: var(--spacing-space-4);
+  }
+  .m-card > .fact-strip:first-child {
+    border-top-width: 0;
+    margin-top: calc(-1 * var(--spacing-space-3));
+  }
+  .m-card > .fact-strip:last-child {
+    border-bottom-width: 0;
+    margin-bottom: calc(-1 * var(--spacing-space-3));
+  }
+}
+
+/* A LedgerRow inside a per-row wrapper (`.row-wrap`: TransactionRow, LoanRow, InvestmentRow,
+   WorklistRow, goal rows) is always its wrapper's last child, so its own `last:border-b-0` erased
+   every rule in those lists. The rule is restored on every row whose wrapper is not the last. */
+.row-wrap:not(:last-child) > .last\:border-b-0 {
+  border-bottom-width: 1px;
+}
+@media (min-resolution: 2dppx) {
+  .row-wrap:not(:last-child) > .last\:border-b-0 {
+    border-bottom-width: 0.5px;
+  }
+}
+
+/* Detail pages on a phone (2026-11-11): every top-level section - registers, schedules, the
+   "how it's worked out" disclosures, archive/delete - is a card with its title inside, under the
+   hero card. Wide screens keep the open, ruled layout. Selectors are deliberately specific: they
+   must beat the unlayered hairline rules above. */
+@media (max-width: 767px) {
+  .detail-page > section,
+  .divided > section,
+  .detail-page > .detail-group > section {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: var(--spacing-space-4);
+  }
+  .detail-page > section > .section-header,
+  .divided > section > .section-header,
+  .detail-page > section > div > .section-header:first-child {
+    border-bottom-width: 0;
+    padding-bottom: 0;
+    margin-bottom: var(--spacing-space-2);
+  }
+  /* A Disclosure's toggle is the card's own first line: no rule above it, no extra padding. */
+  .detail-page > section > button:first-child,
+  .divided > section > button:first-child,
+  .detail-page > .detail-group > section > button:first-child {
+    border-top-width: 0;
+    padding-block: 0;
   }
 }

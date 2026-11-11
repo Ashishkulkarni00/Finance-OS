@@ -1,5 +1,5 @@
 import { Check } from 'lucide-react';
-import { SectionHeader } from '@/components/SectionHeader';
+import { Disclosure } from '@/components/Disclosure';
 import { cn } from '@/lib/cn';
 import { useGetSuggestedOrderQuery } from '@/services/goalService';
 
@@ -16,8 +16,7 @@ export function SuggestedOrder() {
   if (!data || data.length === 0) return null;
 
   return (
-    <section>
-      <SectionHeader>A common order for spare money</SectionHeader>
+    <Disclosure storageKey="kosh.goals.suggested-order" label="A common order for spare money" summary="the order most people find holds up">
       <p className="mb-space-3 max-w-[40rem] text-caption text-ink-muted">
         Not a rule — the order most people find holds up, with the reason for each step. Yours can differ.
       </p>
@@ -37,12 +36,12 @@ export function SuggestedOrder() {
               )}
               aria-hidden
             >
-              {s.status === 'DONE' ? <Check size={12} strokeWidth={2} /> : i + 1}
+              {s.status === 'DONE' ? <Check size={12} strokeWidth={1.75} /> : i + 1}
             </span>
             <span className="min-w-0">
               <span className={cn('block text-label', s.status === 'DONE' ? 'text-ink-muted' : 'text-ink')}>
                 {s.title}
-                {s.current && <span className="ml-space-2 text-micro uppercase tracking-[0.08em] text-accent">You are here</span>}
+                {s.current && <span className="ml-space-2 text-caption text-accent">You are here</span>}
               </span>
               {s.detail && <span className="block text-caption text-ink-soft">{s.detail}</span>}
               {(s.current || s.status !== 'DONE') && <span className="block text-caption text-ink-muted">{s.why}</span>}
@@ -50,6 +49,6 @@ export function SuggestedOrder() {
           </li>
         ))}
       </ol>
-    </section>
+    </Disclosure>
   );
 }

@@ -29,7 +29,7 @@ export function DateBlock({ date, tone = 'neutral' }: DateBlockProps) {
       )}
     >
       <span className="num text-row leading-none">{d.getDate()}</span>
-      <span className="mt-[2px] text-micro uppercase tracking-[0.04em] opacity-80">{MONTH.format(d)}</span>
+      <span className="mt-[2px] text-caption">{MONTH.format(d)}</span>
     </span>
   );
 }

@@ -1,6 +1,7 @@
 package com.finance.commitment.dto;
 
 import com.finance.commitment.domain.CommitmentSource;
+import com.finance.commitment.domain.SkipReason;
 import com.finance.transaction.domain.TransactionType;
 import com.finance.account.dto.AccountSummary;
 import com.finance.category.dto.CategorySummary;
@@ -64,6 +65,10 @@ public record CommitmentInstanceDetailResponse(
         Long toAccountId,
 
         TransactionResponse linkedTransaction,
-        List<CommitmentInstanceHistoryEntry> history
+        List<CommitmentInstanceHistoryEntry> history,
+
+        /** Why this month was skipped, and the user's note. Null unless SKIPPED. */
+        SkipReason skipReason,
+        String skipNote
 ) {
 }

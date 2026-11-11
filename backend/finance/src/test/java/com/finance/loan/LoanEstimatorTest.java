@@ -1,7 +1,6 @@
 package com.finance.loan;
 
-import com.finance.loan.dto.LoanEstimateRequest;
-import com.finance.loan.dto.LoanEstimateResponse;
+
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;

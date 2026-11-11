@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, AlertTriangle, CreditCard, Pencil, RefreshCw } from 'lucide-react';
+import { AlertTriangle, CreditCard, Pencil, RefreshCw } from 'lucide-react';
 import { LinkedDebitCards } from '@/features/cards/components/LinkedDebitCards';
 import { Button } from '@/components/Button';
 import { EditAccountSheet } from '@/features/accounts/components/EditAccountSheet';
@@ -10,8 +10,18 @@ import { StatusPill } from '@/components/StatusPill';
 import { Statement, StatementRow } from '@/components/Statement';
 import { SectionHeader } from '@/components/SectionHeader';
 import { Amount } from '@/components/Amount';
-import { Skeleton } from '@/components/Skeleton';
-import { ErrorState } from '@/components/ErrorState';
+import { Disclosure } from '@/components/Disclosure';
+import { FactStrip, type Fact } from '@/components/FactStrip';
+import {
+  ArchivedNotice,
+  DangerZone,
+  DetailError,
+  DetailHeader,
+  DetailHero,
+  DetailLoading,
+  DetailPage,
+  type DangerItemProps,
+} from '@/components/detail/DetailPage';
 import { formatShortDate, formatFullDate } from '@/lib/dates';
 import {
   useArchiveAccountMutation,
@@ -24,10 +34,9 @@ import { useGetProjectionQuery } from '@/services/projectionService';
 import { useGetTransactionsQuery } from '@/services/transactionService';
 
 /**
- * "Why is this account short?" - the destination for every shortfall row on Today and
- * every balance figure elsewhere. Shows the projection's actual cause (which
- * commitment, and when) rather than leaving the user to infer it, and the recent
- * ledger so the current balance is one tap from its proof (DESIGN_SYSTEM §12 rule 10).
+ * An account's own page, on the shared detail template (UI_UX_REVAMP_PLAN 4.8): the balance and its
+ * as-of date first, three facts under it, then what is coming out of it, what is set aside on it,
+ * and its recent activity. How the balance is made up is one tap away; archive and delete are last.
  */
 export default function AccountDetailPage() {
   const { accountId } = useParams<{ accountId: string }>();
@@ -35,10 +44,9 @@ export default function AccountDetailPage() {
   const id = Number(accountId);
   const [editingDetails, setEditingDetails] = useState(false);
   const [updatingBalance, setUpdatingBalance] = useState(false);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const { data: account, isLoading, isError, refetch } = useGetAccountQuery(id, { skip: !id });
+  const { data: account, isLoading, isError, error, refetch } = useGetAccountQuery(id, { skip: !id });
   const { data: projection } = useGetProjectionQuery(id, { skip: !id || !account?.countsAsSpendable });
   const { data: transactionsPage } = useGetTransactionsQuery({ accountId: id }, { skip: !id });
   const [archiveAccount, { isLoading: archiving }] = useArchiveAccountMutation();
@@ -55,22 +63,9 @@ export default function AccountDetailPage() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="mx-auto flex max-w-2xl flex-col gap-space-6 py-space-6">
-        <Skeleton className="h-6 w-32" />
-        <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-32 w-full" />
-      </div>
-    );
-  }
-
+  if (isLoading) return <DetailLoading />;
   if (isError || !account) {
-    return (
-      <div className="mx-auto max-w-2xl py-space-8">
-        <ErrorState message="We couldn't load this account." onRetry={refetch} />
-      </div>
-    );
+    return <DetailError what="account" backTo="/money/accounts" backLabel="Money" error={error} onRetry={refetch} />;
   }
 
   const status = account.archived
@@ -82,34 +77,67 @@ export default function AccountDetailPage() {
         : account.liability
           ? { tone: 'neutral' as const, label: 'Liability' }
           : // Orange, in the same pill as green "Spendable" - so the two states read as a
-            // pair at a glance, rather than "Not spendable" looking like no status at all.
+            // difference rather than two shades of the same thing.
             { tone: 'attention' as const, label: 'Not spendable' };
 
-  const nextDeduction = projection && projection.deductions.length > 0
-    ? [...projection.deductions].sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0]
-    : undefined;
+  const nextDeduction =
+    projection && projection.deductions.length > 0
+      ? [...projection.deductions].sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0]
+      : undefined;
 
   const transactions = transactionsPage?.content ?? [];
 
-  return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-space-8 py-space-6">
-      <button
-        type="button"
-        onClick={() => navigate(-1)}
-        className="flex items-center gap-space-2 self-start text-caption text-ink-muted transition-colors hover:text-ink"
-      >
-        <ArrowLeft size={16} strokeWidth={1.5} />
-        Back
-      </button>
+  // Three facts, only the ones that exist. Every value is the server's own field.
+  const facts: Fact[] = [];
+  if (account.available !== account.currentBalance) {
+    facts.push({ label: 'Available', value: <Amount value={account.available} role="row" emphasiseNegative /> });
+  }
+  if (account.minimumBalance) {
+    facts.push({ label: account.minimumBalanceMandatory ? 'Minimum balance (mandatory)' : 'Minimum balance', value: <Amount value={account.minimumBalance} role="row" /> });
+  }
+  facts.push({ label: `Opening balance · ${formatShortDate(account.openingAsOf)}`, value: <Amount value={account.openingBalance} role="row" /> });
 
-      <div className="flex flex-col gap-space-2">
-        <div className="flex flex-wrap items-center justify-between gap-space-3">
-          <div className="flex items-center gap-space-3">
-            <h1 className="text-title text-ink">{account.name}</h1>
-            <StatusPill tone={status.tone}>{status.label}</StatusPill>
-          </div>
-          {!account.archived && (
-            <div className="flex items-center gap-space-2">
+  const identity = [account.institution, account.lastFour && `•• ${account.lastFour}`].filter(Boolean).join(' · ');
+
+  const danger: DangerItemProps[] = account.archived
+    ? []
+    : [
+        {
+          title: 'Archive this account',
+          body: 'It stays out of your lists and totals, and nothing new can be recorded on it. Everything it already holds is untouched, and you can unarchive it any time.',
+          actionLabel: 'Archive',
+          busy: archiving,
+          confirm: {
+            title: `Archive ${account.name}?`,
+            body: 'It leaves your lists and totals, and nothing new can be recorded on it. Its history stays, and you can unarchive it any time.',
+            confirmLabel: 'Archive',
+          },
+          onAction: () => run(() => archiveAccount(account.id).unwrap()),
+        },
+        {
+          title: 'Delete this account',
+          body: 'Only works for an account added by mistake. One with any history can’t be deleted - archive it instead, which keeps the record.',
+          actionLabel: 'Delete',
+          busy: deleting,
+          destructive: true,
+          confirm: {
+            title: `Delete ${account.name}?`,
+            body: 'If it has any history it can’t be deleted - archive it instead, which keeps the record and takes it out of your lists.',
+            confirmLabel: 'Delete account',
+          },
+          onAction: () => run(() => deleteAccount(account.id).unwrap(), () => navigate('/money/accounts', { replace: true })),
+        },
+      ];
+
+  return (
+    <DetailPage backLabel="Money" backTo="/money/accounts">
+      <DetailHeader
+        title={account.name}
+        chips={<StatusPill tone={status.tone}>{status.label}</StatusPill>}
+        subtitle={identity || undefined}
+        actions={
+          !account.archived && (
+            <>
               <Button variant="secondary" size="sm" onClick={() => setUpdatingBalance(true)}>
                 <RefreshCw size={14} strokeWidth={1.5} />
                 Update balance
@@ -124,102 +152,50 @@ export default function AccountDetailPage() {
                   Open card
                 </Button>
               )}
-              <Button variant="ghost" size="sm" disabled={archiving} onClick={() => run(() => archiveAccount(account.id).unwrap())}>
-                Archive
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => setConfirmingDelete(true)} className="text-critical">
-                Delete
-              </Button>
-            </div>
-          )}
-          {account.archived && (
-            <Button variant="secondary" size="sm" disabled={unarchiving} onClick={() => run(() => unarchiveAccount(account.id).unwrap())}>
-              Unarchive
-            </Button>
-          )}
-        </div>
+            </>
+          )
+        }
+      />
 
-        {account.archived && (
-          <p className="text-caption text-ink-muted">
-            Archived: it stays out of your lists and totals, and nothing new can be recorded on it. Everything it already
-            holds is untouched - unarchive to use it again.
-          </p>
-        )}
+      {account.archived && (
+        <ArchivedNotice
+          title="Archived"
+          body="It stays out of your lists and totals, and nothing new can be recorded on it. Everything it already holds is untouched - unarchive to use it again."
+          actionLabel="Unarchive"
+          busy={unarchiving}
+          onAction={() => void run(() => unarchiveAccount(account.id).unwrap())}
+        />
+      )}
+      {actionError && account.archived && <p className="text-caption text-critical">{actionError}</p>}
 
-        {confirmingDelete && (
-          <div className="flex flex-col gap-space-3 rounded-lg border border-line p-space-4">
-            <p className="text-body text-ink">Delete {account.name}?</p>
-            <p className="text-caption text-ink-muted">
-              An account with any history can’t be deleted - archive it instead, which keeps the record and takes it out of
-              your lists. Deleting only works for one added by mistake.
-            </p>
-            <div className="flex gap-space-3">
-              <Button type="button" variant="secondary" onClick={() => setConfirmingDelete(false)} className="flex-1">
-                Keep it
-              </Button>
-              <Button
-                type="button"
-                variant="primary"
-                disabled={deleting}
-                onClick={() => run(() => deleteAccount(account.id).unwrap(), () => navigate('/money/accounts', { replace: true }))}
-                className="flex-1 !bg-critical"
-              >
-                Delete account
-              </Button>
-            </div>
-          </div>
-        )}
-        {actionError && <p className="text-caption text-critical">{actionError}</p>}
-        {/* Keyed on open state so each opening starts from the account's current values. */}
-        <UpdateBalanceSheet
-          key={`balance-${account.id}-${updatingBalance}`}
-          account={account}
-          open={updatingBalance}
-          onClose={() => setUpdatingBalance(false)}
-        />
-        <EditAccountSheet
-          key={`details-${account.id}-${editingDetails}`}
-          account={account}
-          open={editingDetails}
-          onClose={() => setEditingDetails(false)}
-        />
-        {(account.institution || account.lastFour) && (
-          <p className="text-caption text-ink-muted">
-            {account.institution}
-            {account.institution && account.lastFour && ' · '}
-            {account.lastFour && `•• ${account.lastFour}`}
-          </p>
-        )}
-        {account.type === 'BANK' && !account.archived && <LinkedDebitCards accountId={account.id} />}
+      {/* Keyed on open state so each opening starts from the account's current values. */}
+      <UpdateBalanceSheet
+        key={`balance-${account.id}-${updatingBalance}`}
+        account={account}
+        open={updatingBalance}
+        onClose={() => setUpdatingBalance(false)}
+      />
+      <EditAccountSheet
+        key={`details-${account.id}-${editingDetails}`}
+        account={account}
+        open={editingDetails}
+        onClose={() => setEditingDetails(false)}
+      />
+
+      <div className="m-card flex flex-col gap-space-5 max-md:gap-space-4">
+        <DetailHero label="Current balance" sentence={`As of ${formatShortDate(account.balanceAsOf)}.`}>
+          <Amount value={account.currentBalance} role="hero" emphasiseNegative />
+        </DetailHero>
+        <FactStrip facts={facts} className="border-y border-line" />
       </div>
 
-      <Statement notes>
-        <StatementRow label="Current balance" value={account.currentBalance} emphasiseNegative note={`As of ${formatShortDate(account.balanceAsOf)}`} />
-        {account.available !== account.currentBalance && (
-          <StatementRow
-            label="Available"
-            value={account.available}
-            emphasiseNegative
-            note="What's actually yours to spend, after reservations and any mandatory minimum."
-          />
-        )}
-        {account.minimumBalance && (
-          <StatementRow
-            label="Minimum balance"
-            value={account.minimumBalance}
-            note={account.minimumBalanceMandatory ? 'Mandatory - going below can attract a penalty.' : 'A target, not enforced by the bank.'}
-          />
-        )}
-        <StatementRow
-          variant="subtotal"
-          label="Opening balance"
-          value={account.openingBalance}
-          note={`As of ${formatShortDate(account.openingAsOf)} · ${account.openingConfidence.toLowerCase()}`}
-        />
-      </Statement>
+      {account.type === 'BANK' && !account.archived && <LinkedDebitCards accountId={account.id} />}
 
       {projection?.shortfall && (
-        <div className="flex items-start gap-space-3 rounded-xl p-space-5" style={{ backgroundColor: 'color-mix(in srgb, var(--attention) 8%, var(--surface))' }}>
+        <div
+          className="flex items-start gap-space-3 rounded-xl p-space-5"
+          style={{ backgroundColor: 'color-mix(in srgb, var(--attention) 8%, var(--surface))' }}
+        >
           <AlertTriangle size={18} strokeWidth={1.5} className="mt-0.5 shrink-0 text-attention" />
           <div className="flex-1">
             {Number(account.currentBalance) < 0 ? (
@@ -276,9 +252,38 @@ export default function AccountDetailPage() {
           onClick={() => navigate(`/ledger?account=${account.id}&cycle=all`)}
           className="mt-space-3 text-label text-accent hover:underline"
         >
-          See all in the ledger
+          See all in the Ledger
         </button>
       </section>
-    </div>
+
+      <Disclosure storageKey="kosh.account.figures" label="How these figures are worked out" summary="balance, available, minimum, opening">
+        <Statement notes>
+          <StatementRow label="Current balance" value={account.currentBalance} emphasiseNegative note={`As of ${formatShortDate(account.balanceAsOf)}`} />
+          {account.available !== account.currentBalance && (
+            <StatementRow
+              label="Available"
+              value={account.available}
+              emphasiseNegative
+              note="What's actually yours to spend, after reservations and any mandatory minimum."
+            />
+          )}
+          {account.minimumBalance && (
+            <StatementRow
+              label="Minimum balance"
+              value={account.minimumBalance}
+              note={account.minimumBalanceMandatory ? 'Mandatory - going below can attract a penalty.' : 'A target, not enforced by the bank.'}
+            />
+          )}
+          <StatementRow
+            variant="subtotal"
+            label="Opening balance"
+            value={account.openingBalance}
+            note={`As of ${formatShortDate(account.openingAsOf)} · ${account.openingConfidence.toLowerCase()}`}
+          />
+        </Statement>
+      </Disclosure>
+
+      <DangerZone items={danger} error={!account.archived ? actionError : null} />
+    </DetailPage>
   );
 }

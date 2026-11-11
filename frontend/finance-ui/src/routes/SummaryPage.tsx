@@ -1,34 +1,30 @@
 import { Momentum } from '@/features/summary/components/Momentum';
+import { Disclosure } from '@/components/Disclosure';
 import { ErrorState } from '@/components/ErrorState';
 import { Skeleton } from '@/components/Skeleton';
+import { PageSubtitle } from '@/features/help/PageHelp';
 import { DebtDown } from '@/features/summary/components/DebtDown';
 import { MonthByMonth } from '@/features/summary/components/MonthByMonth';
 import { PlanKept } from '@/features/summary/components/PlanKept';
 import { WhereItWent } from '@/features/summary/components/WhereItWent';
-import { SummaryTiles } from '@/features/summary/components/SummaryTiles';
 import { CategoryHeatmap } from '@/features/summary/components/CategoryHeatmap';
 import { useGetDebtTrajectoryQuery, useGetReviewMonthsQuery } from '@/services/reviewService';
 
 const HORIZON = 12;
 
 /**
- * Summary - the salary months consolidated, served at `/summary`.
+ * Summary - "is anything changing?" (UI_UX_REVAMP_PLAN 4.10). Every other screen reports where you stand
+ * today; this one puts the salary months beside each other.
  *
- * <p>The sixth place in the rail. The five-destination IA (STRATEGY_DEEP_DIVE §D, decision
- * S2) was "one per thing people come to do", and this is a sixth such thing rather than a
- * sixth entity: every other screen answers *where do I stand now* or *what do I do next*,
- * and none of them answers *am I getting anywhere*. That question needs the months beside
- * each other, which no single-month screen can show without becoming two screens.
+ * <p>Four questions, one chart each, each with its takeaway sentence above it: am I keeping more than I
+ * spend, where does the money go, is debt going down, did the plan hold. The strip of "which way
+ * things are moving" comes first because it is the whole page in words. The six-tile KPI grid that used
+ * to open the page is gone (DESIGN_SYSTEM 14 forbids an equal-weight grid of numbers); every figure
+ * it carried is in the sentence of the section it belongs to. Detail - the category heatmap, each
+ * loan's end date, every table - is closed until asked for.
  *
- * <p><strong>Ordered by what it is for, which is growth, not chronology.</strong> Where you
- * stand is the position; month by month and where it went are whether it is moving; debt
- * down is the only one of the five that is mostly about the future, and it is deliberately
- * not last - it is the section with real data today, and the one a person actually wants to
- * look at. Did the plan hold closes, because it is about conduct rather than amounts.
- *
- * <p>Nothing here is a new source of truth. Every figure comes from `/review/months` or
- * `/review/debt-trajectory`, both of which recompute from the same engines the other
- * screens read, so a number on this page cannot disagree with the page it came from.
+ * <p>There is no manual topic for this page yet, so there is no help icon: a `?` that opens "still
+ * being written" would be worse than none.
  */
 export default function SummaryPage() {
   const months = useGetReviewMonthsQuery(HORIZON);
@@ -36,8 +32,8 @@ export default function SummaryPage() {
 
   if (months.isLoading) {
     return (
-      <div className="flex flex-col gap-space-8">
-        <Skeleton className="h-space-10 w-[22rem]" />
+      <div className="flex flex-col gap-space-6">
+        <Skeleton className="h-7 w-40" />
         <Skeleton className="h-[12rem] w-full" />
         <Skeleton className="h-[14rem] w-full" />
       </div>
@@ -54,38 +50,25 @@ export default function SummaryPage() {
   }
 
   const data = months.data;
-  const current = data.months.find((month) => month.current);
 
   return (
-    <div className="flex flex-col gap-space-10">
-      <header className="flex flex-col gap-space-2">
-        <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">Summary</span>
-        <h1 className="max-w-[40ch] font-serif text-editorial text-ink">
-          Where the money is going, month after month.
-        </h1>
-        <p className="max-w-[64ch] text-body text-ink-soft">
-          Every other screen answers where you stand today. This one puts the salary months beside each other, so
-          the question it answers is whether anything is changing.
-          {data.monthsRecorded < 3 && (
-            <>
-              {' '}
-              {data.monthsRecorded === 1 ? 'One month has' : `${data.monthsRecorded} months have`} been recorded so
-              far, so the shapes below are a beginning rather than a trend. Debt down does not depend on history and
-              is complete today.
-            </>
-          )}
-        </p>
+    <div className="reveal-shell flex w-full flex-col gap-10">
+      <header className="flex flex-col gap-space-1">
+        <h1 className="text-page text-ink">Summary</h1>
+        <PageSubtitle>Your salary months side by side - is anything changing?</PageSubtitle>
+        {data.monthsRecorded < 3 && (
+          <p className="max-w-[64ch] text-caption text-ink-muted">
+            {data.monthsRecorded === 1 ? 'Only one full month has' : `Only ${data.monthsRecorded} full months have`} been recorded so
+            far, so the shapes below are a beginning rather than a trend. Debt does not depend on history and is complete today.
+          </p>
+        )}
       </header>
-
-      <SummaryTiles current={current} samePoint={data.samePoint} debt={debt.data} />
 
       <Momentum />
 
       <MonthByMonth months={data.months} monthsRecorded={data.monthsRecorded} samePoint={data.samePoint} />
 
       <WhereItWent months={data.months} />
-
-      <CategoryHeatmap months={data.months} />
 
       {debt.isError ? (
         <ErrorState message="We couldn’t load the debt curve." onRetry={() => debt.refetch()} />
@@ -96,6 +79,12 @@ export default function SummaryPage() {
       )}
 
       <PlanKept months={data.months} />
+
+      <div className="flex flex-col">
+        <Disclosure storageKey="kosh.summary.heatmap" label="How each category moved" summary="category by month, darker is more">
+          <CategoryHeatmap months={data.months} />
+        </Disclosure>
+      </div>
     </div>
   );
 }

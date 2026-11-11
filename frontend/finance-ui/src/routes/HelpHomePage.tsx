@@ -48,7 +48,7 @@ export default function HelpHomePage() {
         </div>
 
         <section>
-          <p className="mb-space-4 text-micro uppercase tracking-[0.08em] text-ink">Start here</p>
+          <p className="mb-space-4 text-caption text-ink">Start here</p>
           <ol className="flex flex-col gap-space-3">
             {START_HERE.map((topic, i) => (
               <li key={topic.id}>
@@ -56,7 +56,7 @@ export default function HelpHomePage() {
                   to={`/help/${topic.category}/${topic.slug}`}
                   className="group flex items-start gap-space-3 rounded-lg border border-line px-space-4 py-space-3 transition-colors duration-150 hover:border-accent hover:bg-accent-wash"
                 >
-                  <span className="num mt-px flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sunken text-caption font-medium text-ink-soft group-hover:bg-accent group-hover:text-white">
+                  <span className="num mt-px flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sunken text-caption font-medium text-ink-soft group-hover:bg-accent group-hover:text-on-accent">
                     {i + 1}
                   </span>
                   <span className="flex flex-col gap-space-1 pt-px">
@@ -70,7 +70,7 @@ export default function HelpHomePage() {
         </section>
 
         <section>
-          <p className="mb-space-4 text-micro uppercase tracking-[0.08em] text-ink">Browse by topic</p>
+          <p className="mb-space-4 text-caption text-ink">Browse by topic</p>
           <div className="grid grid-cols-1 gap-space-4 sm:grid-cols-2">
             {CATEGORIES.map((category) => {
               const count = topicsByCategory(category.id).length;
@@ -95,7 +95,7 @@ export default function HelpHomePage() {
 
         {questions.length > 0 && (
           <section>
-            <p className="mb-space-4 text-micro uppercase tracking-[0.08em] text-ink">Most asked</p>
+            <p className="mb-space-4 text-caption text-ink">Most asked</p>
             <div className="rounded-lg border border-line">
               {questions.map((q) => (
                 <TopicLink
@@ -107,7 +107,7 @@ export default function HelpHomePage() {
                     <span className="text-label text-ink">{q.question}</span>
                     <span className="text-caption text-ink-muted">{q.answer}</span>
                   </span>
-                  <ArrowRight size={14} strokeWidth={2} className="mt-space-1 shrink-0 text-ink-muted" aria-hidden />
+                  <ArrowRight size={14} strokeWidth={1.5} className="mt-space-1 shrink-0 text-ink-muted" aria-hidden />
                 </TopicLink>
               ))}
             </div>

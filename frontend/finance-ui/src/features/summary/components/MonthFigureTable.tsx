@@ -1,3 +1,4 @@
+import { ScrollStrip } from '@/components/ScrollStrip';
 import type { ReactNode } from 'react';
 import { Amount } from '@/components/Amount';
 import { cn } from '@/lib/cn';
@@ -41,10 +42,10 @@ export function MonthFigureTable({ months, columns, newestFirst = true, classNam
   const template = `minmax(0, 1.6fr) repeat(${columns.length}, minmax(0, 1fr))`;
 
   return (
-    <div className={cn('w-full overflow-x-auto', className)}>
+    <ScrollStrip className={cn('w-full', className)}>
       <div className="grid min-w-[36rem] w-full" style={{ gridTemplateColumns: template }} role="table">
         <div className="contents" role="row">
-          <span className="border-b border-ink pb-space-2 text-micro uppercase tracking-[0.08em] text-ink" role="columnheader">
+          <span className="border-b border-ink-soft pb-space-2 text-caption text-ink" role="columnheader">
             Month
           </span>
           {columns.map((column) => (
@@ -52,7 +53,7 @@ export function MonthFigureTable({ months, columns, newestFirst = true, classNam
               key={column.key}
               role="columnheader"
               className={cn(
-                'border-b border-ink pb-space-2 pl-space-4 text-right text-micro uppercase tracking-[0.08em]',
+                'border-b border-ink-soft pb-space-2 pl-space-4 text-right text-caption',
                 column.emphasis ? 'text-ink' : 'text-ink-muted',
               )}
             >
@@ -101,6 +102,6 @@ export function MonthFigureTable({ months, columns, newestFirst = true, classNam
           </div>
         ))}
       </div>
-    </div>
+    </ScrollStrip>
   );
 }

@@ -75,7 +75,7 @@ export function InOutChart({ months }: { months: ReviewMonth[] }) {
   if (rows.length === 0) return null;
 
   return (
-    <div className="h-[340px] w-full" role="img" aria-label="Per salary month: income, expenses split by kind, and what was left after expenses. Hover a month for its figures.">
+    <div className="h-[260px] w-full md:h-[340px]" role="img" aria-label="Per salary month: income, expenses split by kind, and what was left after expenses. Hover a month for its figures.">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={rows} barGap={6} barCategoryGap="24%" margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
           <CartesianGrid vertical={false} stroke="var(--line)" />
@@ -84,10 +84,10 @@ export function InOutChart({ months }: { months: ReviewMonth[] }) {
           <ReferenceLine y={0} stroke="var(--border)" />
           <Tooltip content={TooltipBody} cursor={{ fill: 'var(--sunken)' }} />
           <Bar dataKey="in" name="Income" fill={INCOME} maxBarSize={28} radius={[4, 4, 0, 0]} />
-          <Bar dataKey="untracked" stackId="out" name="Expenses" fill={UNTRACKED} maxBarSize={28} stroke="var(--surface)" strokeWidth={2} />
-          <Bar dataKey="committed" stackId="out" name="Committed" fill={SERIES.committed} maxBarSize={28} stroke="var(--surface)" strokeWidth={2} />
-          <Bar dataKey="flexible" stackId="out" name="Day to day" fill={SERIES.flexible} maxBarSize={28} stroke="var(--surface)" strokeWidth={2} />
-          <Bar dataKey="invested" stackId="out" name="Invested" fill={SERIES.invested} maxBarSize={28} stroke="var(--surface)" strokeWidth={2} radius={[4, 4, 0, 0]} />
+          <Bar dataKey="untracked" stackId="out" name="Expenses" fill={UNTRACKED} maxBarSize={28} stroke="var(--surface)" strokeWidth={1.5} />
+          <Bar dataKey="committed" stackId="out" name="Committed" fill={SERIES.committed} maxBarSize={28} stroke="var(--surface)" strokeWidth={1.5} />
+          <Bar dataKey="flexible" stackId="out" name="Day to day" fill={SERIES.flexible} maxBarSize={28} stroke="var(--surface)" strokeWidth={1.5} />
+          <Bar dataKey="invested" stackId="out" name="Invested" fill={SERIES.invested} maxBarSize={28} stroke="var(--surface)" strokeWidth={1.5} radius={[4, 4, 0, 0]} />
           <Bar dataKey="left" name="Left after expenses" fill={LEFT_OVER} maxBarSize={28} radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>

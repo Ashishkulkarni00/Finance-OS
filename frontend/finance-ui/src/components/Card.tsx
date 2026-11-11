@@ -7,12 +7,12 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
   domainRule?: 'commit' | 'goal' | 'debt' | 'invest';
 }
 
-/** `--surface`, radius 12, 1px `--line`. No shadow by default - DESIGN_SYSTEM §6. */
+/** `--surface`, radius 10, hairline `--line`. No shadow by default - DESIGN_SYSTEM §6. */
 export function Card({ children, domainRule, className, ...rest }: CardProps) {
   return (
     <div
       className={cn(
-        'relative rounded-xl border border-line bg-surface p-space-5',
+        'relative rounded-xl border border-line/60 bg-surface p-space-5',
         domainRule && 'pl-[calc(var(--spacing-space-5)+3px)]',
         className,
       )}

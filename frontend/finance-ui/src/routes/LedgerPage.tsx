@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Receipt, CircleHelp, Tags, Upload } from 'lucide-react';
+import { PageHelpButton, PageSubtitle } from '@/features/help/PageHelp';
+import { Receipt, Tags, Upload } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/Button';
+import { useAppSelector } from '@/store/hooks';
 import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
 import { Skeleton } from '@/components/Skeleton';
@@ -18,8 +20,6 @@ import { StatedView } from '@/features/ledger/components/StatedView';
 import { FilterBar } from '@/features/ledger/components/FilterBar';
 import { DayGroup } from '@/features/ledger/components/DayGroup';
 import { EditTransactionSheet } from '@/features/ledger/components/EditTransactionSheet';
-import { LedgerGuideSheet } from '@/features/ledger/components/LedgerGuideSheet';
-import { LedgerPrimer } from '@/features/ledger/components/LedgerPrimer';
 import { ManageCategoriesSheet } from '@/features/ledger/components/ManageCategoriesSheet';
 import type { TransactionResponse } from '@/types/transaction';
 
@@ -52,7 +52,6 @@ export default function LedgerPage() {
   const { filters, setFilter } = useLedgerFilters();
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [editing, setEditing] = useState<TransactionResponse | null>(null);
-  const [guideOpen, setGuideOpen] = useState(false);
   const [managingCategories, setManagingCategories] = useState(false);
 
   const { data: currentCycle } = useGetCurrentCycleQuery();
@@ -87,13 +86,56 @@ export default function LedgerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.cycle, filters.accountId, filters.categoryId, filters.type, filters.q]);
 
+  // Entries being deleted stay in the list, dimmed, until the server confirms (UI_UX_REVAMP_PLAN 6.6);
+  // once it has, they are gone from this list at once, so there is no flash while the refetch lands.
+  const pendingDeletes = useAppSelector((s) => s.ui.pendingDeletes);
+  const deleting = new Set(
+    Object.entries(pendingDeletes)
+      .filter(([, d]) => d.phase === 'pending' || d.phase === 'sending')
+      .map(([id]) => Number(id)),
+  );
+  const confirmedGone = new Set(
+    Object.entries(pendingDeletes)
+      .filter(([, d]) => d.phase === 'deleted')
+      .map(([id]) => Number(id)),
+  );
+
   const subtotalByDate = new Map((daySubtotals ?? []).map((d) => [d.date, d]));
-  const groups = groupByDay(page?.content ?? []);
+  const groups = groupByDay((page?.content ?? []).filter((r) => !confirmedGone.has(r.id)));
   const cycleForSentence = filters.cycle === 'all' ? undefined : filters.cycle === 'current' ? currentCycle : explicitCycle;
 
   return (
-    <div className="flex flex-col gap-space-6">
-      <div className="flex items-start justify-between gap-space-4">
+    <div className="reveal-shell flex w-full flex-col gap-space-5 md:gap-space-6">
+      <header className="flex flex-col gap-space-1">
+        <div className="flex items-center justify-between gap-space-4">
+          <h1 className="text-page text-ink">Ledger</h1>
+          <div className="flex min-w-0 flex-wrap items-center justify-end gap-x-space-4 gap-y-space-1 max-md:gap-x-space-5">
+            <Link
+              to="/ledger/import"
+              className="flex items-center gap-space-1 text-caption text-accent underline-offset-4 hover:underline"
+            >
+              <Upload size={14} strokeWidth={1.5} aria-hidden className="max-md:size-[18px]" />
+              <span className="max-md:sr-only">Import statement</span>
+            </Link>
+            <button
+              type="button"
+              onClick={() => setManagingCategories(true)}
+              className="flex items-center gap-space-1 text-caption text-ink-muted transition-colors hover:text-ink-soft"
+            >
+              <Tags size={14} strokeWidth={1.5} aria-hidden className="max-md:size-[18px]" />
+              <span className="max-md:sr-only">Categories</span>
+            </button>
+            <PageHelpButton topic="spending.how-the-ledger-works" />
+          </div>
+        </div>
+        <PageSubtitle>Every time money actually moved — once each, on the day it moved.</PageSubtitle>
+      </header>
+
+      {/* Totals only once the list is narrowed (2026-11-11). Unfiltered, they are the cycle's
+          in/out, which Month already shows - the user found the repeat redundant. Narrowed to a
+          category, account, type or search, the total is the answer to the question being asked
+          and exists nowhere else. */}
+      {(filters.accountId != null || filters.categoryId != null || filters.type != null || filters.q) && (
         <StatedView
           filters={filters}
           summary={summary}
@@ -102,34 +144,7 @@ export default function LedgerPage() {
           accountName={accounts.find((a) => a.id === filters.accountId)?.name}
           categoryName={categories.find((c) => c.id === filters.categoryId)?.name}
         />
-        <div className="flex shrink-0 items-center gap-space-4">
-          <Link
-            to="/ledger/import"
-            className="flex items-center gap-space-1 text-caption text-accent underline-offset-4 hover:underline"
-          >
-            <Upload size={14} strokeWidth={1.5} aria-hidden />
-            Import statement
-          </Link>
-          <button
-            type="button"
-            onClick={() => setManagingCategories(true)}
-            className="flex items-center gap-space-1 text-caption text-ink-muted transition-colors hover:text-ink-soft"
-          >
-            <Tags size={14} strokeWidth={1.5} aria-hidden />
-            Manage categories
-          </button>
-          <button
-            type="button"
-            onClick={() => setGuideOpen(true)}
-            className="flex items-center gap-space-1 text-caption text-ink-muted transition-colors hover:text-ink-soft"
-          >
-            <CircleHelp size={14} strokeWidth={1.5} aria-hidden />
-            What goes here?
-          </button>
-        </div>
-      </div>
-
-      <LedgerPrimer onOpenGuide={() => setGuideOpen(true)} />
+      )}
 
       <FilterBar filters={filters} setFilter={setFilter} accounts={accounts} categories={categories} />
 
@@ -175,13 +190,14 @@ export default function LedgerPage() {
               subtotal={subtotalByDate.get(g.date)}
               categories={categories}
               onEdit={setEditing}
+              deleting={deleting}
             />
           ))}
 
           {page && !page.last && (
             <div className="flex justify-center pt-space-2">
               <Button variant="secondary" disabled={listFetching} onClick={() => setPageSize((s) => s + PAGE_SIZE)}>
-                {listFetching ? 'Loading…' : 'Show older'}
+                {listFetching ? 'Loading…' : 'Load older'}
               </Button>
             </div>
           )}
@@ -192,7 +208,6 @@ export default function LedgerPage() {
           isn't optional: without it, the second row clicked reuses the first row's
           form instance and crashes before its reset effect can catch up. */}
       <EditTransactionSheet key={editing?.id ?? 'closed'} transaction={editing} onClose={() => setEditing(null)} />
-      <LedgerGuideSheet open={guideOpen} onClose={() => setGuideOpen(false)} />
       <ManageCategoriesSheet open={managingCategories} onClose={() => setManagingCategories(false)} />
     </div>
   );

@@ -3,6 +3,7 @@ import type { KeyboardEvent, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, ChevronDown, Search } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import { portalTarget } from '@/lib/portalTarget';
 
 export interface SelectOption {
   value: string;
@@ -80,8 +81,9 @@ const VIEWPORT_MARGIN = 12;
  * shrinks, and they cannot overlap whatever the label's length.
  */
 const TRIGGER: Record<SelectVariant, string> = {
-  chip: 'h-8 gap-space-1 rounded-full border px-space-3 text-label',
-  field: 'h-11 w-full justify-between gap-space-2 rounded-lg border border-border bg-surface px-space-3 text-label text-ink',
+  chip: 'h-7 gap-space-1 rounded-full border px-space-3 text-label pointer-coarse:h-9',
+  field:
+    'h-9 w-full justify-between gap-space-2 rounded-lg border border-border bg-surface px-space-3 text-label text-ink hover:border-ink-muted pointer-coarse:h-11',
   // Sized to its value, not to its container - stretched full-width, the chevron ends up
   // a couple of hundred pixels from the text it belongs to. The hover tint is what makes
   // a borderless control still read as a control.
@@ -335,7 +337,8 @@ export function Select({
         onClick={() => (open ? setOpen(false) : openPanel())}
         onKeyDown={onKeyDown}
         className={cn(
-          'inline-flex min-w-0 max-w-full items-center text-left outline-none transition-colors duration-150 disabled:opacity-50',
+          'inline-flex min-w-0 max-w-full items-center text-left transition-colors duration-150 disabled:opacity-50',
+          variant === 'row' && 'focus-visible:outline-offset-[-2px]',
           TRIGGER[variant],
           widthClass,
           variant === 'chip' &&
@@ -350,7 +353,7 @@ export function Select({
         </span>
         <ChevronDown
           size={variant === 'chip' ? 14 : 15}
-          strokeWidth={1.75}
+          strokeWidth={1.5}
           aria-hidden
           className={cn(
             'shrink-0 transition-transform duration-150',
@@ -375,11 +378,11 @@ export function Select({
               maxHeight: position.maxHeight,
               zIndex: 60,
             }}
-            className="flex flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-[0_1px_2px_rgb(0_0_0/0.04),0_12px_32px_-8px_rgb(0_0_0/0.16)]"
+            className="flex flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-[var(--shadow-2)]"
           >
             {showSearch && (
               <div className="flex shrink-0 items-center gap-space-2 border-b border-line px-space-3 py-space-2">
-                <Search size={14} strokeWidth={1.75} className="shrink-0 text-ink-muted" aria-hidden />
+                <Search size={14} strokeWidth={1.5} className="shrink-0 text-ink-muted" aria-hidden />
                 <input
                   autoFocus
                   value={filter}
@@ -415,7 +418,7 @@ export function Select({
                     return (
                       <p
                         key={`h-${entry.label}`}
-                        className="px-space-2 pb-space-1 pt-space-3 text-micro uppercase tracking-[0.08em] text-ink-muted first:pt-space-2"
+                        className="px-space-2 pb-space-1 pt-space-3 text-caption text-ink-muted first:pt-space-2"
                       >
                         {entry.label}
                       </p>
@@ -451,7 +454,7 @@ export function Select({
                       {option.hint && <span className="shrink-0 text-caption text-ink-muted">{option.hint}</span>}
                       <Check
                         size={14}
-                        strokeWidth={2.25}
+                        strokeWidth={1.5}
                         aria-hidden
                         className={cn('shrink-0 text-accent', isSelected ? 'opacity-100' : 'opacity-0')}
                       />
@@ -463,7 +466,7 @@ export function Select({
 
             {footer && <div className="shrink-0 border-t border-line p-space-1">{footer}</div>}
           </div>,
-          document.body,
+          portalTarget(triggerRef.current),
         )}
     </span>
   );

@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
 import { Skeleton } from '@/components/Skeleton';
 import { SectionHeader } from '@/components/SectionHeader';
+import { TabToolbar } from '@/features/money/components/TabToolbar';
 import { CoverStanding } from '@/features/cover/components/CoverStanding';
 import { PolicyRow } from '@/features/cover/components/PolicyRow';
 import { PolicySheet } from '@/features/cover/components/PolicySheet';
@@ -15,7 +16,8 @@ import type { InsurancePolicyResponse } from '@/types/insurance';
 
 /** A full-width hairline above each section - the same separation as every other screen. */
 function Divided({ children }: { children: ReactNode }) {
-  return <div className="border-t border-line pt-space-8 empty:hidden">{children}</div>;
+  // `divided`: on a phone the rule goes and the section inside becomes a card (index.css).
+  return <div className="divided border-t border-line pt-space-8 empty:hidden max-md:border-t-0 max-md:pt-0">{children}</div>;
 }
 
 const TINT_STYLE = { backgroundColor: 'color-mix(in srgb, var(--attention) 8%, var(--surface))' } as const;
@@ -139,28 +141,19 @@ export default function CoverPage() {
   }
 
   return (
-    <div className="flex flex-col gap-space-8">
-      <div className="flex items-start justify-between gap-space-4">
-        <div className="flex flex-col gap-space-1">
-          <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">Insurance</span>
-          <span className="text-title text-ink">What you’re covered for</span>
-          <span className="text-caption text-ink-muted">
-            {policies.length} {policies.length === 1 ? 'policy' : 'policies'}
-          </span>
-        </div>
+    <>
+      <TabToolbar subtitle="What you’re covered for, what it costs, and when it renews." helpTopic="cover.what-cover-is">
         <Button variant="secondary" size="sm" onClick={() => setAdding(true)}>
           <Plus size={14} strokeWidth={1.5} />
           Add cover
         </Button>
-      </div>
+      </TabToolbar>
 
       {isError ? (
         <ErrorState message="We couldn't load your cover. Check your connection and try again." onRetry={refetch} />
       ) : (
         <>
-          <section aria-label="What you're covered for" className="rounded-xl border border-line p-space-6">
-            <CoverStanding summary={summary} isLoading={summaryLoading} />
-          </section>
+          <CoverStanding summary={summary} isLoading={summaryLoading} />
 
           <Divided>
             {isLoading ? <Skeleton className="h-16 w-full rounded-xl" /> : <CoverNeedsALook policies={policies} onOpen={setEditing} />}
@@ -191,6 +184,6 @@ export default function CoverPage() {
 
       <PolicySheet open={adding} onClose={() => setAdding(false)} />
       <PolicySheet open={editing != null} policy={editing} onClose={() => setEditing(null)} />
-    </div>
+    </>
   );
 }

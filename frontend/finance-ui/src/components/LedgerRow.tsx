@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react';
+import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/cn';
@@ -94,56 +94,80 @@ export function LedgerRow({
     .filter(Boolean)
     .join(' ');
 
+  const rowProps = {
+    role: 'button' as const,
+    tabIndex: 0,
+    onClick: go,
+    onKeyDown: (e: ReactKeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        go();
+      }
+    },
+  };
+
   return (
     <div
-      role="button"
-      tabIndex={0}
-      onClick={go}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          go();
-        }
-      }}
-      style={
-        {
-          gridTemplateColumns: columns,
-          ...(revealDelay != null ? { '--reveal-delay': `${revealDelay}ms` } : {}),
-        } as CSSProperties
-      }
+      {...rowProps}
+      style={revealDelay != null ? ({ '--reveal-delay': `${revealDelay}ms` } as CSSProperties) : undefined}
       className={cn(
-        'group grid w-full cursor-pointer items-center gap-space-4',
-        '-mx-space-2 rounded-lg border-b border-line px-space-2 text-left transition-colors duration-150',
-        'last:border-b-0 hover:bg-sunken',
+        'group w-full cursor-pointer border-b border-line text-left transition-colors duration-150 last:border-b-0',
+        'active:bg-sunken md:-mx-space-2 md:rounded-lg md:px-space-2 md:hover:bg-sunken',
         muted ? 'py-space-2' : 'py-space-3',
         revealDelay != null && 'reveal',
       )}
     >
-      {leading != null && leading}
-
-      <div className="min-w-0">
-        <div className={cn('truncate text-row', muted ? 'text-ink-muted' : 'text-ink')}>{primary}</div>
-        {secondary != null && (
-          <div className={cn('text-caption text-ink-muted', richSecondary ? 'min-w-0' : 'truncate')}>{secondary}</div>
-        )}
+      {/* Phone (2026-11-10 mobile review): one composed row instead of the desktop grid
+          wrapped into a line. Identity left, the figure right with its action under it, and
+          the supporting facts as one quiet line under the name - never a labelled column
+          squeezed to "Dinin... IDBI ...". The chevron goes: on a phone the whole row is
+          obviously the target, and its 16px is worth more to the name. */}
+      <div className="row-compact flex items-start gap-space-3 md:hidden">
+        {leading != null && <div className="flex shrink-0 items-center self-center">{leading}</div>}
+        <div className="min-w-0 flex-1 self-center">
+          <div className={cn('truncate text-row', muted ? 'text-ink-muted' : 'text-ink')}>{primary}</div>
+          {secondary != null && (
+            <div className={cn('text-caption text-ink-muted', richSecondary ? 'min-w-0' : 'truncate')}>{secondary}</div>
+          )}
+          {meta != null && <div className="mt-[2px] min-w-0 truncate text-caption text-ink-muted">{meta}</div>}
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-space-2 self-center">
+          <div className="text-right leading-tight">{amount}</div>
+          {action != null && (
+            <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
+              {action}
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="text-right text-caption leading-tight text-ink-muted">{meta}</div>
+      <div className="hidden items-center gap-space-4 md:grid md:[grid-template-columns:var(--cols)]" style={{ '--cols': columns } as CSSProperties}>
+        {leading != null && leading}
 
-      <div className="text-right leading-tight">{amount}</div>
-
-      {hasAction && (
-        <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
-          {action}
+        <div className="min-w-0">
+          <div className={cn('truncate text-row', muted ? 'text-ink-muted' : 'text-ink')}>{primary}</div>
+          {secondary != null && (
+            <div className={cn('text-caption text-ink-muted', richSecondary ? 'min-w-0' : 'truncate')}>{secondary}</div>
+          )}
         </div>
-      )}
 
-      <ChevronRight
-        size={16}
-        strokeWidth={1.5}
-        className="shrink-0 text-ink-soft transition-[color,transform] duration-150 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:translate-x-[2px] group-hover:text-ink-muted"
-        aria-hidden
-      />
+        <div className="text-right text-caption leading-tight text-ink-muted">{meta}</div>
+
+        <div className="text-right leading-tight">{amount}</div>
+
+        {hasAction && (
+          <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
+            {action}
+          </div>
+        )}
+
+        <ChevronRight
+          size={16}
+          strokeWidth={1.5}
+          className="shrink-0 text-ink-soft transition-[color,transform] duration-150 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:translate-x-[2px] group-hover:text-ink-muted"
+          aria-hidden
+        />
+      </div>
     </div>
   );
 }
@@ -165,11 +189,13 @@ interface MetaFact {
  */
 export function MetaFacts({ items }: { items: MetaFact[] }) {
   return (
-    <span className="inline-grid grid-cols-[auto_auto] gap-x-space-2 text-left">
+    // `meta-facts` / `mf-*`: inside a phone row (`.row-compact`, index.css) the labels drop and
+    // the values run as one line, "Dining · IDBI Saving account".
+    <span className="meta-facts inline-grid grid-cols-[auto_auto] gap-x-space-2 text-left">
       {items.map((item) => (
         <span key={item.label} className="contents">
-          <span className="whitespace-nowrap text-right text-ink-soft">{item.label}</span>
-          <span className={cn('truncate', item.className ?? 'text-ink-muted')}>{item.value}</span>
+          <span className="mf-label whitespace-nowrap text-right text-ink-soft">{item.label}</span>
+          <span className={cn('mf-value truncate', item.className ?? 'text-ink-muted')}>{item.value}</span>
         </span>
       ))}
     </span>

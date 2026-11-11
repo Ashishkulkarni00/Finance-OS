@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Amount } from '@/components/Amount';
 import { Skeleton } from '@/components/Skeleton';
-import { SectionHeader } from '@/components/SectionHeader';
+import { Disclosure } from '@/components/Disclosure';
 import { formatPercent } from '@/lib/money';
 import { cycleProgress } from '@/lib/dates';
 import { useGetFlexibleSpendingQuery } from '@/services/cycleService';
@@ -46,11 +46,21 @@ export function FlexibleSpendingSection({ cycle }: FlexibleSpendingSectionProps)
   const dayOfCycle = cycle ? cycleProgress(cycle.startDate, cycle.endDate).dayOfCycle : null;
 
   return (
-    <section>
-      {/* Renamed from "Flexible spending" - our word for a category group, not a question
-          anyone asks. What this section answers is where the day-to-day money went. */}
-      <SectionHeader trailing="groceries, eating out, transport…">Where day-to-day money went</SectionHeader>
-
+    <Disclosure
+      storageKey="kosh.month.day-to-day"
+      label="Where day-to-day money went"
+      summary={
+        isLoading ? (
+          'groceries, eating out, transport…'
+        ) : data && categories.length > 0 ? (
+          <>
+            <Amount value={data.total} role="caption" /> on day-to-day categories
+          </>
+        ) : (
+          'nothing yet this month'
+        )
+      }
+    >
       {isLoading ? (
         <Skeleton className="h-32 w-full" />
       ) : isError ? (
@@ -114,6 +124,6 @@ export function FlexibleSpendingSection({ cycle }: FlexibleSpendingSectionProps)
               under every visit, it was reading as an apology for a missing feature. */}
         </>
       )}
-    </section>
+    </Disclosure>
   );
 }

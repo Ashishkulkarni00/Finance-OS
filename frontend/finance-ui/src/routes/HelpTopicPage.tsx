@@ -41,7 +41,7 @@ export default function HelpTopicPage() {
           to={`/help/${previous.category}/${previous.slug}`}
           className="flex items-center gap-space-1 text-caption text-ink-soft hover:text-ink"
         >
-          <ChevronLeft size={14} strokeWidth={2} aria-hidden />
+          <ChevronLeft size={14} strokeWidth={1.5} aria-hidden />
           {previous.title}
         </TopicLink>
         <TopicLink
@@ -49,7 +49,7 @@ export default function HelpTopicPage() {
           className="flex items-center gap-space-1 text-caption text-ink-soft hover:text-ink"
         >
           {next.title}
-          <ChevronRight size={14} strokeWidth={2} aria-hidden />
+          <ChevronRight size={14} strokeWidth={1.5} aria-hidden />
         </TopicLink>
       </div>
     </HelpShell>

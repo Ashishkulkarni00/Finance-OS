@@ -175,12 +175,17 @@ export function HelpProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<HelpContextValue>(() => ({ open: openTopic, backTo }), [openTopic, backTo]);
   const activeTopicId = searchParams.get('help');
+  // The last topic stays rendered while the overlay animates out; without it the content would
+  // vanish a frame before the panel does.
+  const lastTopic = useRef(HELP_HOME);
+  if (activeTopicId) lastTopic.current = activeTopicId;
+  const shownTopic = activeTopicId ?? lastTopic.current;
 
   return (
     <HelpContext.Provider value={value}>
       {children}
       {menu && <HelpContextMenu menu={menu} onDismiss={() => setMenu(null)} />}
-      {activeTopicId && <HelpOverlay topicId={activeTopicId} onClose={closeOverlay} onNavigate={openTopic} />}
+      <HelpOverlay open={activeTopicId != null} topicId={shownTopic} onClose={closeOverlay} onNavigate={openTopic} />
     </HelpContext.Provider>
   );
 }

@@ -20,7 +20,7 @@ interface GroupBandProps {
 export function GroupBand({ label, count, figure, caption }: GroupBandProps) {
   return (
     <div className="mb-space-2 flex items-baseline justify-between gap-space-4 rounded-md bg-sunken px-space-3 py-space-2">
-      <span className="text-micro uppercase tracking-[0.08em] text-ink">
+      <span className="text-caption text-ink">
         {label}
         {count != null && <span className="num text-ink-muted"> · {count}</span>}
       </span>

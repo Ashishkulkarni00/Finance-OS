@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Row } from '@/components/Row';
 import { Button } from '@/components/Button';
 import { Select } from '@/components/Select';
-import { RealBalancePreview } from './RealBalancePreview';
 import { Amount } from '@/components/Amount';
 import { useGetAccountsQuery } from '@/services/accountService';
 import { useGetReservationsQuery, useCreateReservationMutation } from '@/services/reservationService';
@@ -60,7 +59,6 @@ export function ReservationsStep({ onDone }: ReservationsStepProps) {
         </div>
       )}
 
-      <RealBalancePreview />
 
       {accounts.length > 0 && (
         <div className="flex flex-col gap-space-3 rounded-xl border border-line bg-surface p-space-5">
@@ -77,13 +75,13 @@ export function ReservationsStep({ onDone }: ReservationsStepProps) {
               onChange={(e) => setAmount(e.target.value)}
               inputMode="decimal"
               placeholder="Amount"
-              className="num h-11 rounded-lg border border-border bg-surface px-space-3 text-label text-ink"
+              className="num h-9 pointer-coarse:h-11 rounded-lg border border-border bg-surface px-space-3 text-label text-ink"
             />
             <input
               value={purpose}
               onChange={(e) => setPurpose(e.target.value)}
               placeholder="What's it for?"
-              className="h-11 rounded-lg border border-border bg-surface px-space-3 text-label text-ink"
+              className="h-9 pointer-coarse:h-11 rounded-lg border border-border bg-surface px-space-3 text-label text-ink"
             />
           </div>
           {error && <span className="text-caption text-critical">{error}</span>}
@@ -99,6 +97,11 @@ export function ReservationsStep({ onDone }: ReservationsStepProps) {
         <Button variant="primary" onClick={onDone}>
           {reservations.length > 0 ? 'Done' : "I'm good - take me in"}
         </Button>
+        {reservations.length === 0 && (
+          <p className="mt-space-3 max-w-[40rem] text-caption text-ink-muted">
+            Money you meant to keep aside will count as free until you set it aside. You can do that any time on Money.
+          </p>
+        )}
       </div>
     </div>
   );

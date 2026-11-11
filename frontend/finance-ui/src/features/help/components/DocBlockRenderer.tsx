@@ -46,7 +46,7 @@ function FieldsBlock({ intro, items }: { intro?: string; items: DocField[] }) {
           <div key={f.label} className="py-space-3 first:pt-0">
             <div className="flex flex-wrap items-baseline justify-between gap-space-2">
               <dt className="text-label font-medium text-ink">{f.label}</dt>
-              <span className={`text-micro uppercase tracking-[0.06em] ${REQUIREMENT_TONE[f.requirement]}`}>
+              <span className={`text-caption ${REQUIREMENT_TONE[f.requirement]}`}>
                 {REQUIREMENT_LABEL[f.requirement]}
               </span>
             </div>
@@ -122,7 +122,7 @@ function TableBlock({ head, rows }: { head: string[]; rows: string[][] }) {
         <thead>
           <tr className="border-b border-line bg-sunken">
             {head.map((h, i) => (
-              <th key={i} className="px-space-4 py-space-2 text-micro uppercase tracking-[0.06em] text-ink-muted">
+              <th key={i} className="px-space-4 py-space-2 text-caption text-ink-muted">
                 {h}
               </th>
             ))}

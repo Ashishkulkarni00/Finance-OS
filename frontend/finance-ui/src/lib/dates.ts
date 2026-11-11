@@ -240,3 +240,8 @@ export function daysBetween(fromIso: string, toIso?: string): number {
   const to = toIso === undefined ? localDayStart(todayLocalIso()) : localDayStart(toIso);
   return Math.round((from - to) / 86_400_000);
 }
+
+/** "04:40 pm" - a moment, in the browser's locale, for "as of" stamps on figures that may be stale. */
+export function formatClock(timestamp: number): string {
+  return new Date(timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+}

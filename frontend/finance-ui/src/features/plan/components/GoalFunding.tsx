@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { todayLocalIso } from '@/lib/dates';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/Button';
 import { SectionHeader } from '@/components/SectionHeader';
@@ -68,7 +69,7 @@ export function GoalFunding({ goal }: { goal: GoalResponse }) {
   }
 
   const all = (rules?.content ?? []).filter((r) => !r.archived);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayLocalIso();
   // A one-off top-up whose month is over has done its job; it stays in that month's history.
   // A one-off has exactly one occurrence, so the rule's amount is not "usually" - it is a
   // figure that will never happen if that occurrence was changed. The user set October's

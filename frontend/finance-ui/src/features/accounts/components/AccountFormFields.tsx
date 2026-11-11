@@ -69,7 +69,7 @@ export function AccountFormFields({ register, watch, setValue, errors, allowedTy
                   selected ? 'bg-accent-wash text-accent' : 'text-ink-muted hover:bg-sunken hover:text-ink-soft',
                 )}
               >
-                <Icon size={16} strokeWidth={1.75} />
+                <Icon size={16} strokeWidth={1.5} />
                 {t.label}
               </button>
             );

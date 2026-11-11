@@ -27,7 +27,7 @@ function Term({
   const doc = useDocAnchor(docKey);
   return (
     <div className="flex min-w-0 flex-col gap-space-1" {...doc}>
-      <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">
+      <span className="text-caption text-ink-muted">
         {op && <span className="num mr-space-1 text-ink-soft" aria-hidden>{op}</span>}
         {label}
       </span>
@@ -70,20 +70,18 @@ export function MonthShape({ cycle }: { cycle: CycleResponse | undefined }) {
   const negative = shape.flexible != null && Number(shape.flexible) < 0;
   const showPace = shape.spentShare != null && shape.cycleElapsed > 0;
 
+  const comesInNote =
+    shape.state === 'NO_INCOME'
+      ? 'no salary planned'
+      : stillExpected
+        ? `${formatMoney(shape.incomeStillExpected)} still expected`
+        : 'all arrived';
+
   return (
-    <div className="flex flex-col gap-space-4" {...docAnchor}>
+    <div {...docAnchor}>
+      <div className="flex flex-col gap-space-4">
       <div className="grid grid-cols-2 gap-space-4 sm:grid-cols-4">
-        <Term
-          label="Comes in"
-          docKey="month.comes-in"
-          note={
-            shape.state === 'NO_INCOME'
-              ? 'no salary planned'
-              : stillExpected
-                ? `${formatMoney(shape.incomeStillExpected)} still expected`
-                : 'all arrived'
-          }
-        >
+        <Term label="Comes in" docKey="month.comes-in" note={comesInNote}>
           <Amount value={shape.expectedIn} role="section" className="text-ink" />
         </Term>
         <Term op="−" label="Committed" docKey="month.committed" note="bills, EMIs, card payments">
@@ -98,7 +96,8 @@ export function MonthShape({ cycle }: { cycle: CycleResponse | undefined }) {
           docKey="month.flexible"
           note={<span className={cn(negative && 'text-attention')}>{flexibleNote(shape)}</span>}
         >
-          <Amount value={shape.flexible} role="section" className={negative ? 'text-attention' : 'text-ink'} />
+          {/* The sum's answer - what the month leaves for everything else - carries the accent. */}
+          <Amount value={shape.flexible} role="section" className={negative ? 'text-attention' : 'text-accent'} />
         </Term>
       </div>
 
@@ -119,12 +118,13 @@ export function MonthShape({ cycle }: { cycle: CycleResponse | undefined }) {
             </div>
           )}
           <p className="num text-caption text-ink-soft">
-            Spent so far <Amount value={shape.spent} role="caption" className="text-ink" /> outside the plan
+            Spent so far <Amount value={shape.spent} role="caption" className="font-semibold text-ink" /> outside the plan
             {showPace && <> · {formatPercent(shape.spentShare)} of flexible</>}
             {shape.cycleElapsed > 0 && shape.cycleElapsed < 1 && <> · {formatPercent(shape.cycleElapsed)} of the month gone</>}
           </p>
         </div>
       )}
+      </div>
     </div>
   );
 }

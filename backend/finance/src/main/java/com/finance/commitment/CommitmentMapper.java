@@ -93,6 +93,7 @@ public class CommitmentMapper {
                 categoryMapper.toSummary(view.category()),
                 commitment.getSourceType(), commitment.getSourceId(), commitment.getSettleAs(), commitment.getToAccountId(),
                 AttentionTier.of(instance, commitment, LocalDate.now(clock)), instance.variance(),
+                instance.getSkipReason(), instance.getSkipNote(),
                 // Reads report no effect; a write attaches its own (ADR-0017).
                 null);
     }
@@ -142,7 +143,8 @@ public class CommitmentMapper {
                 linkedTransaction == null ? null : transactionMapper.toResponse(
                         linkedTransaction.transaction(), linkedTransaction.account(),
                         linkedTransaction.toAccount(), linkedTransaction.category()),
-                toHistoryEntries(view.history()));
+                toHistoryEntries(view.history()),
+                instance.getSkipReason(), instance.getSkipNote());
     }
 
     public List<CommitmentInstanceHistoryEntry> toHistoryEntries(List<CommitmentInstance> instances) {

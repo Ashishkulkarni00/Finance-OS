@@ -1,14 +1,22 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Pencil } from 'lucide-react';
+import { Pencil } from 'lucide-react';
 import { Button } from '@/components/Button';
 import { EditCommitmentSheet } from '@/features/plan/components/EditCommitmentSheet';
 import { Row } from '@/components/Row';
 import { StatusPill } from '@/components/StatusPill';
-import { Statement, StatementRow } from '@/components/Statement';
 import { SectionHeader } from '@/components/SectionHeader';
-import { Skeleton } from '@/components/Skeleton';
-import { ErrorState } from '@/components/ErrorState';
+import { Amount } from '@/components/Amount';
+import { FactStrip } from '@/components/FactStrip';
+import {
+  ArchivedNotice,
+  DangerZone,
+  DetailError,
+  DetailHeader,
+  DetailHero,
+  DetailLoading,
+  DetailPage,
+} from '@/components/detail/DetailPage';
 import { formatShortDate, ordinalDay } from '@/lib/dates';
 import {
   useArchiveCommitmentRuleMutation,
@@ -56,7 +64,7 @@ export default function CommitmentRuleDetailPage() {
   const id = Number(ruleId);
   const [editing, setEditing] = useState(false);
 
-  const { data: rule, isLoading, isError, refetch } = useGetCommitmentRuleQuery(id, { skip: !id });
+  const { data: rule, isLoading, isError, error, refetch } = useGetCommitmentRuleQuery(id, { skip: !id });
   const [archiveRule, { isLoading: archiving }] = useArchiveCommitmentRuleMutation();
   const [unarchiveRule, { isLoading: unarchiving }] = useUnarchiveCommitmentRuleMutation();
   const [actionError, setActionError] = useState<string | null>(null);
@@ -71,88 +79,63 @@ export default function CommitmentRuleDetailPage() {
   };
   const { data: history } = useGetCommitmentRuleInstancesQuery(id, { skip: !id });
 
-  if (isLoading) {
-    return (
-      <div className="mx-auto flex max-w-2xl flex-col gap-space-6 py-space-6">
-        <Skeleton className="h-6 w-32" />
-        <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-32 w-full" />
-      </div>
-    );
-  }
-
+  if (isLoading) return <DetailLoading />;
   if (isError || !rule) {
-    return (
-      <div className="mx-auto max-w-2xl py-space-8">
-        <ErrorState message="We couldn't load this commitment." onRetry={refetch} />
-      </div>
-    );
+    return <DetailError what="commitment" backTo="/month" backLabel="Month" error={error} onRetry={refetch} />;
   }
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-space-8 py-space-6">
-      <button
-        type="button"
-        onClick={() => navigate(-1)}
-        className="flex items-center gap-space-2 self-start text-caption text-ink-muted transition-colors hover:text-ink"
-      >
-        <ArrowLeft size={16} strokeWidth={1.5} />
-        Back
-      </button>
-
-      <div className="flex flex-col gap-space-3">
-        <div className="flex flex-wrap items-center justify-between gap-space-3">
-          <div className="flex items-center gap-space-3">
-            <h1 className="text-title text-ink">{rule.name}</h1>
+    <DetailPage backLabel="Month" backTo="/month">
+      <DetailHeader
+        title={rule.name}
+        chips={
+          <>
             {rule.mandatory && !rule.archived && <StatusPill tone="neutral">Mandatory</StatusPill>}
             {rule.archived && <StatusPill tone="neutral">Stopped</StatusPill>}
-          </div>
-          <span className="flex items-center gap-space-2">
-            {rule.archived ? (
-              <Button variant="secondary" size="sm" disabled={unarchiving} onClick={() => run(() => unarchiveRule(rule.id).unwrap())}>
-                Start it again
-              </Button>
-            ) : (
-              <>
-                <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
-                  <Pencil size={14} strokeWidth={1.5} />
-                  Edit
-                </Button>
-                <Button variant="ghost" size="sm" disabled={archiving} onClick={() => run(() => archiveRule(rule.id).unwrap())}>
-                  Stop it
-                </Button>
-              </>
-            )}
-          </span>
-        </div>
-        {rule.archived && (
-          <p className="text-caption text-ink-muted">
-            Stopped: it no longer appears in any month from now on. Months it already ran in keep what was recorded, and
-            starting it again brings it back from this month.
-          </p>
-        )}
-        {actionError && <p className="text-caption text-critical">{actionError}</p>}
-        {rule.why && <p className="font-serif text-editorial text-ink">{rule.why}</p>}
-      </div>
+          </>
+        }
+        actions={
+          !rule.archived && (
+            <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
+              <Pencil size={14} strokeWidth={1.5} />
+              Edit
+            </Button>
+          )
+        }
+      />
+      {rule.why && <p className="max-w-[62ch] font-serif text-editorial text-ink">{rule.why}</p>}
+
+      {rule.archived && (
+        <ArchivedNotice
+          title="Stopped"
+          body="It no longer appears in any month from now on. Months it already ran in keep what was recorded, and starting it again brings it back from this month."
+          actionLabel="Start it again"
+          busy={unarchiving}
+          onAction={() => void run(() => unarchiveRule(rule.id).unwrap())}
+        />
+      )}
       <EditCommitmentSheet commitmentId={editing ? rule.id : null} onClose={() => setEditing(false)} onDeleted={() => navigate(-1)} />
 
-      <Statement notes>
-        {rule.amountType === 'FIXED' ? (
-          <StatementRow label="Amount" value={rule.fixedAmount} note="Fixed every time this falls due." />
-        ) : (
-          <StatementRow
-            label="Amount"
-            valueNode={<span className="text-row text-ink-muted">Varies</span>}
-            note="Confirmed each cycle when it's paid."
-          />
-        )}
-        <StatementRow
-          variant="subtotal"
-          label="Recurs"
-          valueNode={<span className="text-row text-ink">{FREQUENCY_LABEL[rule.frequency] ?? rule.frequency}</span>}
-          note={`Due the ${ordinalDay(rule.dueDay)} · ${rule.account.name}`}
+      <div className="m-card flex flex-col gap-space-5 max-md:gap-space-4">
+        <DetailHero
+          label="Amount"
+          sentence={rule.amountType === 'FIXED' ? 'The same every time it falls due.' : 'Confirmed each month when it’s paid.'}
+        >
+          {rule.amountType === 'FIXED' ? (
+            <Amount value={rule.fixedAmount} role="hero" />
+          ) : (
+            <span className="text-hero text-ink-soft">Varies</span>
+          )}
+        </DetailHero>
+        <FactStrip
+          className="border-y border-line"
+          facts={[
+            { label: 'Recurs', value: FREQUENCY_LABEL[rule.frequency] ?? rule.frequency },
+            { label: 'Due', value: `the ${ordinalDay(rule.dueDay)}` },
+            { label: 'From', value: rule.account.name },
+          ]}
         />
-      </Statement>
+      </div>
 
       <section>
         <SectionHeader>Details</SectionHeader>
@@ -180,6 +163,26 @@ export default function CommitmentRuleDetailPage() {
           </div>
         </section>
       )}
-    </div>
+
+      {!rule.archived && (
+        <DangerZone
+          error={actionError}
+          items={[
+            {
+              title: 'Stop this commitment',
+              body: 'It no longer appears in any month from now on. Months it already ran in keep what was recorded, and you can start it again later.',
+              actionLabel: 'Stop it',
+              busy: archiving,
+              confirm: {
+                title: `Stop ${rule.name}?`,
+                body: 'It stops appearing in future months. Months it already ran in keep what was recorded, and you can start it again later.',
+                confirmLabel: 'Stop it',
+              },
+              onAction: () => run(() => archiveRule(rule.id).unwrap()),
+            },
+          ]}
+        />
+      )}
+    </DetailPage>
   );
 }

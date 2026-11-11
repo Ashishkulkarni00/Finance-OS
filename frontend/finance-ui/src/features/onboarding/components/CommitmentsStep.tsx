@@ -1,8 +1,8 @@
 import { useState } from 'react';
+import { todayLocalIso } from '@/lib/dates';
 import { Row } from '@/components/Row';
 import { Button } from '@/components/Button';
 import { Select } from '@/components/Select';
-import { RealBalancePreview } from './RealBalancePreview';
 import { formatMoney } from '@/lib/money';
 import { cn } from '@/lib/cn';
 import { useGetAccountsQuery } from '@/services/accountService';
@@ -15,7 +15,7 @@ interface CommitmentsStepProps {
 }
 
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return todayLocalIso();
 }
 
 /** Step 3 - "the heavy step." Real Balance visibly sharpens with each one added, since
@@ -92,7 +92,6 @@ export function CommitmentsStep({ onContinue }: CommitmentsStepProps) {
         </div>
       )}
 
-      <RealBalancePreview />
 
       {accounts.length === 0 ? (
         <p className="text-caption text-ink-muted">Add an account first to attach commitments to it.</p>
@@ -118,7 +117,7 @@ export function CommitmentsStep({ onContinue }: CommitmentsStepProps) {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Name"
-              className="col-span-3 h-11 rounded-lg border border-border bg-surface px-space-3 text-label text-ink sm:col-span-1"
+              className="col-span-3 h-9 pointer-coarse:h-11 rounded-lg border border-border bg-surface px-space-3 text-label text-ink sm:col-span-1"
             />
             {amountType === 'FIXED' && (
               <input
@@ -126,7 +125,7 @@ export function CommitmentsStep({ onContinue }: CommitmentsStepProps) {
                 onChange={(e) => setAmount(e.target.value)}
                 inputMode="decimal"
                 placeholder="Amount"
-                className="num h-11 rounded-lg border border-border bg-surface px-space-3 text-label text-ink"
+                className="num h-9 pointer-coarse:h-11 rounded-lg border border-border bg-surface px-space-3 text-label text-ink"
               />
             )}
             <input
@@ -134,7 +133,7 @@ export function CommitmentsStep({ onContinue }: CommitmentsStepProps) {
               onChange={(e) => setDueDay(e.target.value)}
               inputMode="numeric"
               placeholder="Due day"
-              className="num h-11 rounded-lg border border-border bg-surface px-space-3 text-label text-ink"
+              className="num h-9 pointer-coarse:h-11 rounded-lg border border-border bg-surface px-space-3 text-label text-ink"
             />
             <Select
               ariaLabel="Account this leaves from"
@@ -163,6 +162,11 @@ export function CommitmentsStep({ onContinue }: CommitmentsStepProps) {
           </button>
         )}
       </div>
+      {rules.length === 0 && (
+        <p className="-mt-space-4 max-w-[40rem] text-caption text-ink-muted">
+          Without them, what is free will look higher than it really is. You can add them any time on Month.
+        </p>
+      )}
     </div>
   );
 }

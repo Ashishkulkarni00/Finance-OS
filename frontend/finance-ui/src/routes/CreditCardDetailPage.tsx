@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { AlertTriangle, ArrowLeft, FileText, Pencil, Trash2 } from 'lucide-react';
+import { AlertTriangle, FileText, Pencil, Trash2 } from 'lucide-react';
 import { Amount } from '@/components/Amount';
 import { Button } from '@/components/Button';
-import { ErrorState } from '@/components/ErrorState';
+import { Dialog } from '@/components/Dialog';
+import { Disclosure } from '@/components/Disclosure';
+import { FactStrip, type Fact } from '@/components/FactStrip';
+import { DetailError, DetailHeader, DetailHero, DetailLoading, DetailPage } from '@/components/detail/DetailPage';
 import { Row } from '@/components/Row';
 import { SectionHeader } from '@/components/SectionHeader';
-import { Skeleton } from '@/components/Skeleton';
 import { Statement, StatementRow } from '@/components/Statement';
 import { StatusPill } from '@/components/StatusPill';
 import { CreditCardSheet } from '@/features/cards/components/CreditCardSheet';
@@ -39,26 +41,14 @@ export default function CreditCardDetailPage() {
   const [recording, setRecording] = useState(false);
   const unbilledDoc = useDocAnchor('card.unbilled');
 
-  const { data: card, isLoading, isError, refetch } = useGetCreditCardQuery(id, { skip: !id });
+  const { data: card, isLoading, isError, error, refetch } = useGetCreditCardQuery(id, { skip: !id });
+  const [deletingStatement, setDeletingStatement] = useState<{ id: number; date: string } | null>(null);
   const { data: statements } = useGetCardStatementsQuery(id, { skip: !id || !card?.setUp });
   const [deleteStatement] = useDeleteCardStatementMutation();
 
-  if (isLoading) {
-    return (
-      <div className="mx-auto flex max-w-2xl flex-col gap-space-6 py-space-6">
-        <Skeleton className="h-6 w-32" />
-        <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-40 w-full" />
-      </div>
-    );
-  }
-
+  if (isLoading) return <DetailLoading />;
   if (isError || !card) {
-    return (
-      <div className="mx-auto max-w-2xl py-space-8">
-        <ErrorState message="We couldn't load this card." onRetry={refetch} />
-      </div>
-    );
+    return <DetailError what="card" backTo="/money/cards" backLabel="Cards" error={error} onRetry={refetch} />;
   }
 
   const bill = card.latestStatement;
@@ -78,26 +68,36 @@ export default function CreditCardDetailPage() {
     );
   };
 
-  return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-space-8 py-space-6">
-      <button
-        type="button"
-        onClick={() => navigate(-1)}
-        className="flex items-center gap-space-2 self-start text-caption text-ink-muted transition-colors hover:text-ink"
-      >
-        <ArrowLeft size={16} strokeWidth={1.5} />
-        Back
-      </button>
+  const facts: Fact[] = [];
+  if (card.setUp) {
+    facts.push({ label: 'Credit limit', value: <Amount value={card.creditLimit} role="row" /> });
+    facts.push({ label: 'Available credit', value: <Amount value={card.availableCredit} role="row" /> });
+  }
+  if (card.unbilled != null) {
+    facts.push({ label: 'Spent since the statement', value: <Amount value={card.unbilled} role="row" /> });
+  }
 
-      <div className="flex flex-wrap items-start justify-between gap-space-3">
-        <div className="flex flex-col gap-space-2">
-          <h1 className="text-title text-ink">{card.name}</h1>
-          {identity && <p className="text-caption text-ink-muted">{identity}</p>}
-        </div>
-        <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
-          <Pencil size={14} strokeWidth={1.5} />
-          Edit card
-        </Button>
+  return (
+    <DetailPage backLabel="Cards" backTo="/money/cards">
+      <DetailHeader
+        title={card.name}
+        subtitle={identity || undefined}
+        actions={
+          <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
+            <Pencil size={14} strokeWidth={1.5} />
+            Edit card
+          </Button>
+        }
+      />
+
+      <div className="m-card flex flex-col gap-space-5 max-md:gap-space-4">
+        <DetailHero
+          label="Owed now"
+          sentence="Everything spent on the card and not paid yet. It’s already taken out of what’s free this month."
+        >
+          <Amount value={card.outstanding} role="hero" />
+        </DetailHero>
+        {facts.length > 0 && <FactStrip facts={facts} className="border-y border-line" />}
       </div>
 
       {!card.setUp && (
@@ -174,8 +174,7 @@ export default function CreditCardDetailPage() {
         </section>
       )}
 
-      <section>
-        <SectionHeader>The card</SectionHeader>
+      <Disclosure storageKey="kosh.card.figures" label="How these figures are worked out" summary="owed, limit, blocked for EMIs, available">
         <Statement notes>
           <StatementRow
             label="Owed now"
@@ -220,7 +219,7 @@ export default function CreditCardDetailPage() {
             See every entry on this card
           </button>
         </p>
-      </section>
+      </Disclosure>
 
       {card.emis.length > 0 && (
         <section>
@@ -244,8 +243,7 @@ export default function CreditCardDetailPage() {
       )}
 
       {statements && statements.length > 0 && (
-        <section>
-          <SectionHeader>Statements</SectionHeader>
+        <Disclosure storageKey="kosh.card.statements" label={`Statements · ${statements.length}`} summary="every statement you've recorded">
           <div className="flex flex-col">
             {statements.map((s) => (
               <Row
@@ -259,11 +257,7 @@ export default function CreditCardDetailPage() {
                       type="button"
                       aria-label="Delete this statement"
                       title="Delete - to enter it again"
-                      onClick={() => {
-                        if (window.confirm('Delete this statement? You can record it again afterwards.')) {
-                          void deleteStatement({ accountId: card.accountId, statementId: s.id });
-                        }
-                      }}
+                      onClick={() => setDeletingStatement({ id: s.id, date: formatShortDate(s.statementDate) })}
                       className="rounded-md p-space-1 text-ink-muted transition-colors hover:bg-sunken hover:text-critical"
                     >
                       <Trash2 size={15} strokeWidth={1.5} aria-hidden />
@@ -273,8 +267,20 @@ export default function CreditCardDetailPage() {
               />
             ))}
           </div>
-        </section>
+        </Disclosure>
       )}
+      <Dialog
+        open={deletingStatement != null}
+        title={`Delete the statement of ${deletingStatement?.date ?? ''}?`}
+        body="It is removed from this card’s bills, and you can record it again afterwards. The entries on the card itself are not touched."
+        confirmLabel="Delete statement"
+        destructive
+        onConfirm={() => {
+          if (deletingStatement) void deleteStatement({ accountId: card.accountId, statementId: deletingStatement.id });
+          setDeletingStatement(null);
+        }}
+        onCancel={() => setDeletingStatement(null)}
+      />
 
       {card.setUp && !bill && (
         <Button variant="secondary" className="self-start" onClick={() => setRecording(true)}>
@@ -287,6 +293,6 @@ export default function CreditCardDetailPage() {
       {card.setUp && (
         <RecordStatementSheet key={`statement-${card.accountId}-${recording}`} card={card} open={recording} onClose={() => setRecording(false)} />
       )}
-    </div>
+    </DetailPage>
   );
 }

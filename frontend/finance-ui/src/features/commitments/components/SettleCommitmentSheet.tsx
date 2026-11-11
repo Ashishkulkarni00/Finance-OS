@@ -1,4 +1,6 @@
+import { formatMoney } from '@/lib/money';
 import { useEffect, useState } from 'react';
+import { shiftIsoDays } from '@/lib/dates';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -50,9 +52,7 @@ const KIND_COPY = {
 
 /** `YYYY-MM-DD` shifted by whole days - date arithmetic, allowed client-side. */
 function shiftIso(iso: string, days: number): string {
-  const d = new Date(iso);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+  return shiftIsoDays(iso, days);
 }
 
 /**
@@ -271,11 +271,24 @@ export function SettleCommitmentSheet() {
             <>
               {duePassed && (
                 <p className="rounded-lg bg-sunken px-space-4 py-space-3 text-caption text-ink-soft">
-                  Its due date has passed. If you already paid it and the payment is in your Ledger,{' '}
-                  <button type="button" onClick={() => setMode('link')} className="text-accent underline-offset-2 hover:underline">
-                    link that entry instead
-                  </button>{' '}
-                  so the money isn’t counted twice.
+                  {Number(instance?.confirmedAmount ?? 0) > 0 ? (
+                    <>
+                      Its due date has passed, and {formatMoney(instance!.confirmedAmount!)} is already counted as paid. If a
+                      further payment is in your Ledger but not linked here yet,{' '}
+                      <button type="button" onClick={() => setMode('link')} className="text-accent underline-offset-2 hover:underline">
+                        link that entry
+                      </button>{' '}
+                      - payments already linked are not counted again.
+                    </>
+                  ) : (
+                    <>
+                      Its due date has passed. If you already paid it and the payment is in your Ledger,{' '}
+                      <button type="button" onClick={() => setMode('link')} className="text-accent underline-offset-2 hover:underline">
+                        link that entry instead
+                      </button>{' '}
+                      so the money isn’t counted twice.
+                    </>
+                  )}
                 </p>
               )}
               <form

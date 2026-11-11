@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Amount } from '@/components/Amount';
 import { GroupBand } from '@/components/GroupBand';
-import { SectionHeader } from '@/components/SectionHeader';
+import { Disclosure } from '@/components/Disclosure';
 import { Skeleton } from '@/components/Skeleton';
 import { cn } from '@/lib/cn';
 import { useGetLumpSumQuery } from '@/services/decisionService';
@@ -119,13 +119,12 @@ export function LumpSumPlanner() {
   const goals = fresh ? data.options.filter((o) => o.kind === 'GOAL') : [];
 
   return (
-    <section>
-      <SectionHeader>Got a lump sum?</SectionHeader>
+    <Disclosure storageKey="kosh.goals.lumpsum" label="Got a lump sum?" summary="a bonus, a refund, a gift - see what it would do">
       <p className="mb-space-3 max-w-[40rem] text-caption text-ink-muted">
         A bonus, a refund, a gift. Type the amount to see what it would do on each loan, each goal, or kept — side by side,
         nothing moved.
       </p>
-      <label className="flex h-9 w-48 items-center gap-space-1 rounded-lg border border-border bg-surface px-space-3 focus-within:border-accent">
+      <label className="flex h-9 pointer-coarse:h-11 w-48 items-center gap-space-1 rounded-lg border border-border bg-surface px-space-3 focus-within:border-accent">
         <span aria-hidden className="num text-label text-ink-muted">
           ₹
         </span>
@@ -178,6 +177,6 @@ export function LumpSumPlanner() {
           </div>
         </div>
       )}
-    </section>
+    </Disclosure>
   );
 }

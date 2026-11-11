@@ -611,12 +611,22 @@ public class CommitmentInstanceServiceImpl implements CommitmentInstanceService 
 
     @Override
     @Transactional
-    public CommitmentInstanceView skip(Long id) {
+    public CommitmentInstanceView skip(Long id, com.finance.commitment.domain.SkipReason reason, String note) {
         CommitmentInstance instance = requireOwned(id);
         Commitment commitment = requireCommitment(instance.getCommitmentId());
-        if (commitment.isMandatory()) {
+        // A loan's EMI leaves on the lender's schedule whatever this app says, so marking it
+        // skipped would release money that is going to be debited anyway - the one skip that
+        // makes the figures lie rather than the plan change.
+        if (commitment.getSourceType() == com.finance.commitment.domain.CommitmentSource.LOAN) {
             throw new BusinessRuleException(ErrorCode.INSTANCE_NOT_SKIPPABLE,
-                    "This is a must-pay bill, so it can't be skipped. Edit the bill if it's optional.");
+                    "A loan EMI is debited by the lender whether or not it's skipped here, so it can't be skipped.");
+        }
+        // Must-pay can be skipped since 2026-11-11 ("this month I am not doing the SIP"), but
+        // only as a stated decision: the reason is what makes it a choice on the record rather
+        // than a commitment that quietly vanished.
+        if (commitment.isMandatory() && reason == null) {
+            throw new BusinessRuleException(ErrorCode.INSTANCE_NOT_SKIPPABLE,
+                    "Say why you're skipping this one - it's a must-pay commitment.");
         }
         // Only an occurrence nothing has happened to yet: part of it paid, or a payment
         // linked, means money has moved and "skipped" would hide it.
@@ -628,8 +638,11 @@ public class CommitmentInstanceServiceImpl implements CommitmentInstanceService 
                     "Something has already been paid or linked on this bill, so it can't be skipped.");
         }
         instance.setStatus(CommitmentInstanceStatus.SKIPPED);
+        instance.setSkipReason(reason);
+        instance.setSkipNote(note == null || note.isBlank() ? null : note.trim());
         CommitmentInstance saved = repository.save(instance);
-        log.info("Commitment instance skipped id={}", saved.getId());
+        // The reason is a category, safe to log; the note is the user's words and is not.
+        log.info("Commitment instance skipped id={} reason={}", saved.getId(), reason);
         return toView(saved);
     }
 
@@ -642,6 +655,8 @@ public class CommitmentInstanceServiceImpl implements CommitmentInstanceService 
         }
         instance.setStatus(instance.getDueDate().isBefore(LocalDate.now(clock))
                 ? CommitmentInstanceStatus.OVERDUE : CommitmentInstanceStatus.PENDING);
+        instance.setSkipReason(null);
+        instance.setSkipNote(null);
         CommitmentInstance saved = repository.save(instance);
         log.info("Commitment instance unskipped id={}", saved.getId());
         return toView(saved);

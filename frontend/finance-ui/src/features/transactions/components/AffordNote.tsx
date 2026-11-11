@@ -128,7 +128,7 @@ function Note({
         attention ? 'text-attention' : muted ? 'text-ink-muted' : 'text-ink-soft',
       )}
     >
-      {attention && <AlertTriangle size={13} strokeWidth={1.75} className="mt-[0.15rem] shrink-0" aria-hidden />}
+      {attention && <AlertTriangle size={13} strokeWidth={1.5} className="mt-[0.15rem] shrink-0" aria-hidden />}
       <span>{children}</span>
     </p>
   );

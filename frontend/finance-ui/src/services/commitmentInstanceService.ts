@@ -6,6 +6,7 @@ import type {
   CycleStandingResponse,
   CycleShapeResponse,
   CycleReviewResponse,
+  SkipReason,
 } from '@/types/commitment';
 
 export const commitmentInstanceService = baseApi.injectEndpoints({
@@ -54,10 +55,14 @@ export const commitmentInstanceService = baseApi.injectEndpoints({
       invalidatesTags: (_result, _error, { id }) => [{ type: 'CommitmentInstance', id: 'LIST' }, { type: 'CommitmentInstance', id }, 'Position', 'Timeline'],
     }),
 
-    /** Optional bills only: stop it counting against what's free this cycle. */
-    skipCommitmentInstance: build.mutation<CommitmentInstanceResponse, number>({
-      query: (id) => ({ url: `/commitment-instances/${id}/skip`, method: 'POST' }),
-      invalidatesTags: (_result, _error, id) => [{ type: 'CommitmentInstance', id: 'LIST' }, { type: 'CommitmentInstance', id }, 'Position', 'Timeline'],
+    /** Stop it counting against what's free this cycle. A must-pay commitment needs a reason;
+     *  a loan EMI can't be skipped at all (the lender debits it regardless). */
+    skipCommitmentInstance: build.mutation<
+      CommitmentInstanceResponse,
+      { id: number; reason: SkipReason; note?: string }
+    >({
+      query: ({ id, ...body }) => ({ url: `/commitment-instances/${id}/skip`, method: 'POST', body }),
+      invalidatesTags: (_result, _error, { id }) => [{ type: 'CommitmentInstance', id: 'LIST' }, { type: 'CommitmentInstance', id }, 'Position', 'Timeline'],
     }),
 
     unskipCommitmentInstance: build.mutation<CommitmentInstanceResponse, number>({

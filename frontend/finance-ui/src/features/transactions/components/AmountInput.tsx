@@ -29,7 +29,7 @@ export const AmountInput = forwardRef<HTMLInputElement, AmountInputProps>(({ err
   return (
     <div className="flex flex-col items-center gap-space-2">
       <div className="flex items-baseline gap-space-1">
-        <span aria-hidden className="num text-title text-ink-muted opacity-55" style={{ marginRight: '0.08em' }}>
+        <span aria-hidden className="num text-[22px] leading-none text-ink-muted opacity-55" style={{ marginRight: '0.08em' }}>
           ₹
         </span>
         <input
@@ -40,7 +40,7 @@ export const AmountInput = forwardRef<HTMLInputElement, AmountInputProps>(({ err
           placeholder="0"
           {...rest}
           className={cn(
-            'num w-44 bg-transparent text-[28px] leading-[34px] font-semibold outline-none placeholder:text-ink-muted',
+            'num w-52 bg-transparent text-[40px] leading-[44px] font-medium tracking-[-0.025em] outline-none placeholder:text-ink-muted/60 max-sm:w-44 max-sm:text-[32px] max-sm:leading-[38px]',
             valueClassName ?? 'text-ink',
           )}
         />

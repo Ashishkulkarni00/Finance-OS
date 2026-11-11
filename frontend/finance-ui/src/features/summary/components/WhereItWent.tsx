@@ -48,8 +48,8 @@ export function WhereItWent({ months }: { months: ReviewMonth[] }) {
   const rest = cats.slice(TOP);
 
   return (
-    <section className="flex flex-col gap-space-5">
-      <SectionHeader trailing={month.current ? 'so far' : undefined}>Where it went</SectionHeader>
+    <section className="m-card flex flex-col gap-space-5 max-md:gap-space-4">
+      <SectionHeader overCard trailing={month.current ? 'so far' : undefined}>Where does the money go?</SectionHeader>
 
       {recorded.length > 1 && (
         <div className="flex flex-wrap gap-space-2" role="radiogroup" aria-label="Which month">
@@ -64,7 +64,7 @@ export function WhereItWent({ months }: { months: ReviewMonth[] }) {
                 onClick={() => setPicked(m.cycleId)}
                 className={cn(
                   'rounded-full border px-space-3 py-space-1 text-caption transition-colors duration-150',
-                  active ? 'border-ink bg-sunken text-ink' : 'border-border text-ink-muted hover:text-ink-soft',
+                  active ? 'border-ink-soft bg-sunken text-ink' : 'border-border text-ink-muted hover:text-ink-soft',
                 )}
               >
                 {cycleMonthName(m.endDate)}
@@ -93,7 +93,7 @@ export function WhereItWent({ months }: { months: ReviewMonth[] }) {
 
       {/* The parts: ranked bars by category, committed vs day-to-day inside each. */}
       <div className="flex flex-col gap-space-2">
-        <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">By category</span>
+        <span className="text-caption text-ink-muted">By category</span>
         {isLoading ? (
           <Skeleton className="h-48 w-full" />
         ) : (
@@ -115,7 +115,7 @@ export function WhereItWent({ months }: { months: ReviewMonth[] }) {
       <FiguresToggle>
         <table className="w-full text-left">
           <thead>
-            <tr className="border-b border-line text-micro uppercase tracking-[0.08em] text-ink-muted">
+            <tr className="border-b border-line text-caption text-ink-muted">
               <th className="py-space-2 font-normal">Category</th>
               <th className="py-space-2 text-right font-normal">Planned bills</th>
               <th className="py-space-2 text-right font-normal">Day to day</th>

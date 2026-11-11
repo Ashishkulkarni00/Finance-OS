@@ -21,7 +21,7 @@ function BackToKosh() {
       onClick={() => navigate(backTo)}
       className="flex items-center gap-space-2 text-label font-medium text-ink-soft transition-colors duration-150 hover:text-ink"
     >
-      <ArrowLeft size={16} strokeWidth={1.75} aria-hidden />
+      <ArrowLeft size={16} strokeWidth={1.5} aria-hidden />
       Back to Kosh
     </button>
   );
@@ -49,7 +49,7 @@ export function HelpShell({
     <div className="flex flex-col gap-space-6">
       {sectionHeadingsFor(activeTopic).length > 0 && (
         <div>
-          <p className="mb-space-3 text-micro uppercase tracking-[0.08em] text-ink-muted">On this page</p>
+          <p className="mb-space-3 text-caption text-ink-muted">On this page</p>
           <ul className="flex flex-col gap-space-2">
             {sectionHeadingsFor(activeTopic).map((h) => (
               <li key={h} className="text-caption leading-relaxed text-ink-soft">
@@ -61,7 +61,7 @@ export function HelpShell({
       )}
       {activeTopic.seeInApp && activeTopic.seeInApp.length > 0 && (
         <div>
-          <p className="mb-space-3 text-micro uppercase tracking-[0.08em] text-ink-muted">See it in the app</p>
+          <p className="mb-space-3 text-caption text-ink-muted">See it in the app</p>
           <ul className="flex flex-col gap-space-3">
             {activeTopic.seeInApp.map((link) => (
               <li key={link.to}>

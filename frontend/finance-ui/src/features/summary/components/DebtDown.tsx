@@ -1,6 +1,7 @@
 import { TrendingDown } from 'lucide-react';
 import { DebtCurve } from './DebtCurve';
 import { EmptyState } from '@/components/EmptyState';
+import { Disclosure } from '@/components/Disclosure';
 import { SectionHeader } from '@/components/SectionHeader';
 import { PayoffTimeline } from './PayoffTimeline';
 import { formatDayMonthYear } from '@/lib/dates';
@@ -32,7 +33,7 @@ export function DebtDown({ debt }: DebtDownProps) {
   if (debt.points.length < 2) {
     return (
       <section>
-        <SectionHeader>Debt down</SectionHeader>
+        <SectionHeader>Is debt going down?</SectionHeader>
         <EmptyState
           icon={TrendingDown}
           headline={debt.loans.length === 0 ? 'Nothing owed' : 'Not enough to draw the curve'}
@@ -50,10 +51,10 @@ export function DebtDown({ debt }: DebtDownProps) {
   const restMonths = debt.monthsToDebtFree != null ? debt.monthsToDebtFree % 12 : null;
 
   return (
-    <section className="flex flex-col gap-space-6">
+    <section className="m-card flex flex-col gap-space-6 max-md:gap-space-4">
       <div>
-        <SectionHeader trailing={`${debt.loans.length === 1 ? '1 loan' : `${debt.loans.length} loans`}`}>
-          Debt down
+        <SectionHeader overCard trailing={`${debt.loans.length === 1 ? '1 loan' : `${debt.loans.length} loans`}`}>
+          Is debt going down?
         </SectionHeader>
       </div>
 
@@ -83,7 +84,9 @@ export function DebtDown({ debt }: DebtDownProps) {
 
       <DebtCurve debt={debt} />
 
-      <PayoffTimeline debt={debt} />
+      <Disclosure storageKey="kosh.summary.payoff" label="When each loan ends" summary="a bar per loan, to its last EMI">
+        <PayoffTimeline debt={debt} />
+      </Disclosure>
 
       {debt.unrecordedEmis > 0 && (
         <p className="max-w-[72ch] text-caption text-attention">

@@ -26,9 +26,9 @@ const TONE_CLASSES: Record<Tone, string> = {
 
 const SOLID_CLASSES: Record<Tone, string> = {
   neutral: 'bg-ink-soft text-white',
-  positive: 'bg-positive text-white',
-  attention: 'bg-attention text-white',
-  critical: 'bg-critical text-white',
+  positive: 'bg-positive text-on-solid',
+  attention: 'bg-attention text-on-solid',
+  critical: 'bg-critical text-on-solid',
 };
 
 /** `--sunken` background, coloured text, always a word - never a bare dot. DESIGN_SYSTEM §6. */
@@ -38,7 +38,7 @@ export function StatusPill({ children, tone = 'neutral', solid }: StatusPillProp
       className={cn(
         'inline-flex items-center rounded-full font-medium',
         solid
-          ? 'px-space-2 py-[1px] text-micro uppercase tracking-[0.04em]'
+          ? 'px-space-2 py-[1px] text-caption'
           : 'bg-sunken px-space-3 py-1 text-caption',
         solid ? SOLID_CLASSES[tone] : TONE_CLASSES[tone],
       )}

@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { cn } from '@/lib/cn';
+import { ScrollStrip } from '@/components/ScrollStrip';
 
 const TABS = [
   { to: '/money/accounts', label: 'Overview' },
@@ -16,27 +17,33 @@ const TABS = [
  * that used to be separate menu items are tabs of one place: people come to check their
  * money, not to "open Cards". The old addresses (/accounts, /cards, /debts, /investments)
  * redirect here.
+ *
+ * <p>The tab row is a `ScrollStrip`: on a phone five tabs do not fit, and the row scrolls
+ * sideways with no visible bar and an edge fade, never pushing the page itself wider.
  */
 export default function MoneyLayout() {
   return (
-    <div className="flex flex-col gap-space-6">
-      <nav aria-label="Money" className="flex gap-space-1 border-b border-line">
+    <div className="reveal-shell flex w-full flex-col gap-space-5 md:gap-space-8">
+      <h1 className="text-page text-ink">Money</h1>
+      <ScrollStrip as="nav" aria-label="Money" className="flex gap-space-1 border-b border-line">
         {TABS.map((tab) => (
           <NavLink
             key={tab.to}
             to={tab.to}
             className={({ isActive }) =>
               cn(
-                '-mb-px border-b-2 px-space-3 py-space-2 text-label transition-colors duration-150',
-                isActive ? 'border-accent font-medium text-accent' : 'border-transparent text-ink-soft hover:text-ink',
+                '-mb-px shrink-0 whitespace-nowrap border-b-[1.5px] px-space-3 py-space-2 text-label transition-colors duration-150',
+                isActive ? 'border-accent font-medium text-ink' : 'border-transparent font-normal text-ink-soft hover:text-ink',
               )
             }
           >
             {tab.label}
           </NavLink>
         ))}
-      </nav>
-      <Outlet />
+      </ScrollStrip>
+      <div className="flex flex-col gap-space-6 md:gap-10">
+        <Outlet />
+      </div>
     </div>
   );
 }

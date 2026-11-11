@@ -14,6 +14,8 @@ interface CloseStepProps {
   error: string | null;
   snapshot: CycleSnapshotResponse | null;
   onDone: () => void;
+  /** Release gate G1 (`MONTH_CLOSE_ENABLED`). When false the close cannot be submitted at all. */
+  enabled: boolean;
 }
 
 /**
@@ -35,7 +37,7 @@ function KeptDisplay({ snapshot }: { snapshot: CycleSnapshotResponse }) {
   const all = kept === planned;
   return (
     <div className="flex flex-col items-start gap-space-2 text-left">
-      <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">Kept</span>
+      <span className="text-caption text-ink-muted">Kept</span>
       {/* `num` for tabular figures, matching every other number in the product. */}
       <span className={cn('num text-hero', all ? 'text-positive' : 'text-ink')}>
         {kept}
@@ -82,7 +84,7 @@ function PlanVsActual({ snapshot }: { snapshot: CycleSnapshotResponse }) {
 }
 
 /** Step 6 (final) - the actual write, and the permanent record it leaves behind. SCREEN_SPECS S6. */
-export function CloseStep({ onClose, isClosing, error, snapshot, onDone }: CloseStepProps) {
+export function CloseStep({ onClose, isClosing, error, snapshot, onDone, enabled }: CloseStepProps) {
   const doc = useDocAnchor('month.close.close');
   if (snapshot) {
     return (
@@ -102,6 +104,27 @@ export function CloseStep({ onClose, isClosing, error, snapshot, onDone }: Close
         <Button variant="primary" onClick={onDone}>
           Done
         </Button>
+      </div>
+    );
+  }
+
+  // A close writes an immutable snapshot, so it stays off - even for someone who typed this address -
+  // until the figures it would record have been checked (release gate G1, UI_UX_REVAMP_PLAN Part 11).
+  if (!enabled) {
+    return (
+      <div className="flex flex-col gap-space-6" {...doc}>
+        <div>
+          <h1 className="text-editorial font-serif text-ink">Closing is switched off for now.</h1>
+          <p className="mt-space-2 max-w-[34rem] text-body text-ink-muted">
+            A close is permanent, so it stays off until the figures it would record have been checked. Nothing here has
+            been changed, and you can still go back through the earlier steps to look at the month.
+          </p>
+        </div>
+        <div>
+          <Button variant="secondary" onClick={onDone}>
+            Back to Month
+          </Button>
+        </div>
       </div>
     );
   }

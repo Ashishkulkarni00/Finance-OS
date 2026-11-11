@@ -1,7 +1,8 @@
+import { useNeedsPanel } from '@/lib/needsPanel';
 import { cn } from '@/lib/cn';
 import type { CSSProperties, KeyboardEvent, ReactNode } from 'react';
 import { AlertTriangle, CheckCircle2, Sparkles } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/Button';
 import { SectionHeader } from '@/components/SectionHeader';
 import { Skeleton } from '@/components/Skeleton';
@@ -136,7 +137,7 @@ export function InsightRow({
           }
         : {})}
       className={[
-        'flex items-start gap-space-3 rounded-xl p-space-4 text-left',
+        'flex items-start gap-space-3 rounded-xl p-space-4 text-left max-md:px-space-3',
         destination ? 'w-full cursor-pointer transition-opacity duration-150 hover:opacity-90' : '',
         revealDelay != null ? 'reveal' : '',
       ].join(' ')}
@@ -153,8 +154,8 @@ export function InsightRow({
         <AlertTriangle size={18} strokeWidth={1.5} className="mt-0.5 shrink-0 text-attention" aria-hidden />
       )}
       <div className="flex min-w-0 flex-1 flex-col gap-space-1">
-        <p className="text-body text-ink">{item.title}</p>
-        <p className={cn('text-caption text-ink-soft', clamp && 'line-clamp-2')} title={clamp ? item.explanation : undefined}>
+        <p className="text-body font-medium text-ink">{item.title}</p>
+        <p className={cn('text-caption text-ink-soft', clamp ? 'line-clamp-2' : 'max-md:line-clamp-3')} title={item.explanation}>
           {item.explanation}
         </p>
         {action && (
@@ -246,6 +247,7 @@ export function InsightList({
   hideWhenEmpty?: boolean;
 }) {
   const { data, isLoading, isError } = useGetInsightsQuery(surface);
+  const { show: showNeeds } = useNeedsPanel();
   const filtered = hideKeys?.length ? data?.items.filter((i) => !hideKeys.includes(i.key)) : data?.items;
   const items = limit != null ? filtered?.slice(0, limit) : filtered;
 
@@ -261,15 +263,16 @@ export function InsightList({
             // Loud only when something is actually hidden: then the link is the way to the rest
             // and must not read as a footnote (user, 2026-11-09). When everything is shown it
             // stays quiet - an orange "See all" over a complete list would be a false alarm.
-            <Link
-              to="/needs-you"
+            <button
+              type="button"
+              onClick={showNeeds}
               className={cn(
                 'text-caption underline-offset-2 hover:underline',
                 data.total > items.length ? 'font-semibold text-attention' : 'text-ink-muted hover:text-ink-soft',
               )}
             >
               {data.total > items.length ? `${items.length} of ${data.total} — see all →` : 'See all'}
-            </Link>
+            </button>
           ) : undefined
         }
       >

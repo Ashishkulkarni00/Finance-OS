@@ -43,7 +43,7 @@ export function BasisPanel({ basis }: { basis: Provenance }) {
         {basis.sections.map((section, i) => (
           <div key={section.heading ?? i} className="min-w-0 flex-1">
             {section.heading && (
-              <p className="mb-space-2 text-micro uppercase tracking-[0.08em] text-ink-muted">{section.heading}</p>
+              <p className="mb-space-2 text-caption text-ink-muted">{section.heading}</p>
             )}
 
             <ul className="flex flex-col gap-space-1">
@@ -61,9 +61,9 @@ export function BasisPanel({ basis }: { basis: Provenance }) {
 
             {section.total != null && (
               <p className="mt-space-2 flex items-baseline justify-between gap-space-4 border-t border-border pt-space-2">
-                <span className="text-caption font-medium text-ink">Total</span>
+                <span className="text-caption font-semibold text-ink">Total</span>
                 <span className="num shrink-0 tabular-nums">
-                  <Amount value={section.total} role="caption" className="text-ink" />
+                  <Amount value={section.total} role="caption" className="font-semibold text-ink" />
                 </span>
               </p>
             )}

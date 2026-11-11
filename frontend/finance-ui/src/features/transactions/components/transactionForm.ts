@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { todayLocalIso } from '@/lib/dates';
 import { ArrowUpRight, ArrowDownRight, ArrowRightLeft, TrendingUp, RotateCcw } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { TransactionResponse, TransactionType } from '@/types/transaction';
@@ -132,7 +133,7 @@ export const transactionFormSchema = z
 export type TransactionFormValues = z.infer<typeof transactionFormSchema>;
 
 export function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+  return todayLocalIso();
 }
 
 /** Seeds the form from an existing row - `EditTransactionSheet`'s starting point. */

@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { TabToolbar } from '@/features/money/components/TabToolbar';
 import type { ReactNode } from 'react';
-import { CircleHelp, Plus, TrendingUp } from 'lucide-react';
+import { Plus, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/Button';
 import { AddInvestmentSheet } from '@/features/investments/components/AddInvestmentSheet';
 import { EmptyState } from '@/components/EmptyState';
@@ -12,14 +13,13 @@ import { Amount } from '@/components/Amount';
 import { InvestmentStanding } from '@/features/investments/components/InvestmentStanding';
 import { InvestmentRow } from '@/features/investments/components/InvestmentRow';
 import { InvestmentsCheckIn } from '@/features/investments/components/InvestmentsCheckIn';
-import { InvestmentsPrimer } from '@/features/investments/components/InvestmentsPrimer';
 import { InvestmentPlanPrompt } from '@/features/investments/components/InvestmentPlanPrompt';
-import { InvestmentsGuideSheet } from '@/features/investments/components/InvestmentsGuideSheet';
 import { useGetInvestmentsQuery, useGetInvestmentSummaryQuery } from '@/services/investmentService';
 
 /** A full-width hairline above each section - the same separation as every other screen. */
 function Divided({ children }: { children: ReactNode }) {
-  return <div className="border-t border-line pt-space-8 empty:hidden">{children}</div>;
+  // `divided`: on a phone the rule goes and the section inside becomes a card (index.css).
+  return <div className="divided border-t border-line pt-space-8 empty:hidden max-md:border-t-0 max-md:pt-0">{children}</div>;
 }
 
 /**
@@ -27,11 +27,6 @@ function Divided({ children }: { children: ReactNode }) {
  * screen whose headline is something you've built rather than something to watch gets to
  * look like it - without a single figure changing meaning.
  */
-const PANEL_WASH = {
-  backgroundImage:
-    'linear-gradient(180deg, color-mix(in srgb, var(--invest) 7%, var(--surface)) 0%, var(--surface) 70%)',
-} as const;
-
 /**
  * "Investments" - money put to work, from the source workbook's Investments sheet, whose
  * rule this page keeps: <em>"Current Value is the only figure you keep updating by hand...
@@ -47,7 +42,6 @@ export default function InvestmentsPage() {
   const { data: page, isLoading, isError, refetch } = useGetInvestmentsQuery();
   const { data: summary, isLoading: summaryLoading } = useGetInvestmentSummaryQuery();
   const [adding, setAdding] = useState(false);
-  const [guideOpen, setGuideOpen] = useState(false);
 
   const investments = page?.content ?? [];
   const ready = investments.filter((i) => i.liquid);
@@ -73,42 +67,19 @@ export default function InvestmentsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-space-8">
-      <div className="flex flex-col gap-space-6">
-        <div className="flex items-start justify-between gap-space-4">
-          <div className="flex flex-col gap-space-1">
-            <span className="text-micro uppercase tracking-[0.08em] text-invest">Investments</span>
-            <span className="text-title text-ink">Money working for you</span>
-            <span className="text-caption text-ink-muted">
-              {investments.length > 0 ? `${investments.length} ${investments.length === 1 ? 'holding' : 'holdings'}` : ' '}
-            </span>
-          </div>
-          <div className="flex shrink-0 items-center gap-space-4">
-            <button
-              type="button"
-              onClick={() => setGuideOpen(true)}
-              className="flex items-center gap-space-1 rounded-md px-space-1 text-caption text-ink-muted transition-colors hover:bg-sunken hover:text-ink"
-            >
-              <CircleHelp size={14} strokeWidth={1.5} aria-hidden />
-              How Investments works
-            </button>
-            <Button variant="secondary" size="sm" onClick={() => setAdding(true)}>
-              <Plus size={14} strokeWidth={1.5} />
-              Add a holding
-            </Button>
-          </div>
-        </div>
-
-        <InvestmentsPrimer onOpenGuide={() => setGuideOpen(true)} />
-      </div>
+    <>
+      <TabToolbar subtitle="Money you’ve put to work, where it’s put, and how it’s growing." helpTopic="investments.how-investments-works">
+        <Button variant="secondary" size="sm" onClick={() => setAdding(true)}>
+          <Plus size={14} strokeWidth={1.5} />
+          Add a holding
+        </Button>
+      </TabToolbar>
 
       {isError ? (
         <ErrorState message="We couldn't load your investments. Check your connection and try again." onRetry={refetch} />
       ) : (
         <>
-          <section aria-label="Money put to work" className="rounded-xl border border-line p-space-6" style={PANEL_WASH}>
-            <InvestmentStanding summary={summary} isLoading={summaryLoading} />
-          </section>
+          <InvestmentStanding summary={summary} isLoading={summaryLoading} />
 
           <Divided>{isLoading ? <Skeleton className="h-16 w-full rounded-xl" /> : <InvestmentsCheckIn investments={investments} />}</Divided>
 
@@ -131,7 +102,7 @@ export default function InvestmentsPage() {
                   ))}
                 </div>
               ) : (
-                <div className="flex flex-col gap-space-8">
+                <div className="flex flex-col gap-space-5 md:gap-space-8">
                   {ready.length > 0 && (
                     <div className="flex flex-col">
                       <GroupBand
@@ -170,7 +141,6 @@ export default function InvestmentsPage() {
       )}
 
       <AddInvestmentSheet open={adding} onClose={() => setAdding(false)} />
-      <InvestmentsGuideSheet open={guideOpen} onClose={() => setGuideOpen(false)} />
-    </div>
+    </>
   );
 }

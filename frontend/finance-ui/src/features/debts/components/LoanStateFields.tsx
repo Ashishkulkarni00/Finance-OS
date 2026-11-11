@@ -160,7 +160,7 @@ export function LoanStateFields({ form, today }: LoanStateFieldsProps) {
   return (
     <>
       <div>
-        <p className="mb-space-1 text-micro uppercase tracking-[0.08em] text-ink-muted">Loan terms</p>
+        <p className="mb-space-1 text-caption text-ink-muted">Loan terms</p>
         <p className="mb-space-2 text-caption text-ink-soft">
           From your sanction letter. Fill what you know — the rest is worked out for you.
         </p>
@@ -218,7 +218,7 @@ export function LoanStateFields({ form, today }: LoanStateFieldsProps) {
       </div>
 
       <div>
-        <p className="mb-space-1 text-micro uppercase tracking-[0.08em] text-ink-muted">Where it stands</p>
+        <p className="mb-space-1 text-caption text-ink-muted">Where it stands</p>
         <p className="mb-space-2 text-caption text-ink-soft">
           Worked out from the terms above. Change anything that differs from your latest statement.
         </p>

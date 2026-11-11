@@ -36,7 +36,7 @@ export function LoanRow({ loan }: { loan: LoanResponse }) {
   return (
     // `LedgerRow` doesn't pass through arbitrary props - wrapping it is what lets a
     // right-click anywhere on the row resolve to this loan's help topic.
-    <div {...docAnchor}>
+    <div {...docAnchor} className="row-wrap">
     <LedgerRow
       to={`/loans/${loan.id}`}
       leading={<DomainRule domain="debt" />}

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -6,7 +6,15 @@ import { closeAddSheet, showEffect } from '@/store/slices/uiSlice';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/Button';
 import { TransactionFormFields } from './TransactionFormFields';
-import { activeTransactionType, todayIso, transactionFormSchema, type TransactionFormValues } from './transactionForm';
+import {
+  activeTransactionType,
+  eligibleSourceAccounts,
+  todayIso,
+  transactionFormSchema,
+  type TransactionFormValues,
+} from './transactionForm';
+import { lastAccountFor, rememberAccount, rememberCategory } from '../addMemory';
+import { formatMoney } from '@/lib/money';
 import { useGetAccountsQuery } from '@/services/accountService';
 import { useGetCategoriesQuery } from '@/services/categoryService';
 import { useCreateTransactionMutation } from '@/services/transactionService';
@@ -79,15 +87,27 @@ export function AddSheet() {
     return fromMatches || toMatches;
   });
 
-  // Pre-fill the account once accounts load - "pre-filled with last used" is the
-  // spec's ambition; without a "last used per category" signal yet, the first
-  // spendable account is the honest default for now.
+  // The account last used for this kind of entry, else the first valid one. Runs on every open (a
+  // closed form is reset, which clears it) and when accounts arrive.
   useEffect(() => {
-    if (accounts.length > 0 && !getValues('accountId')) {
-      setValue('accountId', accounts[0]!.id);
-    }
+    if (!open || accounts.length === 0 || getValues('accountId')) return;
+    const type = getValues('type');
+    const eligible = eligibleSourceAccounts(type, accounts);
+    const remembered = lastAccountFor(type);
+    const pick = eligible.find((a) => a.id === remembered) ?? eligible[0] ?? accounts[0];
+    if (pick) setValue('accountId', pick.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accountsPage]);
+  }, [open, accountsPage]);
+
+  // "Save & add another" keeps the sheet open; this says what was just recorded, because the
+  // effect toast sits behind an open sheet. Cleared as soon as the next amount is typed.
+  const addAnother = useRef(false);
+  const [justSaved, setJustSaved] = useState<string | null>(null);
+  const [cleanToken, setCleanToken] = useState(0);
+  const typedAmount = watch('amount');
+  useEffect(() => {
+    if (typedAmount) setJustSaved(null);
+  }, [typedAmount]);
 
   // Opened from somewhere that already knows what's being recorded - "Pay bill" on a card
   // - so the form starts filled in rather than asking for it again.
@@ -106,6 +126,7 @@ export function AddSheet() {
   const close = () => {
     dispatch(closeAddSheet());
     reset();
+    setJustSaved(null);
   };
 
   const onSubmit = async (values: TransactionFormValues) => {
@@ -143,7 +164,27 @@ export function AddSheet() {
           return;
         }
       }
+      rememberAccount(values.type, values.accountId);
+      if (activeType.needsCategory && values.categoryId != null) rememberCategory(values.type, values.categoryId);
       if (saved.effect) dispatch(showEffect(saved.effect));
+      if (addAnother.current) {
+        // Same kind of entry, same account, same day; the rest starts blank.
+        setJustSaved(`Recorded ${formatMoney(values.amount)} · ${values.description.trim()}. Add the next one.`);
+        reset({
+          amount: '',
+          type: values.type,
+          accountId: values.accountId,
+          toAccountId: values.toAccountId,
+          categoryId: null,
+          description: '',
+          date: values.date,
+          note: '',
+          settlesInstanceId: null,
+        });
+        setCleanToken((n) => n + 1);
+        requestAnimationFrame(() => document.querySelector<HTMLInputElement>('#add-transaction input[inputmode="decimal"]')?.focus());
+        return;
+      }
       close();
     } catch (err) {
       // Never lose what was typed - the sheet stays open with values intact. SCREEN_SPECS S2.
@@ -166,14 +207,54 @@ export function AddSheet() {
       open={open}
       onClose={close}
       title={title}
+      size="narrow"
+      cleanToken={cleanToken}
       footer={
-        // Outside the <form> in the DOM; `form="add-transaction"` still submits it.
-        <Button type="submit" form="add-transaction" variant="primary" disabled={isLoading} className="w-full">
-          Save
-        </Button>
+        // Outside the <form> in the DOM; `form="add-transaction"` still submits it. Two ways to
+        // save: Save closes the sheet; Save & add another keeps it for the next entry.
+        <div className="flex gap-space-2">
+          <Button
+            type="submit"
+            form="add-transaction"
+            variant="secondary"
+            disabled={isLoading}
+            onClick={() => {
+              addAnother.current = true;
+            }}
+          >
+            Save &amp; add another
+          </Button>
+          <Button
+            type="submit"
+            form="add-transaction"
+            variant="primary"
+            disabled={isLoading}
+            title="Save (Ctrl+Enter)"
+            className="flex-1"
+            onClick={() => {
+              addAnother.current = false;
+            }}
+          >
+            Save
+          </Button>
+        </div>
       }
     >
-      <form id="add-transaction" data-doc="transaction.form" onSubmit={handleSubmit(onSubmit)} onKeyDown={handleEnterAdvance} autoComplete="off" className="flex flex-col items-center gap-space-6">
+      <form id="add-transaction" data-doc="transaction.form" onSubmit={handleSubmit(onSubmit)} onKeyDown={(e) => {
+          // Ctrl/Cmd+Enter saves from anywhere in the form; plain Enter moves to the next field.
+          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault();
+            addAnother.current = false;
+            e.currentTarget.requestSubmit();
+            return;
+          }
+          handleEnterAdvance(e);
+        }} autoComplete="off" className="flex flex-col items-center gap-space-6">
+        {justSaved && (
+          <p role="status" className="w-full rounded-lg bg-positive-wash px-space-3 py-space-2 text-caption text-positive">
+            {justSaved}
+          </p>
+        )}
         <TransactionFormFields
           register={register}
           control={control}

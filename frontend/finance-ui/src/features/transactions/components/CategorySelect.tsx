@@ -114,7 +114,7 @@ export function CategorySelect({
             aria-label="Save category"
             className="shrink-0 text-positive disabled:opacity-40"
           >
-            <Check size={16} strokeWidth={2} />
+            <Check size={16} strokeWidth={1.5} />
           </button>
           <button
             type="button"
@@ -122,7 +122,7 @@ export function CategorySelect({
             aria-label="Cancel"
             className="shrink-0 text-ink-muted hover:text-ink-soft"
           >
-            <X size={14} strokeWidth={2} />
+            <X size={14} strokeWidth={1.5} />
           </button>
         </div>
 
@@ -175,7 +175,7 @@ export function CategorySelect({
           onClick={() => setCreating(true)}
           className="flex w-full items-center gap-space-2 px-space-3 py-space-2 text-left text-label text-accent transition-colors hover:bg-sunken"
         >
-          <Plus size={14} strokeWidth={2} aria-hidden />
+          <Plus size={14} strokeWidth={1.5} aria-hidden />
           New category
         </button>
       }

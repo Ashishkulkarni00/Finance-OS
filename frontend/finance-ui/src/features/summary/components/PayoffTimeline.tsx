@@ -57,7 +57,7 @@ export function PayoffTimeline({ debt }: { debt: DebtTrajectoryResponse }) {
 
   return (
     <div className="flex flex-col gap-space-3">
-      <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">When each loan ends</span>
+      <span className="text-caption text-ink-muted">When each loan ends</span>
       {rows.length > 0 && (
         <div className="w-full" style={{ height: rows.length * 40 + 36 }} role="img" aria-label="Each loan as a bar from today to its last EMI. Hover a loan for what is owed and the EMI that stops.">
           <ResponsiveContainer width="100%" height="100%">

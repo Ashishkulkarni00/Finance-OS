@@ -1,4 +1,5 @@
 import { Controller } from 'react-hook-form';
+import { useAppSelector } from '@/store/hooks';
 import type { Control, FieldErrors, UseFormRegister, UseFormSetValue, UseFormWatch } from 'react-hook-form';
 import { Amount } from '@/components/Amount';
 import { Select } from '@/components/Select';
@@ -9,13 +10,14 @@ import { CategorySelect } from './CategorySelect';
 import {
   TRANSACTION_TYPES,
   activeTransactionType,
-  todayIso,
   eligibleSourceAccounts,
   eligibleDestinationAccounts,
   eligibleCategories,
   type TransactionFormValues,
 } from './transactionForm';
 import { cn } from '@/lib/cn';
+import { shiftIsoDays, todayLocalIso } from '@/lib/dates';
+import { lastAccountFor, recentCategoriesFor } from '../addMemory';
 import type { AccountResponse } from '@/types/api';
 import type { CategoryResponse } from '@/types/category';
 import type { CommitmentInstanceResponse } from '@/types/commitment';
@@ -121,6 +123,9 @@ function AvailableNote({ account }: { account: AccountResponse }) {
 }
 
 export function TransactionFormFields({ register, control, watch, setValue, errors, accounts, categories, settleable = [] }: TransactionFormFieldsProps) {
+  // While the server is unreachable an affordability answer would come from stale data - a guess
+  // dressed as a check - so it is not asked (UI_UX_REVAMP_PLAN 6.11).
+  const offline = useAppSelector((s) => s.connectivity.offline);
   const type = watch('type');
   const accountId = watch('accountId');
   const toAccountId = watch('toAccountId');
@@ -144,9 +149,16 @@ export function TransactionFormFields({ register, control, watch, setValue, erro
    *  picker itself always shows a value that's actually valid for what's selected. */
   const selectType = (next: TransactionFormValues['type']) => {
     setValue('type', next, { shouldValidate: true });
-    if (accountId != null && !eligibleSourceAccounts(next, accounts).some((a) => a.id === accountId)) {
-      setValue('accountId', undefined as unknown as number);
-    }
+    // The account last used for this kind of entry, if it is still a valid choice; otherwise keep
+    // the current one when it is valid for the new type, else the first valid account. Never an
+    // invalid one - the picker always shows something the server will accept.
+    const eligible = eligibleSourceAccounts(next, accounts);
+    const remembered = lastAccountFor(next);
+    const currentOk = accountId != null && eligible.some((a) => a.id === accountId);
+    const target =
+      remembered != null && eligible.some((a) => a.id === remembered) ? remembered : currentOk ? accountId : eligible[0]?.id;
+    if (target != null && target !== accountId) setValue('accountId', target, { shouldValidate: true });
+    else if (target == null) setValue('accountId', undefined as unknown as number);
     if (toAccountId != null && !eligibleDestinationAccounts(next, accounts).some((a) => a.id === toAccountId)) {
       setValue('toAccountId', null);
     }
@@ -155,14 +167,28 @@ export function TransactionFormFields({ register, control, watch, setValue, erro
     }
   };
 
-  const amountTintClass = activeType.tint === 'positive' ? 'text-positive' : activeType.tint === 'critical' ? 'text-critical' : 'text-ink';
+  // Direction is said by the type and the label, never by colour: expenses are not red and income is not
+  // green (DESIGN_SYSTEM 4, rule 3).
+  const amountTintClass = 'text-ink';
+
+  // Recently used categories for this kind of entry, newest first, limited to ones still pickable.
+  const recentCategories = recentCategoriesFor(type)
+    .map((id) => pickableCategories.find((c) => c.id === id))
+    .filter((c): c is CategoryResponse => c != null);
+  const date = watch('date');
+  const today = todayLocalIso();
+  const yesterday = shiftIsoDays(today, -1);
+  const customDate = date !== today && date !== yesterday;
 
   return (
     <div className="flex w-full flex-col gap-space-5">
-      <div className="flex overflow-hidden rounded-lg border border-border">
-        {TRANSACTION_TYPES.map((t, i) => {
+      <div role="group" aria-label="What are you recording?" className="flex rounded-lg bg-sunken p-[2px]">
+        {/* Investment is not offered for a new entry (2026-11-11, the user): an SIP or RD
+            instalment is recorded from its commitment ("Record it"), which already files it as
+            invested and links it to the plan. It still shows when the entry being edited *is*
+            one, so an existing investment can be opened and changed. */}
+        {TRANSACTION_TYPES.filter((t) => t.value !== 'INVESTMENT' || type === 'INVESTMENT').map((t) => {
           const selected = type === t.value;
-          const Icon = t.icon;
           return (
             <button
               key={t.value}
@@ -170,19 +196,12 @@ export function TransactionFormFields({ register, control, watch, setValue, erro
               onClick={() => selectType(t.value)}
               aria-pressed={selected}
               className={cn(
-                'flex flex-1 flex-col items-center gap-space-1 py-space-2 text-micro transition-colors duration-150',
-                i > 0 && 'border-l border-border',
-                !selected && 'text-ink-muted hover:bg-sunken hover:text-ink-soft',
-                // The one place colour carries meaning while entering, not just viewing:
-                // Expense and Income get their own hue so which direction you're
-                // recording is legible at a glance - Transfer/Investment stay neutral,
-                // matching how the Ledger already colours a settled row of each kind.
-                selected && t.tint === 'critical' && 'bg-critical/10 text-critical',
-                selected && t.tint === 'positive' && 'bg-positive/10 text-positive',
-                selected && t.tint === 'neutral' && 'bg-sunken text-ink',
+                'flex h-8 flex-1 items-center justify-center rounded-[6px] text-label transition-colors duration-150 pointer-coarse:h-10',
+                selected
+                  ? 'bg-surface font-medium text-ink shadow-[0_0_0_1px_var(--line)]'
+                  : 'font-normal text-ink-muted hover:text-ink-soft',
               )}
             >
-              <Icon size={16} strokeWidth={1.75} />
               {t.label}
             </button>
           );
@@ -195,14 +214,14 @@ export function TransactionFormFields({ register, control, watch, setValue, erro
       <p className="-mt-space-3 text-caption text-ink-muted">{activeType.guidance}</p>
 
       <div className="flex flex-col items-center gap-space-2 py-space-2">
-        <span className="text-micro uppercase tracking-[0.08em] text-ink-muted">Amount</span>
+        <span className="text-caption text-ink-muted">Amount</span>
         <AmountInput {...register('amount')} error={errors.amount?.message} valueClassName={amountTintClass} autoFocus />
         {/* What this would cost, while it is still being typed (ROADMAP 4.2). Only for
             money actually leaving: a transfer moves money between accounts the user owns
             and an income does not spend anything, so neither has a consequence to state -
             and a line that appears on all five types would stop being read on the one
             where it matters. */}
-        {activeType.tint === 'critical' && <AffordNote amount={watch('amount')} accountId={accountId} />}
+        {activeType.tint === 'critical' && !offline && <AffordNote amount={watch('amount')} accountId={accountId} />}
       </div>
 
       <div className="rounded-lg border border-line">
@@ -219,6 +238,28 @@ export function TransactionFormFields({ register, control, watch, setValue, erro
               income={type === 'INCOME'}
               className="-ml-space-1 max-w-full"
             />
+            {/* The categories used last time, one tap each - the fastest way to log a repeat
+                spend. Only ones still pickable for this kind of entry; hidden when there are none. */}
+            {recentCategories.length > 0 && (
+              <div className="mt-space-2 flex flex-wrap gap-space-1" role="group" aria-label="Recently used categories">
+                {recentCategories.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => setValue('categoryId', c.id, { shouldValidate: true, shouldDirty: true })}
+                    aria-pressed={categoryId === c.id}
+                    className={cn(
+                      'h-7 rounded-full border px-space-3 text-caption transition-colors duration-150 pointer-coarse:h-9',
+                      categoryId === c.id
+                        ? 'border-accent bg-accent-wash text-ink'
+                        : 'border-border text-ink-soft hover:border-ink-muted hover:text-ink',
+                    )}
+                  >
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            )}
           </FormRow>
         )}
 
@@ -284,7 +325,37 @@ export function TransactionFormFields({ register, control, watch, setValue, erro
         )}
 
         <FormRow label="Date">
-          <input type="date" {...register('date')} max={todayIso()} className={cn(ROW_CONTROL, 'cursor-pointer')} />
+          {/* Today and yesterday cover almost every entry; anything else opens the native picker
+              (accessible, localised, free). The date is the user's own local day, never UTC. */}
+          <div className="flex flex-wrap items-center gap-space-1">
+            {[
+              { label: 'Today', iso: today },
+              { label: 'Yesterday', iso: yesterday },
+            ].map((d) => (
+              <button
+                key={d.label}
+                type="button"
+                onClick={() => setValue('date', d.iso, { shouldValidate: true, shouldDirty: true })}
+                aria-pressed={date === d.iso}
+                className={cn(
+                  'h-7 rounded-full border px-space-3 text-caption transition-colors duration-150 pointer-coarse:h-9',
+                  date === d.iso ? 'border-accent bg-accent-wash text-ink' : 'border-border text-ink-soft hover:border-ink-muted hover:text-ink',
+                )}
+              >
+                {d.label}
+              </button>
+            ))}
+            <input
+              type="date"
+              {...register('date')}
+              max={today}
+              aria-label="Pick another date"
+              className={cn(
+                'h-7 cursor-pointer rounded-full border bg-transparent px-space-3 text-caption outline-none transition-colors duration-150 pointer-coarse:h-9',
+                customDate ? 'border-accent bg-accent-wash text-ink' : 'border-border text-ink-soft hover:border-ink-muted',
+              )}
+            />
+          </div>
         </FormRow>
 
         {/* Shown, not hidden behind a disclosure: one row costs nothing, and the note is

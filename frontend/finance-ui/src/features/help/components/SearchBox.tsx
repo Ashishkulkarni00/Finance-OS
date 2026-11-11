@@ -50,8 +50,8 @@ export function SearchBox({ autoFocus, onNavigate }: { autoFocus?: boolean; onNa
 
   return (
     <div className="relative">
-      <div className="flex items-center gap-space-2 rounded-lg border border-border bg-surface px-space-3 py-space-2">
-        <Search size={16} strokeWidth={1.75} className="shrink-0 text-ink-muted" aria-hidden />
+      <div className="flex items-center gap-space-2 rounded-lg border border-border bg-surface px-space-3 py-space-2 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/25">
+        <Search size={16} strokeWidth={1.5} className="shrink-0 text-ink-muted" aria-hidden />
         <input
           autoFocus={autoFocus}
           value={query}
@@ -70,7 +70,7 @@ export function SearchBox({ autoFocus, onNavigate }: { autoFocus?: boolean; onNa
       </div>
 
       {query.trim() !== '' && (
-        <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-10 max-h-80 overflow-y-auto rounded-lg border border-line bg-surface shadow-lg">
+        <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-10 max-h-80 overflow-y-auto rounded-lg border border-line bg-surface shadow-[var(--shadow-2)]">
           {results.length === 0 ? (
             <p className="px-space-4 py-space-3 text-caption text-ink-muted">Nothing matched "{query}".</p>
           ) : (

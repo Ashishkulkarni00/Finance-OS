@@ -6680,6 +6680,125 @@
 					]
 				},
 				{
+					"name": "Skip a must-pay commitment this month, with a reason",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+									"const b = pm.response.json();",
+									"pm.test(\"skipped\", () => pm.expect(b.status).to.eql(\"SKIPPED\"));",
+									"pm.test(\"reason recorded\", () => pm.expect(b.skipReason).to.eql(\"MONEY_NEEDED_ELSEWHERE\"));",
+									"pm.test(\"note recorded\", () => pm.expect(b.skipNote).to.be.a(\"string\"));",
+									"pm.test(\"money released\", () => pm.expect(b.outstanding).to.eql(\"0.00\"));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"reason\": \"MONEY_NEEDED_ELSEWHERE\",\n    \"note\": \"Bike repair this month\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/commitment-instances/{{sipInstanceId}}/skip",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"commitment-instances",
+								"{{sipInstanceId}}",
+								"skip"
+							]
+						},
+						"description": "Since 2026-11-11 a must-pay commitment can be skipped for one month - e.g. \"no SIP this month, an unexpected expense came up\" - but only with a `reason`: MONEY_NEEDED_ELSEWHERE, NOT_NEEDED, PAID_ANOTHER_WAY, POSTPONED or OTHER. `note` is optional (max 200 chars). The body is optional for an optional commitment. Refused with INSTANCE_NOT_SKIPPABLE when: it is a loan EMI (the lender debits it regardless), a must-pay commitment has no reason, or anything has been paid or linked. Unskip clears the reason and note. Set {{sipInstanceId}} to an unpaid SIP occurrence."
+					},
+					"response": [
+						{
+							"name": "200 - Skipped with a reason",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"reason\": \"MONEY_NEEDED_ELSEWHERE\",\n    \"note\": \"Bike repair this month\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/commitment-instances/{{sipInstanceId}}/skip",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"commitment-instances",
+										"{{sipInstanceId}}",
+										"skip"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"body": "{\n    \"id\": 52,\n    \"commitmentId\": 9,\n    \"commitmentName\": \"SIP Zerodha\",\n    \"cycleId\": 3,\n    \"dueDate\": \"2026-11-10\",\n    \"expectedAmount\": \"5000.00\",\n    \"status\": \"SKIPPED\",\n    \"confirmedAmount\": null,\n    \"outstanding\": \"0.00\",\n    \"confirmedAt\": null,\n    \"settledOn\": null,\n    \"linkedTransactionId\": null,\n    \"mandatory\": true,\n    \"ifSkipped\": null,\n    \"amountOverridden\": false,\n    \"ruleAmount\": \"5000.00\",\n    \"account\": {\n        \"id\": 4,\n        \"name\": \"IDBI Saving account\",\n        \"type\": \"SAVINGS\"\n    },\n    \"settledFromAccount\": null,\n    \"category\": null,\n    \"sourceType\": \"INVESTMENT\",\n    \"sourceId\": 2,\n    \"settleAs\": \"INVESTMENT\",\n    \"toAccountId\": null,\n    \"attentionTier\": \"SETTLED\",\n    \"variance\": null,\n    \"skipReason\": \"MONEY_NEEDED_ELSEWHERE\",\n    \"skipNote\": \"Bike repair this month\"\n}"
+						},
+						{
+							"name": "422 - Must-pay with no reason",
+							"originalRequest": {
+								"method": "POST",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/commitment-instances/{{sipInstanceId}}/skip",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"commitment-instances",
+										"{{sipInstanceId}}",
+										"skip"
+									]
+								}
+							},
+							"status": "Unprocessable Entity",
+							"code": 422,
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"body": "{\n    \"type\": \"https://finance.local/errors/instance-not-skippable\",\n    \"title\": \"Instance not skippable\",\n    \"status\": 422,\n    \"detail\": \"Say why you're skipping this one - it's a must-pay commitment.\",\n    \"instance\": \"/api/v1/commitment-instances/52/skip\",\n    \"code\": \"INSTANCE_NOT_SKIPPABLE\",\n    \"timestamp\": \"2026-11-11T06:30:00Z\"\n}"
+						}
+					]
+				},
+				{
 					"name": "Skip an optional bill this month",
 					"event": [
 						{

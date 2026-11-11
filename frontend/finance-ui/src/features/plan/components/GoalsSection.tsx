@@ -41,10 +41,10 @@ function FeasibilityLine({ f }: { f: GoalFeasibility }) {
   return (
     // Its own panel, set in from the row and spaced off it - it was a caption pressed against
     // the goal's line and read as part of it (user, 2026-11-09).
-    <div className="mx-space-4 mb-space-4 mt-space-1 flex flex-col gap-space-1 rounded-md bg-sunken px-space-3 py-space-2">
+    <div className="mb-space-4 mt-space-1 flex md:mx-space-4 flex-col gap-space-1 rounded-md bg-sunken px-space-3 py-space-2">
       <span
         className={cn(
-          'text-micro uppercase tracking-[0.08em]',
+          'text-caption',
           f.state === 'DOES_NOT_FIT' ? 'text-attention' : f.state === 'FITS' || f.state === 'COVERED_BY_PLAN' ? 'text-positive' : 'text-ink-muted',
         )}
       >
@@ -63,17 +63,17 @@ function GoalRow({ goal, feasibility }: { goal: GoalResponse; feasibility?: Goal
   return (
     // `LedgerRow` doesn't pass through arbitrary props - wrapping it is the same pattern
     // `LoanRow` uses for `loan.card`.
-    <div {...cardDoc}>
+    <div {...cardDoc} className="row-wrap">
     <LedgerRow
       to={`/goals/${goal.id}`}
       leading={<DomainRule domain="goal" />}
       primary={goal.name}
       secondary={
         <span className="flex items-center gap-space-3" {...paceDoc}>
-          <span className="h-[6px] w-32 shrink-0 overflow-hidden rounded-full bg-sunken" aria-hidden>
+          <span className="h-[4px] w-20 shrink-0 overflow-hidden rounded-full bg-sunken md:w-32" aria-hidden>
             <span className="block h-full rounded-full bg-goal" style={{ width: `${Math.min(100, goal.progressPercent)}%` }} />
           </span>
-          <span className="num">{goal.progressPercent}% of {formatMoney(goal.targetAmount)}</span>
+          <span className="num">{Math.round(goal.progressPercent)}% of {formatMoney(goal.targetAmount)}</span>
         </span>
       }
       meta={
@@ -151,8 +151,8 @@ export function GoalsSection({ onAdd }: { onAdd: () => void }) {
   return (
     <div className="flex flex-col gap-space-8">
     <section>
-      <SectionHeader trailing={`${goals.length} in progress`}>Your goals</SectionHeader>
-      <div className="flex flex-col">
+      <SectionHeader overCard trailing={`${goals.length} in progress`}>Your goals</SectionHeader>
+      <div className="m-card flex flex-col">
         {goals.map((goal) => (
           <GoalRow key={goal.id} goal={goal} feasibility={feasibility?.find((f) => f.goalId === goal.id)} />
         ))}
