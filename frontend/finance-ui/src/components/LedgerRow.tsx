@@ -42,6 +42,12 @@ interface LedgerRowProps {
    * row's bottom edge - visible, wrong, and impossible to explain from the calling code.
    */
   richSecondary?: boolean;
+  /** Let the name wrap instead of truncating. For rows whose name is a sentence (a warning's
+   *  title) - clipping it to "IDBI Saving account won't cov..." hides the fact (MOBILE_AUDIT V2). */
+  wrapPrimary?: boolean;
+  /** Let the supporting facts wrap instead of truncating ("... must stay in · bank mini..." hid
+   *  the reason a balance is held back). */
+  wrapMeta?: boolean;
 }
 
 /**
@@ -77,6 +83,8 @@ export function LedgerRow({
   actionWidth,
   muted,
   richSecondary,
+  wrapPrimary,
+  wrapMeta,
   revealDelay,
 }: LedgerRowProps) {
   const navigate = useNavigate();
@@ -125,11 +133,11 @@ export function LedgerRow({
       <div className="row-compact flex items-start gap-space-3 md:hidden">
         {leading != null && <div className="flex shrink-0 items-center self-center">{leading}</div>}
         <div className="min-w-0 flex-1 self-center">
-          <div className={cn('truncate text-row', muted ? 'text-ink-muted' : 'text-ink')}>{primary}</div>
+          <div className={cn(!wrapPrimary && 'truncate', 'text-row', muted ? 'text-ink-muted' : 'text-ink')}>{primary}</div>
           {secondary != null && (
             <div className={cn('text-caption text-ink-muted', richSecondary ? 'min-w-0' : 'truncate')}>{secondary}</div>
           )}
-          {meta != null && <div className="mt-[2px] min-w-0 truncate text-caption text-ink-muted">{meta}</div>}
+          {meta != null && <div className={cn('mt-[2px] min-w-0 text-caption text-ink-muted', !wrapMeta && 'truncate')}>{meta}</div>}
         </div>
         <div className="flex shrink-0 flex-col items-end gap-space-2 self-center">
           <div className="text-right leading-tight">{amount}</div>
@@ -145,7 +153,7 @@ export function LedgerRow({
         {leading != null && leading}
 
         <div className="min-w-0">
-          <div className={cn('truncate text-row', muted ? 'text-ink-muted' : 'text-ink')}>{primary}</div>
+          <div className={cn(!wrapPrimary && 'truncate', 'text-row', muted ? 'text-ink-muted' : 'text-ink')}>{primary}</div>
           {secondary != null && (
             <div className={cn('text-caption text-ink-muted', richSecondary ? 'min-w-0' : 'truncate')}>{secondary}</div>
           )}
@@ -187,15 +195,15 @@ interface MetaFact {
  * paid, and that a bank's name is an account at all. Naming each fact costs one word
  * and removes the guess: "Paid on 2 Sep", "Paid from IDBI".
  */
-export function MetaFacts({ items }: { items: MetaFact[] }) {
+export function MetaFacts({ items, wrap }: { items: MetaFact[]; wrap?: boolean }) {
   return (
     // `meta-facts` / `mf-*`: inside a phone row (`.row-compact`, index.css) the labels drop and
     // the values run as one line, "Dining · IDBI Saving account".
-    <span className="meta-facts inline-grid grid-cols-[auto_auto] gap-x-space-2 text-left">
+    <span className={cn('meta-facts inline-grid grid-cols-[auto_auto] gap-x-space-2 text-left', wrap && 'mf-wrap')}>
       {items.map((item) => (
         <span key={item.label} className="contents">
           <span className="mf-label whitespace-nowrap text-right text-ink-soft">{item.label}</span>
-          <span className={cn('mf-value truncate', item.className ?? 'text-ink-muted')}>{item.value}</span>
+          <span className={cn('mf-value', !wrap && 'truncate', item.className ?? 'text-ink-muted')}>{item.value}</span>
         </span>
       ))}
     </span>

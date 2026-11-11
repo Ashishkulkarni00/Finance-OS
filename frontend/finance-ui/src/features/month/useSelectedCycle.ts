@@ -21,9 +21,16 @@ export function useSelectedCycle() {
 
   const current = useGetCurrentCycleQuery();
   const explicit = useGetCycleQuery(explicitId ?? 0, { skip: explicitId == null });
-  const [resolveForDate, { isFetching: moving }] = useLazyGetCycleForDateQuery();
+  const [resolveForDate, { isFetching: moving, currentData: resolved }] = useLazyGetCycleForDateQuery();
 
-  const cycle = explicitId != null ? explicit.data : current.data;
+  // `currentData`, never `data`: RTK Query's `data` keeps the *previous* id's result while the
+  // new one loads, so the switcher said "October" over September's figures (2026-11-11, on a
+  // phone where the gap is long). The cycle the step just resolved is the right name to show
+  // until `/cycles/{id}` answers; with neither, the page reads as loading.
+  const cycle =
+    explicitId != null
+      ? (explicit.currentData ?? (resolved?.id === explicitId ? resolved : undefined))
+      : current.data;
   const today = todayLocalIso();
 
   const isCurrent = !!cycle && !!current.data && cycle.id === current.data.id;

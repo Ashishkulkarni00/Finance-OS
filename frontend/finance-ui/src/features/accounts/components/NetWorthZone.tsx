@@ -1,9 +1,8 @@
-import { Fragment } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Amount } from '@/components/Amount';
-import { Breakdown } from '@/components/Breakdown';
 import { DetailHero } from '@/components/detail/DetailPage';
-import { FactStrip, type Fact } from '@/components/FactStrip';
+import { SectionRule } from '@/components/SectionRule';
 import { Skeleton } from '@/components/Skeleton';
 import { Statement, StatementRow } from '@/components/Statement';
 import { formatMoney } from '@/lib/money';
@@ -51,22 +50,36 @@ function unconfirmedBalances(accounts: AccountResponse[], loans: LoanResponse[] 
   return out;
 }
 
+/** A statement label with what the line is made of beneath it. Dropped on a phone: the name says
+ *  enough there, and a note under each row made the block three times as tall. */
+function Labelled({ children, note }: { children: ReactNode; note: string }) {
+  return (
+    <>
+      {children}
+      <span className="block text-caption text-ink-muted max-md:hidden">{note}</span>
+    </>
+  );
+}
+
 /**
- * Zone 1 - the position at a glance, as one panel: net worth on the left, what's in
- * bank and cash (and how much of it is free) on the right. The Month overview's shape,
- * for the same reason - one figure says how you're doing, the other what you can move,
- * and reading only one of them was the default when they were stacked apart.
+ * The top of Money's Overview, in the same grammar as Today and Month (2026-11-11): a figure, its
+ * working as ruled rows, then the next question under its own rule - no boxes.
  *
- * <p>Net worth now carries the confidence line ACCOUNTS_EXPERIENCE §5 always called for
- * and never had. It's driven by each account's <em>opening balance confidence</em>, not by
- * loan confidence: net worth is a sum of account balances, so what makes it approximate
- * is a balance entered as an estimate or left unknown. (A loan's TBD confidence is about
- * its interest rate, which net worth never uses.) Each account is named and linked, so
- * "approximate" is a to-do, not a shrug.
+ * <p><strong>Net worth</strong> is the figure, and it is red when negative: the user asked for that
+ * back (2026-11-11) because it is the thing that immediately brings attention. Owned and Owed sit
+ * directly under it as the two rows that make it, so the sentence "₹92,652 owned · ₹3,07,071 owed"
+ * and the separate "How is it worked out?" trigger are no longer needed.
  *
- * <p>A second line says what's <em>missing</em> rather than uncertain: holdings kept
- * outside any account (an employer-deducted NPS) have no balance, so net worth doesn't
- * include them at all. Saying so is cheaper than letting "−₹11,683" read as the whole story.
+ * <p><strong>What it leaves out is said plainly</strong>, directly under the working: holdings kept
+ * outside any account (investments, an employer-deducted NPS) have no balance, so they are not in
+ * net worth at all, and "−₹2,14,419" must not read as the whole story. Net worth also carries the
+ * confidence line ACCOUNTS_EXPERIENCE §5 always called for: each unconfirmed starting balance is
+ * named and linked, so "approximate" is a to-do, not a shrug.
+ *
+ * <p><strong>"In bank and cash"</strong> is the other question - what can actually be moved today -
+ * as its own three-row sum (held − set aside = yours to move). "Held" counts spendable accounts
+ * only (`CashPosition`: "every spendable bank and cash account"), so the label says so; it was
+ * "Held · 3 accounts" beside a register of four.
  */
 export function NetWorthZone({ netWorth, cash, accounts, isLoading, isError }: NetWorthZoneProps) {
   const { data: investments } = useGetInvestmentSummaryQuery();
@@ -86,94 +99,99 @@ export function NetWorthZone({ netWorth, cash, accounts, isLoading, isError }: N
   }
 
   const unconfirmed = unconfirmedBalances(accounts, loansPage?.content);
-  const negative = netWorth ? Number(netWorth.netWorth) < 0 : false;
   const outsideTotal = investments && Number(investments.outsideLedgerTotal) > 0 ? investments.outsideLedgerTotal : null;
   // The server's own "what went right" line for debt, when there is one - a direction word plus a
   // figure it computed. Shown only when it is good news; a bad month says nothing here.
   const progress = (momentum ?? []).find((m) => m.key === 'debt' && m.direction === 'BETTER');
 
-  const facts: Fact[] = cash
-    ? [
-        { label: `Held · ${cash.accountCount} ${cash.accountCount === 1 ? 'account' : 'accounts'}`, value: <Amount value={cash.heldTotal} role="row" /> },
-        { label: 'Set aside', value: <Amount value={cash.reservedTotal} role="row" /> },
-        { label: 'Yours to move', value: <Amount value={cash.unreservedTotal} role="row" emphasiseNegative /> },
-        ...(Number(cash.cardLiability) > 0 ? [{ label: 'Owed on cards', value: <Amount value={cash.cardLiability} role="row" /> }] : []),
-      ]
-    : [];
-
   return (
-    <section className="flex flex-col gap-space-5 max-md:gap-space-4" {...netWorthDoc}>
-      {isError || !netWorth ? (
-        <p className="text-body text-ink-soft">Net worth isn’t available right now.</p>
-      ) : (
-        <DetailHero label="Net worth">
-          <Amount value={netWorth.netWorth} role="hero" className={negative ? undefined : 'text-ink'} emphasiseNegative />
-          {/* The figure's own explanation goes straight under it; the notes about it follow. */}
-          <p className="mt-space-1 text-label font-medium text-ink">
-            {formatMoney(netWorth.totalAssets)} owned · {formatMoney(netWorth.totalLiabilities)} owed
-          </p>
-          {progress && (
-            <p className="mt-space-2 max-w-[40rem] text-caption text-positive">{progress.headline}</p>
-          )}
-          {unconfirmed.length > 0 && (
-            <p className="mt-space-2 max-w-[40rem] text-caption text-attention">
-              Approximate —{' '}
-              {unconfirmed.length === 1 ? 'the starting balance of ' : `${unconfirmed.length} starting balances aren’t confirmed: `}
-              {unconfirmed.map(({ account: a, label }, i) => (
-                <Fragment key={a.id}>
-                  {i > 0 && ', '}
-                  <Link to={`/accounts/${a.id}`} className="underline underline-offset-2 hover:text-ink">
-                    {a.name}
-                  </Link>
-                  <span className="text-ink-muted"> ({label})</span>
-                </Fragment>
-              ))}
-              {unconfirmed.length === 1 ? ' isn’t confirmed.' : '.'}
-            </p>
-          )}
-          {outsideTotal && (
-            <p className="mt-space-2 max-w-[40rem] text-caption text-ink-muted">
-              Not included: {formatMoney(outsideTotal)} put into investments held outside your accounts
-              {investments?.valuationState === 'NONE_UPDATED' ? ', none valued yet' : ''}.{' '}
-              <Link to="/money/investments" className="text-accent underline-offset-2 hover:underline">
-                Investments
-              </Link>
-            </p>
-          )}
-        </DetailHero>
-      )}
-
-      {facts.length > 0 ? (
-        <div className="flex flex-col gap-space-2">
-          <span className="text-caption text-ink-muted">In bank and cash</span>
-          <FactStrip facts={facts} className="border-y border-line" />
-        </div>
-      ) : (
-        <Skeleton className="h-16 w-full" />
-      )}
-
-      <div className="flex flex-wrap items-baseline gap-x-space-5 gap-y-space-1 text-caption">
-        {/* Registry B4 (UI_UX_REVAMP_PLAN 6.4): net worth is the server's assets less the server's
-            liabilities (PositionServiceImpl.currentNetWorth, verified). All three are its fields. */}
-        {netWorth && (
-          <span className="text-accent">
-            <Breakdown title="How net worth is worked out" trigger={<>How is {formatMoney(netWorth.netWorth)} worked out?</>}>
-              <Statement notes>
-                <StatementRow label="Owned" value={netWorth.totalAssets} note="Everything you hold in your accounts." />
-                <StatementRow label="Owed" value={netWorth.totalLiabilities} deduct note="Loans, at what is still to repay, and what is owed on cards." />
-                <StatementRow variant="total" label="Net worth" value={netWorth.netWorth} emphasiseNegative />
+    <div className="flex flex-col gap-space-6">
+      <section className="flex flex-col gap-space-3" {...netWorthDoc}>
+        {isError || !netWorth ? (
+          <p className="text-body text-ink-soft">Net worth isn’t available right now.</p>
+        ) : (
+          <>
+            <DetailHero label="Net worth">
+              <Amount
+                value={netWorth.netWorth}
+                role="hero"
+                // Negative takes the critical colour from `emphasiseNegative`; an explicit ink class would
+                // out-rank it (classes are joined, not merged), so ink is only passed when positive.
+                className={Number(netWorth.netWorth) < 0 ? undefined : 'text-ink'}
+                emphasiseNegative
+              />
+            </DetailHero>
+            <div className="max-w-[44rem]">
+              <Statement dense>
+                <StatementRow label={<Labelled note="everything you hold in your accounts">Owned</Labelled>} value={netWorth.totalAssets} />
+                <StatementRow
+                  label={<Labelled note="loans, at what is still to repay, and what is owed on cards">Owed</Labelled>}
+                  value={netWorth.totalLiabilities}
+                  deduct
+                />
               </Statement>
-            </Breakdown>
-          </span>
+            </div>
+            {outsideTotal && (
+              <p className="max-w-[40rem] text-caption text-ink-soft">
+                Not counted: <span className="num text-ink">{formatMoney(outsideTotal)}</span> put into investments held outside your
+                accounts{investments?.valuationState === 'NONE_UPDATED' ? ', none valued yet' : ''}.{' '}
+                <Link to="/money/investments" className="text-accent underline-offset-2 hover:underline">
+                  Investments
+                </Link>
+              </p>
+            )}
+            {unconfirmed.length > 0 && (
+              <p className="max-w-[40rem] text-caption text-attention">
+                Approximate —{' '}
+                {unconfirmed.length === 1 ? 'the starting balance of ' : `${unconfirmed.length} starting balances aren’t confirmed: `}
+                {unconfirmed.map(({ account: a, label }, i) => (
+                  <Fragment key={a.id}>
+                    {i > 0 && ', '}
+                    <Link to={`/accounts/${a.id}`} className="underline underline-offset-2 hover:text-ink">
+                      {a.name}
+                    </Link>
+                    <span className="text-ink-muted"> ({label})</span>
+                  </Fragment>
+                ))}
+                {unconfirmed.length === 1 ? ' isn’t confirmed.' : '.'}
+              </p>
+            )}
+            {progress && <p className="max-w-[40rem] text-caption text-positive">{progress.headline}</p>}
+          </>
         )}
-        <span className="text-ink-muted">
-          Before this cycle’s bills —{' '}
-          <Link to="/month" className="text-accent underline-offset-2 hover:underline">
-            Month
-          </Link>{' '}
-          takes those out.
-        </span>
-      </div>
-    </section>
+      </section>
+
+      <section>
+        <SectionRule>In bank and cash</SectionRule>
+        {cash ? (
+          <>
+            <div className="max-w-[44rem]">
+              <Statement dense>
+                <StatementRow
+                  label={`Held in ${cash.accountCount} spendable ${cash.accountCount === 1 ? 'account' : 'accounts'}`}
+                  value={cash.heldTotal}
+                />
+                <StatementRow label="Set aside" value={cash.reservedTotal} deduct />
+                <StatementRow variant="subtotal" label="Yours to move" value={cash.unreservedTotal} emphasiseNegative />
+              </Statement>
+            </div>
+            <p className="mt-space-2 max-w-[40rem] text-caption text-ink-muted">
+              {Number(cash.cardLiability) > 0 && (
+                <>
+                  <Amount value={cash.cardLiability} role="caption" className="text-ink" /> is owed on cards, kept separate.{' '}
+                </>
+              )}
+              Before this cycle’s bills —{' '}
+              <Link to="/month" className="text-accent underline-offset-2 hover:underline">
+                Month
+              </Link>{' '}
+              takes those out.
+            </p>
+          </>
+        ) : (
+          <Skeleton className="h-16 w-full" />
+        )}
+      </section>
+    </div>
   );
 }

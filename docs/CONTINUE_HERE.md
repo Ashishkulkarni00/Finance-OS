@@ -29,6 +29,184 @@ This changes how much gets *printed*, never how much gets verified.
 
 ## NEXT ACTION
 
+### 2026-11-11 — Today's top section redesigned from the user's brief (Sonnet): BUILT, review on phone
+Everything above "Needs you" only (Needs you and below untouched). tsc + vite build pass; checked headless at
+360/390/430 (light + dark) and a 1280 desktop. Not on a device.
+- **Hero** (`SpendToday`): the figure at the new `display` size (64 phone / 56 at <=380px / 80 desktop) with a
+  smaller **raised** rupee (`Amount` display role), caption in plain words - A "left to spend today", B "to spend
+  each day until salary" (replaces "a day until salary on ..."), C "short until salary" - then the date with a
+  calendar icon, "Day 15 of 31", and a slim month-progress rule (`cycleProgress().fraction`, dates only).
+  Help icon on the figure's row. **No greeting, no illustration, no wordmark** (the brief forbids decoration;
+  the user's reference image had them - deliberately not copied).
+- **`SalaryPanel`** (new): one soft teal-wash panel - "17 days to salary", "due Sat, 28 Nov", then two stats:
+  while there is room, Spent today / Today's share; once used, Today's share (used) / Below your usual (a day,
+  only when recovery is STRETCHED). Short month: countdown only plus the "Nothing is blocked" line. No chevron
+  (it goes nowhere). Server fields only: `daysToSalary`, cycle end, `roomToday`, `spentToday`, `perDayLess`.
+- **`WhereYouStand`** (new, replaces `PositionStatement`, now deleted): a white card (hairline + soft shadow),
+  rows with round washed marks in the app's domain hues (held = accent, reserved = `--goal`, committed =
+  `--commit`, cards = `--debt`), deductions with a muted minus, hairline, then **Free until salary** on a teal
+  band with the figure at hero size. Kept: below-zero accounts named under Held; "includes Rs X you could skip"
+  under Committed; Owed on cards only when owed. Hints under each label are wide-screen only.
+- The earlier tries at the date line (chips / gradient / orange) are gone; the per-account toggle and the "a day"
+  row are gone. Plain-grey rule superseded: the date now lives in the hero's date row.
+**Open:** the Today group header still truncates "Wednesday, November ..." (below, untouched).
+
+### 2026-11-11 — Today: soft date chips, and the working on the page (Sonnet)
+User: colour the day/date/days-to-salary softly; show held / reserved / committed on the landing page
+instead of behind a tap. Built (tsc + vite build pass; checked headless, light and dark; not on a device):
+- Under the figure: two `accent-wash` chips - "Wed, 11 Nov - day 15 of 31" and "17 days to salary"
+  (`TodayPage` builds them; the second is `financialState.daysToSalary`).
+- **The bottom sheet is gone.** `SpendToday` renders `PositionStatement` (bare, `compact` on phone = no notes
+  column, dense rows, `caption="Where you stand"` with the "Show accounts and bills" toggle on that line):
+  Held across accounts / - Reserved / - Committed / (- Owed on cards) / = Free until salary, then a closing
+  "÷ 17 days to salary - a day Rs48" row (hidden when short). The recovery catch-up sentence moved to a
+  caption under it. Per-account / per-bill lines are still one tap (the toggle), not a sheet.
+- `PositionStatement` gained `compact` and `caption`; `Breakdown` is no longer used by Today.
+**Note:** in state B the closing row repeats the hero's figure on purpose - it is the proof of it.
+
+### 2026-11-11 — Today opens on the figure, in the title's place (Sonnet)
+No "Today" title. The room figure is the first thing on the page (`display` size, now 64px phone / 80px
+desktop), the help icon on its row (`corner`), the date + day count directly under it (`meta`), then the
+sentence and the one-line working. `SpendToday` renders the `sr-only` `<h1>Today</h1>`; `TodayPage` has no
+header (a welcome line shows above the figure only after setup). The desktop one-line subtitle was dropped.
+tsc + vite build pass, checked headless on a phone viewport.
+
+### 2026-11-11 — Two small follow-ups (Sonnet)
+- Net worth is red again when negative (see below). Gotcha: `cn` only joins classes, so an explicit
+  `text-ink` beats `emphasiseNegative`'s `text-critical`; pass ink only when positive.
+- **Today's figure is bigger:** new `display` type step (`--text-display` 52px phone / 64px desktop, hero
+  stays 32/40) and `Amount role="display"`, used only by `SpendToday`. Reuse it only for a page's one answer.
+
+### 2026-11-11 — Money > Overview rebuilt in the same grammar (Sonnet): BUILT, user to review on phone
+
+User: "apply same principles to the Money overview page". Same rules as Today/Month: no boxes, Ledger row
+shape, one fact once, the figure then its working as ruled rows. tsc + vite build pass; checked headless
+(light/dark, all five Money tabs). Not tried on a device.
+- **Header:** `MoneyLayout` title row now carries each tab's help icon + add button (`TabToolbar` portals
+  into `actionsSlot` via outlet context; falls back inline outside the layout). The row that held two
+  small controls is gone on phone. A tab with two buttons (Cards) wraps them to their own right-aligned
+  line instead of overflowing.
+- **`NetWorthZone` rewritten:** Net worth, **red when negative - the user wanted it back** ("it immediately brings attention"; the
+  ink version was reverted the same day; M1 in MOBILE_AUDIT is still open about whether investments belong in it), then Owned / - Owed as ruled
+  rows (replaces the "owned - owed" sentence and the "How is X worked out?" Breakdown trigger). "Not counted:
+  Rs2,23,384 held outside your accounts" now sits directly under the working. Then "In bank and cash" under a
+  `SectionRule` as Held in N spendable accounts / - Set aside / Yours to move. The old "Held - 3 accounts"
+  beside a register of four was `CashPosition` counting spendable accounts only; the label now says so.
+- **Needs a look** (`NeedsALookZone`): tinted cards -> `LedgerRow` rows with a `RowMark`; names and both
+  sentences wrap. **Cash & bank / The rest of your money:** card boxes removed, `SectionRule` headers,
+  leading marks, notes wrap to two lines (`LedgerRow` `wrapMeta`, `MetaFacts` `wrap`).
+- New shared `components/RowMark.tsx` (28px tinted mark; `NeedsYou` uses it too).
+**Not done:** Cards, Debts, Investments and Insurance tabs still have their old boxed layouts (only the shared
+header changed). Cash wallet shows a bank icon because the account is typed BANK in the data.
+
+### 2026-11-11 — Month header, switcher and top figure reworked (Sonnet): BUILT, user to review on phone
+
+User: Month's header, the month navigator and the clarity of what the top says; everything from
+"Needs you" down is fine and untouched. Second round: "the Month heading should just be the current
+month" and "the plan | so far toggle is not going well". tsc + vite build pass; checked headless
+(light/dark; current, past, upcoming month; stepping back three months keeps name and body in step).
+Not tried on a device.
+- **`CycleSwitcher` is the page header** (renders the `<h1>`; `MonthPage` no longer has its own). The
+  title is the month name in `text-page` ("November"; reads "Month: November" to screen readers; says
+  "Month" while the cycle loads). Step buttons + the help button (`trailing` prop) sit on the title row.
+  One line under: dates · This month/Past/Upcoming · day count, "Back to <current month>" on the right.
+  Document title still comes from the route (`AppShell`), so nothing else depended on the old heading.
+- `MonthHero` is the one top block at every width. **Hero = spent outside the plan** ("Everyday
+  spending so far ₹14,580 of ₹15,971 this month leaves room for", bar, "91% of it used · 48% of the
+  month gone") - the old hero read "Flexible ₹15,971" as money left when 91% was spent. The remainder
+  is deliberately NOT printed (client subtraction; no server field).
+- **Toggle removed.** `MonthHero` shows only the plan, as a ruled `Statement` under a small
+  "How the month adds up": Comes in / - Committed / - Set aside / = Room for everyday spending (notes
+  under rows on wide screens only). What actually moved is a new closed section, `MoneyInOutSection`
+  ("What moved so far" / "What moved" for a past month; summary "₹X in - ₹Y out"), first among the
+  closed sections at the bottom. Past/upcoming and negative/no-income months have no hero; the
+  statement's last line is the answer, with its note under it.
+- `MonthAnswer`: Past is one line ("Paid X of Y planned - n of m commitments settled", hidden when
+  nothing was planned); Upcoming is one line ("15 payments planned - 2 still need an amount").
+- Deleted `MonthShape.tsx`, `CycleInOut.tsx` (folded into MonthHero / MoneyInOutSection).
+**Not done / for the user:** "Where day-to-day money went" (₹25,654) and the hero's spent (₹14,580) are
+different server measures with no explanation on the page; August (past, nothing recorded) says "needs
+your salary - add it in the plan below". Wording to confirm: "Everyday spending" (our word replacing
+"Flexible").
+
+### 2026-11-11 — Today rebuilt in the Ledger's grammar (Sonnet): BUILT, user to review on the phone
+
+Implemented `design/TODAY_HERO_SPEC.md` steps 1-6. `tsc -b` + `vite build` pass; checked headless at
+390x844, light and dark. **Not clicked through on a real device** (the headless run blocks writes).
+- New: `components/DateRule.tsx`, `components/SectionRule.tsx`, `today/components/NeedsYou.tsx`,
+  `today/components/TodayEntries.tsx`. `LedgerRow` gained `wrapPrimary`; `DayGroup` gained `sticky`
+  (default true, so the Ledger is unchanged) and now renders through `DateRule`.
+- Rewritten: `SpendToday` (no card, states A-D, one derivation line that opens the Breakdown),
+  `BeforePayday` (DateRule groups + LedgerRows), `TodayPage` (order and rhythm).
+- Deleted: `PositionTrio`, `TodayStatus`, `WayBack` (folded into NeedsYou / the Breakdown sheet).
+- Needs-you count now equals the nav badge (the dated shortfall is no longer hidden from it).
+- **Decision made on the user's "implement it":** state B shows `perDay` ("₹48 a day until
+  salary") once today's share is used, not "-₹1,044".
+**Open nits, not done:** Needs-you explanations are clamped to 2 lines so a few end in "..."
+(spec §4.3; unclamp if the user dislikes it). The Today group's header line 2 ("Wednesday,
+November ...") truncates when it has two trailing figures - same as the Ledger, left alone so the
+Ledger stays identical. Add button still covers right-aligned amounts at the page end (audit V1).
+**Next:** user checks on the phone; then MOBILE_AUDIT P-list / M1-M3 as they decide.
+**Don't:** touch StandingPanel; add per-date totals in Before payday (client arithmetic); let a
+Needs-you row tap run a `CONFIRM` action (it writes).
+
+### 2026-11-11 — Fixed: Month switcher name didn't match the figures below it
+
+User on phone: stepped back to September, the body showed September, the label said October.
+**Cause:** RTK Query's `data` keeps the *previous* argument's result while a new one loads, so
+the switcher's cycle (`useGetCycleQuery`) and each per-cycle zone lagged independently. Over the
+phone's slower link they visibly disagreed. **Fix:** `currentData` everywhere a query is keyed
+by cycle:
+- `useSelectedCycle`: falls back to the just-resolved cycle for the name.
+- `MonthPage`, `CycleInOut`, `FlexibleSpendingSection`, `MonthHero`, `MonthShape`,
+  `PlanDecisions`, `MonthBriefing`, and Summary's `WhereItWent` month chips.
+- Loading is now `isFetching && !currentData`.
+
+Re-ran the CDP stepping script: label and body now always show the same month (or the body is
+loading). **Rule for new code:** any query keyed by a cycle or month the user can switch uses
+`currentData`, not `data`.
+
+### 2026-11-11 — Fixed: Add on phone threw "crypto.randomUUID is not a function"
+
+The phone opens the dev server over plain http on the LAN, which isn't a secure context, so
+`crypto.randomUUID` doesn't exist there. New `lib/uuid.ts` `randomUuid()` falls back to
+`crypto.getRandomValues`; it's used for the transaction Idempotency-Key (the only call site).
+No other secure-context-only APIs in `src`. tsc + vite build pass. The user retests on the phone.
+
+### 2026-11-11 — Mobile audit done, waiting on the user (no code touched)
+
+User parked automation and asked for a detailed phone inspection. `design/MOBILE_AUDIT.md`:
+- **Top risk is R1:** "what's left / owed / needs you" shows different numbers under
+  different names on Today, Month and Money. Examples: Free ₹2,176 vs ₹2,751 vs Yours to move
+  ₹4,776; Owed ₹3,07,071 vs Still to pay ₹3,68,782; badge 3 vs banner 2 vs "2 of 6".
+- **R2 alarming headlines:** Money's net worth is −₹2.13L in red, but it excludes ₹2.23L of
+  investments. The insurance premium is stored as ₹42,701/month, probably an annual figure;
+  real data, not touched.
+- **Others:** R3 the same alert in 3 places; R4 Ahead buried under More and titled "Goals";
+  V1 the FAB covers right-aligned amounts.
+
+Fix list P0-P4. **Waiting on:** M1-M3. **Next if the user says go:** P0 items 1 and 3 + the P3
+craft pass need no decision and no schema. Verify with the CDP script (scratchpad
+`mobile/audit.mjs` pattern, see memory reference_cdp_browser_check). **Don't:** edit the
+insurance record (real data). Ask the user to correct it themselves.
+
+### 2026-11-11 — Automation: SaaS options researched, waiting on the user (no code touched)
+
+User: automation is **for the SaaS, not for them personally**. The personal Gmail-IMAP plan is
+withdrawn. `AUTOMATION_PLAN.md` now compares the SaaS channels:
+- **Account Aggregator:** needs RBI/SEBI/IRDAI/PFRDA regulation (e.g. SEBI RIA) or a partner
+  FIU; per-fetch fees; Fold reports bad HDFC transaction IDs and no joint accounts.
+- **Email forwarding address:** no licence; every bank and card.
+- **Upload:** CSV already exists.
+- **SMS:** stays a trap.
+- **Pay-intent capture.**
+
+Recommendation: launch on forwarding + upload, add AA later. Build one source-agnostic engine
+(observations → commitment matching → Inbox). The engine is the moat.
+**Waiting on:** S1-S4 (§8). S3 (build the engine now against the CSV upload) is the one that
+would start work. **Don't:** start any channel adapter or parser before S1, or treat the
+pricing/licence numbers as confirmed (they come from vendor blogs).
+
 ### 2026-11-11 — Today's Standing is now "Your standing" tiles (screenshot-verified, phone + desktop)
 
 User asked for something other than the folded list. `StandingPanel` rewritten: always-visible

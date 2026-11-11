@@ -32,7 +32,7 @@ interface PlanDecisionsProps {
 }
 
 export function PlanDecisions({ cycle, heading = true, emptyNote }: PlanDecisionsProps) {
-  const { data } = useGetCyclePlanChangesQuery(cycle?.id ?? 0, { skip: !cycle });
+  const { currentData: data } = useGetCyclePlanChangesQuery(cycle?.id ?? 0, { skip: !cycle });
 
   if (!data || data.revisions.length === 0) {
     return emptyNote ? <p className="text-caption text-ink-muted">{emptyNote}</p> : null;

@@ -18,6 +18,7 @@ readable as a record of how we got here, and must not be cited as current truth.
 | `FINANCIAL_OS.md` | What we're building, the loop, the engines, principles, North Star, decisions D1-D9 |
 | `FINANCIAL_STATE.md` | The canonical state model, primitives, derived-vs-stored, thresholds |
 | `ROADMAP.md` | Phases, impact assessment, build order, what we're not building |
+| `AUTOMATION_PLAN.md` | **Research 2026-11-11, decisions S1-S4 open.** SaaS options for getting transactions without typing: AA, email forwarding, upload, SMS, pay-intent; and the source-agnostic matching engine behind them |
 | `DOC_INDEX.md` | This file |
 | `CONTINUE_HERE.md` | Live session handoff — next action, waiting-on, don't-do |
 | `SESSION_HANDOFF.md` | How to work with the user; stack; data snapshot |
@@ -27,6 +28,8 @@ readable as a record of how we got here, and must not be cited as current truth.
 | `architecture/BACKEND_CONVENTIONS.md`, `FRONTEND_CONVENTIONS.md`, `TECHNICAL_ARCHITECTURE.md` | How code is written here |
 | `design/DESIGN_SYSTEM.md`, `design/UI_UX_PRINCIPLES.md` | Visual and interaction language |
 | `design/UI_UX_REVAMP_PLAN.md` (+ `UI_UX_REVAMP_BRIEF.md`, the request) | **The UI/UX revamp on `feature/complete-ui-ux-revamp`**: IA, per-page specs, v3 visual system (§5, incl. the sleek pass §5.8), feedback rules, roadmap, release gates, manual acceptance checklist. Wins over DESIGN_SYSTEM where they differ |
+| `design/TODAY_HERO_SPEC.md` | **2026-11-11 Today rebuilt in the Ledger's grammar**: no cards, LedgerRow/DayGroup shapes only, hero states A-D (perDay once today's share is used), Needs-you rows, Today's own day group, Before payday as date groups. Supersedes UI_UX_REVAMP_PLAN §4.1. Built 2026-11-11 |
+| `design/MOBILE_AUDIT.md` | **2026-11-11 phone audit**: retention risks R1-R6, visual issues V1-V11, ranked fixes P0-P4, decisions M1-M3 open |
 | `postman/*.json` | The API documentation (no OpenAPI — ADR-0013 §6) |
 
 ---

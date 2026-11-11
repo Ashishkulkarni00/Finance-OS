@@ -1,25 +1,26 @@
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, CheckCircle2, ChevronRight } from 'lucide-react';
-import { Card } from '@/components/Card';
+import { CheckCircle2 } from 'lucide-react';
+import { LedgerRow } from '@/components/LedgerRow';
+import { RowMark } from '@/components/RowMark';
 import { Skeleton } from '@/components/Skeleton';
-import { SectionHeader } from '@/components/SectionHeader';
+import { SectionRule } from '@/components/SectionRule';
 import { formatMoney } from '@/lib/money';
 import { formatShortDate } from '@/lib/dates';
 import { useGetProjectionQuery } from '@/services/projectionService';
 import type { AccountResponse } from '@/types/api';
-
-const TINT_STYLE = { backgroundColor: 'color-mix(in srgb, var(--attention) 8%, var(--surface))' } as const;
 
 /** Marks "something is in this zone". The empty line is CSS keyed off its absence - the
  *  projection checks live in child components, so there is no single list to count. */
 const ITEM = { 'data-needs-look': '' } as const;
 
 /**
- * Every attention card routes through here, so "this is clickable" is never in question -
- * a chevron plus the whole card as the click target, the same affordance as Month.
+ * Every item routes through here, so "this opens the account" is never in question: the whole row
+ * is the target, in the same row shape as the Ledger and Today's "Needs you" (2026-11-11 - it was a
+ * tinted card with a chevron).
  *
- * <p>Each card carries three things deliberately: what is wrong, the figures that make it
- * true, and what happens if it's left alone.
+ * <p>Each item carries three things deliberately: what is wrong, the figures that make it true, and
+ * what happens if it's left alone. The name and both sentences wrap - clipping "Holds Rs620; by then
+ * it would be..." hid the figure the row exists to give.
  */
 function AttentionCard({
   title,
@@ -33,30 +34,23 @@ function AttentionCard({
   accountId: number;
 }) {
   const navigate = useNavigate();
-  const go = () => navigate(`/accounts/${accountId}`);
   return (
-    <Card
-      {...ITEM}
-      role="button"
-      tabIndex={0}
-      onClick={go}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          go();
+    <div {...ITEM}>
+      <LedgerRow
+        onClick={() => navigate(`/accounts/${accountId}`)}
+        leading={<RowMark tone="attention" />}
+        primary={title}
+        wrapPrimary
+        richSecondary
+        secondary={
+          <>
+            <span className="num block text-attention">{because}</span>
+            <span className="block">{consequence}</span>
+          </>
         }
-      }}
-      className="flex cursor-pointer items-start gap-space-3 transition-opacity hover:opacity-90"
-      style={TINT_STYLE}
-    >
-      <AlertTriangle size={18} strokeWidth={1.5} className="mt-0.5 shrink-0 text-attention" aria-hidden />
-      <div className="min-w-0 flex-1">
-        <p className="text-body text-ink">{title}</p>
-        <p className="num mt-space-1 text-caption text-attention">{because}</p>
-        <p className="mt-space-1 text-caption text-ink-muted">{consequence}</p>
-      </div>
-      <ChevronRight size={16} strokeWidth={1.5} className="mt-0.5 shrink-0 text-ink-muted" aria-hidden />
-    </Card>
+        amount={null}
+      />
+    </div>
   );
 }
 
@@ -67,7 +61,7 @@ function ProjectedShortfallCard({ account }: { account: AccountResponse }) {
 
   // Counts as an item while loading, so "Nothing needs a look" can't be claimed before
   // this account has actually been checked.
-  if (isLoading) return <Skeleton {...ITEM} className="h-20 w-full rounded-xl" />;
+  if (isLoading) return <Skeleton {...ITEM} className="my-space-2 h-14 w-full rounded-xl" />;
   if (!data || !data.shortfall || Number(account.currentBalance) < 0) return null;
 
   // Name the payment that actually breaks, not merely the next one. The card used to say
@@ -148,10 +142,10 @@ export function NeedsALookZone({ accounts, isLoading }: NeedsALookZoneProps) {
 
   return (
     <section>
-      <SectionHeader>Needs a look</SectionHeader>
+      <SectionRule>Needs a look</SectionRule>
 
-      <div className="group/look flex flex-col gap-space-3">
-        {isLoading && <Skeleton {...ITEM} className="h-20 w-full rounded-xl" />}
+      <div className="group/look flex flex-col">
+        {isLoading && <Skeleton {...ITEM} className="my-space-2 h-14 w-full rounded-xl" />}
 
         {belowMinMandatory.map((a) => (
           <AttentionCard
@@ -197,7 +191,7 @@ export function NeedsALookZone({ accounts, isLoading }: NeedsALookZoneProps) {
           />
         ))}
 
-        <p className="hidden items-center gap-space-2 text-body text-ink-soft group-[:not(:has([data-needs-look]))]/look:flex">
+        <p className="hidden items-center gap-space-2 py-space-2 text-body text-ink-soft group-[:not(:has([data-needs-look]))]/look:flex">
           <CheckCircle2 size={18} strokeWidth={1.5} className="shrink-0 text-positive" aria-hidden />
           Nothing needs a look.
         </p>

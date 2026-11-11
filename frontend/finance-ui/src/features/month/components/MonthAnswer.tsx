@@ -77,22 +77,17 @@ function PlannedAhead({ cycle, instances }: { cycle: CycleResponse; instances?: 
   const bills = (instances ?? []).filter((i) => i.settleAs !== 'INCOME');
   const unknown = bills.filter((i) => i.expectedAmount == null).length;
 
+  // Said once and small: the figure under it is the headline, and its own note already says an
+  // unpriced bill makes it "at most" - repeating that here made two headlines (2026-11-11).
   return (
-    <section className="flex flex-col gap-space-2">
-      <span className="text-caption text-ink-muted">Planned ahead</span>
-      <p className="text-section text-ink">
-        {bills.length === 0 ? 'Nothing planned yet' : `${bills.length} ${bills.length === 1 ? 'payment' : 'payments'} planned`}
-      </p>
-      <p className="max-w-[34rem] text-body text-ink-soft">
+    <section className="flex flex-col gap-space-1">
+      <p className="text-body text-ink">
         {bills.length === 0
-          ? 'Add the commitments you expect this month.'
-          : unknown > 0
-            ? `${unknown} still ${unknown === 1 ? 'needs' : 'need'} an amount - the outline is an upper limit until then.`
-            : 'Every one has an amount.'}
+          ? 'Nothing planned yet - add the commitments you expect this month.'
+          : `${bills.length} ${bills.length === 1 ? 'payment' : 'payments'} planned${unknown > 0 ? ` · ${unknown} still ${unknown === 1 ? 'needs' : 'need'} an amount` : ' · every one has an amount'}`}
       </p>
       <p className="max-w-[34rem] text-caption text-ink-muted">
-        What’s free until salary appears once the month starts on {formatShortDate(cycle.startDate)} - it depends on your
-        balances then, which aren’t known yet.
+        What’s free until salary appears once the month starts on {formatShortDate(cycle.startDate)}.
       </p>
     </section>
   );
@@ -101,19 +96,19 @@ function PlannedAhead({ cycle, instances }: { cycle: CycleResponse; instances?: 
 function HowItWent({ progress, instances }: { progress?: CommitmentPlanProgressResponse; instances?: CommitmentInstanceResponse[] }) {
   const unpaid = (instances ?? []).filter((i) => i.attentionTier !== 'SETTLED' && i.settleAs !== 'INCOME').length;
 
+  // One line, not a second hero: the month's figure is Room for everyday spending just below.
+  // A month with nothing planned has no plan to report on - the list below already says so.
+  if (progress && progress.totalCount === 0) return null;
   return (
-    <section className="flex flex-col gap-space-2">
-      <span className="text-caption text-ink-muted">How the plan went</span>
+    <section className="flex flex-col gap-space-1">
       {progress ? (
-        <>
-          <Amount value={progress.settledTotal} role="hero" className="text-ink" />
-          <p className="max-w-[34rem] text-body text-ink-soft">
-            paid of <Amount value={progress.plannedTotal} role="body" className="text-ink" /> planned ·{' '}
-            {progress.settledCount} of {progress.totalCount} {progress.totalCount === 1 ? 'commitment' : 'commitments'} settled
-          </p>
-        </>
+        <p className="text-body text-ink-soft">
+          Paid <Amount value={progress.settledTotal} role="body" className="font-medium text-ink" /> of{' '}
+          <Amount value={progress.plannedTotal} role="body" className="text-ink" /> planned · {progress.settledCount} of{' '}
+          {progress.totalCount} {progress.totalCount === 1 ? 'commitment' : 'commitments'} settled
+        </p>
       ) : (
-        <Skeleton className="h-12 w-48" />
+        <Skeleton className="h-6 w-64" />
       )}
       {unpaid > 0 && <p className="text-caption text-attention">{unpaid} left unpaid — listed under “Due date passed” below.</p>}
     </section>

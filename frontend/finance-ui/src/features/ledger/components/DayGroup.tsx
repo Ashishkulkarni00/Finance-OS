@@ -1,7 +1,7 @@
 import { Amount } from '@/components/Amount';
 import { TransactionRow } from './TransactionRow';
 import { isToday, isYesterday } from '@/lib/dates';
-import { cn } from '@/lib/cn';
+import { DateRule } from '@/components/DateRule';
 import type { DaySubtotalResponse, TransactionResponse } from '@/types/transaction';
 import type { CategoryResponse } from '@/types/category';
 
@@ -50,6 +50,8 @@ interface DayGroupProps {
   onEdit: (transaction: TransactionResponse) => void;
   /** Ids currently being deleted - shown dimmed, not hidden. */
   deleting?: ReadonlySet<number>;
+  /** Pin the header while scrolling inside this day. Right in a long Ledger, wrong in a short group. */
+  sticky?: boolean;
 }
 
 /**
@@ -69,31 +71,21 @@ interface DayGroupProps {
  * are inside a long day the date it belongs to stays on screen. Scrolling a ledger and
  * losing track of which day you are looking at is the specific failure this fixes.
  */
-export function DayGroup({ date, transactions, subtotal, categories, onEdit, deleting }: DayGroupProps) {
+export function DayGroup({ date, transactions, subtotal, categories, onEdit, deleting, sticky = true }: DayGroupProps) {
   const parsed = new Date(date);
   const today = isToday(date);
   const relative = today ? 'Today' : isYesterday(date) ? 'Yesterday' : null;
 
   return (
     <div className="flex flex-col">
-      <div className="sticky top-0 z-10 -mx-space-2 mb-space-1 flex items-center gap-space-3 bg-ground px-space-2 pb-space-2 pt-space-3">
-        <span
-          className={cn('num shrink-0 text-section leading-none', today ? 'text-accent' : 'text-ink')}
-          aria-hidden
-        >
-          {parsed.getDate()}
-        </span>
-        <span className="flex min-w-0 flex-col">
-          <span className={cn('truncate text-label', today ? 'text-accent' : 'text-ink')}>
-            {relative ?? WEEKDAY.format(parsed)}
-          </span>
-          <span className="truncate text-caption text-ink-muted">
-            {relative ? `${WEEKDAY.format(parsed)}, ${MONTH_YEAR.format(parsed)}` : MONTH_YEAR.format(parsed)}
-          </span>
-        </span>
-        <span aria-hidden className={cn('h-px flex-1', today ? 'bg-accent/30' : 'bg-line')} />
-        <DayFigure subtotal={subtotal} />
-      </div>
+      <DateRule
+        sticky={sticky}
+        day={parsed.getDate()}
+        tone={today ? 'accent' : 'ink'}
+        line1={relative ?? WEEKDAY.format(parsed)}
+        line2={relative ? `${WEEKDAY.format(parsed)}, ${MONTH_YEAR.format(parsed)}` : MONTH_YEAR.format(parsed)}
+        trailing={<DayFigure subtotal={subtotal} />}
+      />
 
       {transactions.map((t) => (
         <TransactionRow key={t.id} transaction={t} categories={categories} onClick={() => onEdit(t)} deleting={deleting?.has(t.id)} />

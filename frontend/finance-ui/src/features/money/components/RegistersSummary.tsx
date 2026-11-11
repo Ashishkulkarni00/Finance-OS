@@ -1,6 +1,8 @@
+import { CreditCard, HandCoins, ShieldCheck, TrendingUp } from 'lucide-react';
 import { Amount } from '@/components/Amount';
+import { RowMark } from '@/components/RowMark';
 import { LedgerRow } from '@/components/LedgerRow';
-import { SectionHeader } from '@/components/SectionHeader';
+import { SectionRule } from '@/components/SectionRule';
 import { useGetCreditCardsQuery } from '@/services/cardService';
 import { useGetInsuranceSummaryQuery } from '@/services/insuranceService';
 import { useGetInvestmentSummaryQuery } from '@/services/investmentService';
@@ -27,6 +29,8 @@ export function RegistersSummary() {
     cards && cards.cards.length > 0 && (
       <LedgerRow
         key="cards"
+        leading={<RowMark tone="neutral" icon={CreditCard} />}
+        richSecondary
         to="/money/cards"
         primary="Credit cards"
         secondary={
@@ -45,6 +49,8 @@ export function RegistersSummary() {
     loans && loans.count > 0 && (
       <LedgerRow
         key="debts"
+        leading={<RowMark tone="neutral" icon={HandCoins} />}
+        richSecondary
         to="/money/debts"
         primary="Debts"
         secondary={
@@ -63,6 +69,8 @@ export function RegistersSummary() {
     investments && investments.count > 0 && (
       <LedgerRow
         key="investments"
+        leading={<RowMark tone="neutral" icon={TrendingUp} />}
+        richSecondary
         to="/money/investments"
         primary="Investments"
         secondary={
@@ -81,6 +89,8 @@ export function RegistersSummary() {
     cover && cover.policies > 0 && (
       <LedgerRow
         key="cover"
+        leading={<RowMark tone="neutral" icon={ShieldCheck} />}
+        richSecondary
         to="/money/insurance"
         primary="Insurance"
         secondary={
@@ -106,8 +116,8 @@ export function RegistersSummary() {
 
   return (
     <section>
-      <SectionHeader overCard>The rest of your money</SectionHeader>
-      <div className="m-card flex flex-col">{rows}</div>
+      <SectionRule>The rest of your money</SectionRule>
+      <div className="flex flex-col">{rows}</div>
     </section>
   );
 }

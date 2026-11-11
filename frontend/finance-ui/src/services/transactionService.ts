@@ -1,4 +1,5 @@
 import { baseApi } from './api/baseApi';
+import { randomUuid } from '@/lib/uuid';
 import type {
   CreateTransactionRequest,
   DaySubtotalResponse,
@@ -50,7 +51,7 @@ export const transactionService = baseApi.injectEndpoints({
         method: 'POST',
         body,
         // A double-tapped Save must not create two - BACKEND_CONVENTIONS.md §12.
-        headers: { 'Idempotency-Key': crypto.randomUUID() },
+        headers: { 'Idempotency-Key': randomUuid() },
       }),
       // A spend changes the position, the account balance and possibly a commitment
       // (auto-match) - invalidate all of them. Getting this wrong leaves Room Left

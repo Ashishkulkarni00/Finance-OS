@@ -1,6 +1,8 @@
+import { Landmark, Wallet } from 'lucide-react';
 import { Amount } from '@/components/Amount';
+import { RowMark } from '@/components/RowMark';
 import { Skeleton } from '@/components/Skeleton';
-import { SectionHeader } from '@/components/SectionHeader';
+import { SectionRule } from '@/components/SectionRule';
 import { LedgerRow, MetaFacts } from '@/components/LedgerRow';
 import { formatMoney } from '@/lib/money';
 import { useOutgoingsByAccount, summariseOutgoings } from '../useOutgoingsByAccount';
@@ -53,7 +55,7 @@ export function CashBankRegister({ accounts, isLoading }: CashBankRegisterProps)
   if (isLoading) {
     return (
       <section>
-        <SectionHeader>Cash & bank</SectionHeader>
+        <SectionRule>Cash & bank</SectionRule>
         <Skeleton className="h-24 w-full" />
       </section>
     );
@@ -64,10 +66,8 @@ export function CashBankRegister({ accounts, isLoading }: CashBankRegisterProps)
 
   return (
     <section>
-      <SectionHeader overCard trailing={`${cashBank.length} ${cashBank.length === 1 ? 'account' : 'accounts'}`}>
-        Cash & bank
-      </SectionHeader>
-      <div className="m-card flex flex-col">
+      <SectionRule trailing={`${cashBank.length} ${cashBank.length === 1 ? 'account' : 'accounts'}`}>Cash & bank</SectionRule>
+      <div className="flex flex-col">
         {cashBank.map((account) => {
           const differs = account.available !== account.currentBalance;
           const balanceNegative = Number(account.currentBalance) < 0;
@@ -78,7 +78,10 @@ export function CashBankRegister({ accounts, isLoading }: CashBankRegisterProps)
             <LedgerRow
               key={account.id}
               to={`/accounts/${account.id}`}
+              leading={<RowMark tone={balanceNegative ? 'attention' : 'neutral'} icon={account.type === 'CASH' || /cash/i.test(account.typeLabel) ? Wallet : Landmark} />}
               primary={account.name}
+              richSecondary
+              wrapMeta
               secondary={
                 balanceNegative ? (
                   // The row's own figure is red; this says why it matters and where the
@@ -93,6 +96,7 @@ export function CashBankRegister({ accounts, isLoading }: CashBankRegisterProps)
               }
               meta={
                 <MetaFacts
+                  wrap
                   items={[
                     ...(differs
                       ? [

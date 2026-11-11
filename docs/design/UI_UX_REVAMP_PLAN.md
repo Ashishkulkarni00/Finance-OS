@@ -324,6 +324,8 @@ Information classes used below: **E** essential (always visible) · **C** contex
 
 ### 4.1 Today
 
+> **Superseded 2026-11-11 by `TODAY_HERO_SPEC.md`** where they differ (no cards, hero state B, Needs-you rows, Today day group).
+
 **Current (Found).** The hero is "Spend today", with its arithmetic printed beneath. Below
 that are a status card with the top insight, "Before payday" (a 45-day timeline), "Way back",
 "Also worth a look", and "Standing" (net worth, runway, free this month), which is open by

@@ -1,7 +1,7 @@
 import { splitMoney, formatMoney, type Money } from '@/lib/money';
 import { cn } from '@/lib/cn';
 
-export type AmountRole = 'hero' | 'section' | 'row' | 'body' | 'caption';
+export type AmountRole = 'display' | 'hero' | 'section' | 'row' | 'body' | 'caption';
 
 interface AmountProps {
   value: Money | null | undefined;
@@ -17,6 +17,7 @@ interface AmountProps {
 }
 
 const ROLE_CLASSES: Record<AmountRole, string> = {
+  display: 'text-display',
   hero: 'text-hero',
   section: 'text-section',
   row: 'text-row',
@@ -58,7 +59,17 @@ export function Amount({
       {sign}
       {/* Opacity rather than a fixed grey, so the symbol recedes against whatever
           colour the digits carry - the teal hero included. */}
-      <span aria-hidden className="text-[0.62em] opacity-55" style={{ marginRight: '0.08em' }}>
+      {/* At the display size the symbol is raised toward the cap height and set smaller, the way a price is
+          typeset: the digits carry the weight and the rupee sits beside them rather than beneath. */}
+      <span
+        aria-hidden
+        className={role === 'display' ? 'opacity-75' : 'text-[0.62em] opacity-55'}
+        style={
+          role === 'display'
+            ? { fontSize: '0.46em', verticalAlign: '0.78em', marginRight: '0.12em', fontWeight: 500 }
+            : { marginRight: '0.08em' }
+        }
+      >
         {symbol}
       </span>
       {digits}

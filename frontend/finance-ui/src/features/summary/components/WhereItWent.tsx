@@ -31,7 +31,10 @@ export function WhereItWent({ months }: { months: ReviewMonth[] }) {
   const recorded = months.filter((m) => m.recorded && m.planTracked);
   const [picked, setPicked] = useState<number | null>(null);
   const month = recorded.find((m) => m.cycleId === picked) ?? recorded[recorded.length - 1];
-  const { data, isLoading } = useGetReviewMonthCategoriesQuery(month?.cycleId ?? 0, { skip: !month });
+  // currentData: switching the month chip must not show the other month's categories while
+  // the new ones load (same bug as Month's switcher, 2026-11-11).
+  const { currentData: data, isFetching } = useGetReviewMonthCategoriesQuery(month?.cycleId ?? 0, { skip: !month });
+  const isLoading = isFetching && !data;
 
   if (!month) return null;
 

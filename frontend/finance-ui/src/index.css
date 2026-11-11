@@ -241,6 +241,12 @@
   --text-hero--font-weight: 500;
   --text-hero--letter-spacing: -0.025em;
 
+  /* One step above hero, for the single figure a page exists to answer (Today's room). */
+  --text-display: 80px;
+  --text-display--line-height: 84px;
+  --text-display--font-weight: 500;
+  --text-display--letter-spacing: -0.03em;
+
   --text-editorial: 28px;
   --text-editorial--line-height: 34px;
   --text-editorial--font-weight: 400;
@@ -381,8 +387,19 @@
     :root {
       --text-hero: 32px;
       --text-hero--line-height: 38px;
+      --text-display: 64px;
+      --text-display--line-height: 68px;
       --text-page: 30px;
       --text-page--line-height: 36px;
+    }
+  }
+
+  /* The display figure steps down once more on the narrowest phones, so a six-figure amount beside the
+     help icon never runs out of the column (360px). */
+  @media (max-width: 380px) {
+    :root {
+      --text-display: 56px;
+      --text-display--line-height: 60px;
     }
   }
 
@@ -814,6 +831,14 @@ dialog[data-closing] .confirm-panel {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+/* `wrap`: the facts are the reason, not decoration (a held-back balance) - let them run to a second line, no further. */
+.row-compact .meta-facts.mf-wrap {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: normal;
+  overflow: hidden;
 }
 .row-compact .meta-facts .mf-label {
   display: none;

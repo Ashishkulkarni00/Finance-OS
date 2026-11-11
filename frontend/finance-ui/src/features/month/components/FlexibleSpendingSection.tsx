@@ -41,7 +41,9 @@ const tint = (i: number) => TINTS[Math.min(i, TINTS.length - 1)];
  */
 export function FlexibleSpendingSection({ cycle }: FlexibleSpendingSectionProps) {
   const navigate = useNavigate();
-  const { data, isLoading, isError } = useGetFlexibleSpendingQuery(cycle?.id ?? 0, { skip: !cycle });
+  // currentData: never another month's spending while a month switch loads (useSelectedCycle).
+  const { currentData: data, isFetching, isError } = useGetFlexibleSpendingQuery(cycle?.id ?? 0, { skip: !cycle });
+  const isLoading = !cycle || (isFetching && !data);
   const categories = data?.categories ?? [];
   const dayOfCycle = cycle ? cycleProgress(cycle.startDate, cycle.endDate).dayOfCycle : null;
 

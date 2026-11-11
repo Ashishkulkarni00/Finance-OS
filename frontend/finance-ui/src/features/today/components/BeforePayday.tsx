@@ -1,26 +1,17 @@
-import { Fragment, useMemo, useState, type CSSProperties } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, ArrowDownRight, CalendarClock, CreditCard, Landmark } from 'lucide-react';
 import { Amount } from '@/components/Amount';
-import { Button } from '@/components/Button';
+import { DateRule } from '@/components/DateRule';
+import { LedgerRow } from '@/components/LedgerRow';
 import { Skeleton } from '@/components/Skeleton';
-import { useInsightAction } from '@/components/InsightList';
 import { useGetProjectionQuery } from '@/services/projectionService';
 import { daysBetween } from '@/lib/dates';
 import { cn } from '@/lib/cn';
 import type { InsightItem } from '@/types/insight';
 import type { TimelineItemResponse, TimelineItemType } from '@/types/timeline';
 
-/** What kind of payment, in words - the four sources look identical otherwise, and "IDBI
- *  EMI" vs a bill vs a card statement changes what you would do about it. */
-const KIND: Record<TimelineItemType, string> = {
-  COMMITMENT: 'Commitment',
-  LOAN_EMI: 'EMI',
-  CARD_STATEMENT: 'Card bill',
-  INCOME: 'Coming in',
-};
-
-const DAY = new Intl.DateTimeFormat('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
+const WEEKDAY = new Intl.DateTimeFormat('en-IN', { weekday: 'long' });
 
 /** Every source has a real destination: a commitment instance, a loan (by its own id), or
  *  a card statement - which has no page of its own yet, so its account does. */
@@ -106,39 +97,25 @@ interface BeforePaydayProps {
   /** Payday itself - the cycle's last day plus one. Everything up to and including it is
    *  "before payday"; anything after belongs to a month this screen is not about. */
   salaryDate: string | null;
-  /** Shortfall warnings keyed by row, from `useDatedWarnings`. */
+  /** Shortfall warnings keyed by row, from `useDatedWarnings`. They only flag the row; the
+   *  words and the button live in Needs you. */
   warnings: Map<string, InsightItem>;
 }
 
-/**
- * **Before payday** - everything still to leave, and the salary that ends the stretch.
- *
- * <p>Replaces `ComingUpList`, which showed three of sixteen rows, truncated every name
- * ("Bike loan EMI (H..."), and stopped at an arbitrary count that had nothing to do with
- * the cycle. Three rows all reading "5 Nov · in 4 days" is not a timeline - it is the top
- * of a list, and the user said as much: *"coming up needs revamping"*.
- *
- * <p><strong>The window is the cycle, not a round number of days.</strong> This product's
- * month runs salary date to salary date, and the only question this list answers is "what
- * stands between me and payday". So it runs to the salary row and stops there, with the
- * salary itself as the last line - the finish line, in positive ink, never added to what
- * is free.
- *
- * <p><strong>Dates are headers, not a column repeated down every row.</strong> Four
- * payments on 5 Nov used to print "5 NOV" four times in a calendar leaf and "In 4 days ·
- * Thu" four times beside them. Once per date, spanning the measure, leaves the rows
- * carrying only what differs: name, account, amount.
- *
- * <p><strong>A shortfall is attached to the payment it breaks.</strong> See
- * `useDatedWarnings` - the fact belongs on the row, and so does the button that fixes it.
- *
- * <p>One grid governs every row (`display: contents`), so amounts stack in a single
- * right-aligned column across all date groups. Nothing here is computed: amounts, dates
- * and the warning's own wording all arrive from the server.
- */
-/** How many payments show before "Show all". Rows that carry a shortfall warning always show. */
+/** How many payments show before "Show all". Rows that carry a shortfall flag always show. */
 const PREVIEW = 5;
 
+/**
+ * **Before payday** - everything still to leave, and the salary that ends the stretch, in the
+ * Ledger's own shapes (TODAY_HERO_SPEC section 4.5): a date header per day (`DateRule`), then
+ * `LedgerRow`s with a kind mark, the name, where it leaves from, and the amount.
+ *
+ * <p><strong>The window is the cycle</strong>: it runs to the salary row and stops there. The
+ * salary is the last line - the finish line, in positive ink, never added to what is free.
+ *
+ * <p>Date headers carry **no total**: a per-date sum would be client arithmetic. Nothing here is
+ * computed; amounts, dates and kinds all arrive from the server.
+ */
 export function BeforePayday({ items, isLoading, isError, salaryDate, warnings }: BeforePaydayProps) {
   const [expanded, setExpanded] = useState(false);
   if (isLoading) {
@@ -168,11 +145,10 @@ export function BeforePayday({ items, isLoading, isError, salaryDate, warnings }
     return <p className="text-body text-ink-soft">Nothing due between now and your next salary.</p>;
   }
 
-  // Grouping, not aggregating - the server already sorted by due date, so equal dates are
-  // adjacent and this only walks them. No subtotal per day: that would be arithmetic.
   const shown = expanded ? within : within.filter((it, idx) => idx < PREVIEW || warnings.has(rowKey(it)));
   const hidden = within.length - shown.length;
 
+  // Grouping, not aggregating - the server already sorted by due date.
   const groups: { date: string; rows: TimelineItemResponse[] }[] = [];
   for (const item of shown) {
     const last = groups[groups.length - 1];
@@ -180,72 +156,26 @@ export function BeforePayday({ items, isLoading, isError, salaryDate, warnings }
     else groups.push({ date: item.dueDate, rows: [item] });
   }
 
-  let index = 0;
-
   return (
     <>
-      <div className="grid w-full" style={{ gridTemplateColumns: 'minmax(0,1fr) auto' }}>
+      <div className="flex flex-col">
         {groups.map((group) => {
-          const soon = daysBetween(group.date) <= 1;
+          const d = new Date(group.date);
+          const payday = salaryDate != null && group.date === salaryDate;
           // Payday is the first day of the *next* month: the salary and whatever falls due with
-          // it belong to that month, not this one. Under a plain date header they read as this
-          // month's last bills (2026-11-11), so payday gets a band that says so.
-          if (salaryDate && group.date === salaryDate) {
-            return (
-              <Fragment key={group.date}>
-                <div
-                  style={{ gridColumn: '1 / -1' }}
-                  className="mb-space-2 mt-space-5 flex items-baseline justify-between gap-space-3 rounded-lg bg-sunken px-space-3 py-space-2 first:mt-0"
-                >
-                  <span className="text-caption font-semibold text-ink">
-                    Payday · {DAY.format(new Date(group.date))}
-                  </span>
-                  <span className="text-caption text-ink-muted">next month starts · {whenLabel(group.date)}</span>
-                </div>
-                {group.rows.map((item) => {
-                  const warning = warnings.get(rowKey(item));
-                  index += 1;
-                  return (
-                    <PaymentRow
-                      key={rowKey(item)}
-                      item={item}
-                      warning={warning}
-                      last={index === shown.length}
-                      revealDelay={Math.min(index, 8) * 35}
-                    />
-                  );
-                })}
-              </Fragment>
-            );
-          }
+          // it belong to that month, so it gets its own header that says so (2026-11-11).
           return (
-            <Fragment key={group.date}>
-              <div
-                style={{ gridColumn: '1 / -1' }}
-                className="flex items-baseline gap-space-3 pb-space-2 pt-space-5 first:pt-0"
-              >
-                <span className={cn('text-caption', soon ? 'text-attention' : 'text-ink')}>
-                  {DAY.format(new Date(group.date))}
-                </span>
-                <span className="text-caption text-ink-muted">{whenLabel(group.date)}</span>
-                {/* No trailing rule: the user found the line after "tomorrow" stray (2026-11-09) -
-                    the date in caps already marks the group. */}
-              </div>
-
-              {group.rows.map((item) => {
-                const warning = warnings.get(rowKey(item));
-                index += 1;
-                return (
-                  <PaymentRow
-                    key={rowKey(item)}
-                    item={item}
-                    warning={warning}
-                    last={index === shown.length}
-                    revealDelay={Math.min(index, 8) * 35}
-                  />
-                );
-              })}
-            </Fragment>
+            <div key={group.date} className="flex flex-col">
+              <DateRule
+                day={d.getDate()}
+                line1={payday ? 'Payday' : WEEKDAY.format(d)}
+                line2={payday ? `${WEEKDAY.format(d)} · next month starts` : whenLabel(group.date)}
+                tone={payday ? 'accent' : daysBetween(group.date) <= 1 ? 'attention' : 'ink'}
+              />
+              {group.rows.map((item) => (
+                <PaymentRow key={rowKey(item)} item={item} flagged={warnings.has(rowKey(item))} />
+              ))}
+            </div>
           );
         })}
       </div>
@@ -264,7 +194,7 @@ export function BeforePayday({ items, isLoading, isError, salaryDate, warnings }
       {beyond > 0 && (
         <Link
           to="/month"
-          className="mt-space-4 inline-block rounded-md text-caption text-accent underline-offset-4 hover:underline"
+          className="mt-space-4 block rounded-md text-caption text-accent underline-offset-4 hover:underline"
         >
           {beyond === 1 ? '1 more after payday' : `${beyond} more after payday`} — see the month →
         </Link>
@@ -273,96 +203,62 @@ export function BeforePayday({ items, isLoading, isError, salaryDate, warnings }
   );
 }
 
-/**
- * One payment: what it is, where it leaves from, how much.
- *
- * <p>`display: contents` so the parent grid owns the columns - that is what makes the
- * amounts stack across every date group rather than each group aligning itself. The name
- * is the link rather than the whole row: a register row you can click anywhere is right
- * where reading the list *is* the job, and wrong on a page where a stray tap would throw
- * the reader off the screen they came to read.
- */
-function PaymentRow({
-  item,
-  warning,
-  last,
-  revealDelay,
-}: {
-  item: TimelineItemResponse;
-  warning?: InsightItem;
-  /** The final row draws no rule: on a phone it sits on the card's own edge. */
-  last: boolean;
-  revealDelay: number;
-}) {
-  const style = { '--reveal-delay': `${revealDelay}ms` } as CSSProperties;
-  const income = item.type === 'INCOME';
-  const cell = cn('reveal py-space-2', !warning && !last && 'border-b border-line', last && 'max-md:pb-0');
-
+/** The leading mark: one icon per kind, in the Ledger's 28px tinted square. */
+function KindMark({ type, flagged }: { type: TimelineItemType; flagged: boolean }) {
+  const Icon = flagged
+    ? AlertTriangle
+    : type === 'INCOME'
+      ? ArrowDownRight
+      : type === 'LOAN_EMI'
+        ? Landmark
+        : type === 'CARD_STATEMENT'
+          ? CreditCard
+          : CalendarClock;
   return (
-    <div className="contents">
-      <div className={cn(cell, 'min-w-0 pr-space-5')} style={style}>
-        <Link
-          to={destinationFor(item)}
-          className="block truncate text-row text-ink underline-offset-4 hover:underline"
-        >
-          {item.name}
-        </Link>
-        <span className="block truncate text-caption text-ink-muted">
-          {/* "from" only where it is true. A bill's account is the one it is paid from, but
-              a timeline EMI carries the loan's own account and a card bill carries the card
-              - "EMI · from Washing machine EMI" would name the debt as the source of the
-              money that pays it. */}
-          {item.type === 'COMMITMENT'
-            ? `${KIND[item.type]} · from ${item.accountName}`
-            : income
-              ? `${KIND[item.type]} · into ${item.accountName}`
-              : `${KIND[item.type]} · ${item.accountName}`}
-        </span>
-      </div>
-
-      <div className={cn(cell, 'text-right tabular-nums')} style={style}>
-        {item.amount != null ? (
-          <Amount value={item.amount} role="row" signed={income} className={income ? 'text-positive' : 'text-ink'} />
-        ) : (
-          <span className="text-caption text-attention">Amount unknown</span>
-        )}
-      </div>
-
-      {warning && <ShortfallNote warning={warning} />}
-    </div>
+    <span
+      aria-hidden
+      className={cn(
+        'flex size-7 shrink-0 items-center justify-center rounded-md',
+        flagged ? 'bg-attention-wash text-attention' : type === 'INCOME' ? 'bg-positive-wash text-positive' : 'bg-sunken text-ink-muted',
+      )}
+    >
+      <Icon size={15} strokeWidth={1.5} />
+    </span>
   );
 }
 
 /**
- * The shortfall, under the payment it breaks, in the server's own words.
+ * One payment: what it is, where it leaves from, how much. The mark says the kind, so the
+ * line under the name no longer repeats it ("Commitment · from ..."), and it wraps rather
+ * than truncating - "from IDBI Saving a..." hid the fact it was there to give.
  *
- * <p>Spans both columns and carries the row's bottom rule, so the note reads as part of
- * the payment rather than as a card that happens to sit near it. Amber, not red: red is
- * for money already lost, and this is money that can still be moved - which is exactly
- * what the button does.
+ * <p>"from" only where it is true. A bill's account is the one it is paid from, but a timeline
+ * EMI carries the loan's own account and a card bill carries the card - "from Washing machine
+ * EMI" would name the debt as the source of the money that pays it.
  */
-function ShortfallNote({ warning }: { warning: InsightItem }) {
-  const { act, busy } = useInsightAction(warning);
+function PaymentRow({ item, flagged }: { item: TimelineItemResponse; flagged: boolean }) {
+  const income = item.type === 'INCOME';
+  const where =
+    item.type === 'COMMITMENT' ? `from ${item.accountName}` : income ? `into ${item.accountName}` : item.accountName;
   return (
-    <div
-      style={{
-        gridColumn: '1 / -1',
-        backgroundColor: 'color-mix(in srgb, var(--attention) 8%, var(--surface))',
-      }}
-      className="mb-space-2 flex items-start gap-space-2 rounded-lg border-b border-line px-space-3 py-space-3"
-    >
-      <AlertTriangle size={15} strokeWidth={1.5} className="mt-[0.15rem] shrink-0 text-attention" aria-hidden />
-      <div className="flex min-w-0 flex-col gap-space-1">
-        <p className="text-label text-ink">{warning.title}</p>
-        <p className="text-caption text-ink-soft">{warning.explanation}</p>
-        {warning.action && (
-          <div className="mt-space-1">
-            <Button size="sm" variant="secondary" disabled={busy} onClick={act}>
-              {warning.action.label}
-            </Button>
-          </div>
-        )}
-      </div>
-    </div>
+    <LedgerRow
+      to={destinationFor(item)}
+      leading={<KindMark type={item.type} flagged={flagged} />}
+      primary={item.name}
+      richSecondary
+      secondary={
+        <>
+          {where}
+          {flagged && <span className="text-attention"> · won’t be covered</span>}
+        </>
+      }
+      amount={
+        item.amount != null ? (
+          <Amount value={item.amount} role="row" signed={income} className={income ? 'text-positive' : 'text-ink'} />
+        ) : (
+          <span className="text-caption text-attention">needs an amount</span>
+        )
+      }
+    />
   );
 }

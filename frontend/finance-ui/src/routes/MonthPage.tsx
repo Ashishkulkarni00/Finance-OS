@@ -8,16 +8,14 @@ import { formatShortDate, cycleProgress, cycleProgressLabel } from '@/lib/dates'
 import { PlanZone } from '@/features/month/components/PlanZone';
 import { MonthBriefing } from '@/features/month/components/MonthBriefing';
 import { MonthHero } from '@/features/month/components/MonthHero';
-import { MonthShape } from '@/features/month/components/MonthShape';
-import { CycleInOut } from '@/features/month/components/CycleInOut';
 import { FlexibleSpendingSection } from '@/features/month/components/FlexibleSpendingSection';
+import { MoneyInOutSection } from '@/features/month/components/MoneyInOutSection';
 import { CycleSwitcher } from '@/features/month/components/CycleSwitcher';
 import { useSelectedCycle } from '@/features/month/useSelectedCycle';
 import { PageHelpButton, PageSubtitle } from '@/features/help/PageHelp';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Disclosure } from '@/components/Disclosure';
-import { SectionHeader } from '@/components/SectionHeader';
 import { ErrorState } from '@/components/ErrorState';
 import { useDocAnchor } from '@/features/help/useDocAnchor';
 import { MONTH_CLOSE_ENABLED } from '@/lib/releaseGates';
@@ -52,13 +50,15 @@ export default function MonthPage() {
   const closeDoc = useDocAnchor('month.close');
 
   const { data: position, isLoading: positionLoading } = useGetPositionQuery();
+  // `currentData` throughout Month: `data` would show the last month's plan under the new
+  // month's name while the switch loads. See useSelectedCycle.
   const {
-    data: instances,
+    currentData: instances,
     isLoading: instancesLoading,
     isFetching: instancesFetching,
     isError: instancesError,
   } = useGetCommitmentInstancesForCycleQuery(cycle?.id ?? 0, { skip: !cycle });
-  const { data: planProgress } = useGetCommitmentPlanProgressQuery(cycle?.id ?? 0, { skip: !cycle });
+  const { currentData: planProgress } = useGetCommitmentPlanProgressQuery(cycle?.id ?? 0, { skip: !cycle });
 
   const mode: CycleMode = isCurrent ? 'current' : isFuture ? 'future' : 'past';
   // One definition of "ended" for the whole frontend (`cycleProgress`), so this can never
@@ -74,25 +74,13 @@ export default function MonthPage() {
   // so no zone shows the previous month's plan under the new month's name.
   const instancesPending = instancesLoading || !cycle || (instancesFetching && !instances);
 
-  const caption = !cycle
-    ? null
-    : mode === 'current'
-      ? // The switcher already prints the dates; only the day count is new here.
-        cycleProgressLabel(cycle.startDate, cycle.endDate).split(' · ').pop()
-      : mode === 'future'
-        ? `Starts ${formatShortDate(cycle.startDate)}`
-        : 'This month has ended';
+  // The switcher prints the dates and the kind of month; only the day count is new on the current one.
+  const dayCount = cycle && mode === 'current' ? cycleProgressLabel(cycle.startDate, cycle.endDate).split(' · ').pop() : undefined;
 
   return (
     <div className="reveal-shell flex w-full flex-col gap-space-6 md:gap-10">
-      <header className="flex flex-col gap-space-3">
-        <div className="flex items-center justify-between gap-space-4">
-          <h1 className="text-page text-ink">Month</h1>
-          <PageHelpButton topic="months.how-months-works" />
-        </div>
-        <PageSubtitle>
-          One month, salary to salary: what still has to be paid before your next salary, and what’s free after it.
-        </PageSubtitle>
+      {/* The switcher is the header: the month's name is the page title. */}
+      <div className="flex flex-col gap-space-3">
         <CycleSwitcher
           cycle={cycle}
           currentCycle={selected.currentCycle}
@@ -102,10 +90,13 @@ export default function MonthPage() {
           onPrevious={selected.goPrevious}
           onNext={selected.goNext}
           onCurrent={selected.goCurrent}
-          note={mode === 'current' ? (caption ?? undefined) : undefined}
+          note={dayCount}
+          trailing={<PageHelpButton topic="months.how-months-works" />}
         />
-        {caption && mode !== 'current' && <p className="num -mt-space-1 text-caption text-ink-muted">{caption}</p>}
-      </header>
+        <PageSubtitle>
+          One month, salary to salary: what still has to be paid before your next salary, and what’s free after it.
+        </PageSubtitle>
+      </div>
 
       {selected.isError ? (
         <ErrorState message="We couldn't load this month. Check your connection and try again." onRetry={selected.refetch} />
@@ -122,19 +113,9 @@ export default function MonthPage() {
           />
 
           {/* How the month adds up sits straight under the answer, always open (2026-11-10: the
-              closed section buried the working the figure above depends on). */}
-          {/* Phone: the figure on the page and one switchable strip (MonthHero) - two stacked
-              cards read as "cards everywhere" (2026-11-11). Wide screens keep both halves open. */}
-          <div className="md:hidden">
-            <MonthHero cycle={cycle} showSoFar={mode !== 'future'} />
-          </div>
-          <section className="max-md:hidden">
-            <SectionHeader>How the month adds up</SectionHeader>
-            <div className="flex flex-col gap-space-6">
-              <MonthShape cycle={cycle} />
-              {mode !== 'future' && <CycleInOut cycle={cycle} />}
-            </div>
-          </section>
+              closed section buried the working the figure above depends on). One component at
+              every width: the figure, its pace, and the working as a ruled statement. */}
+          <MonthHero cycle={cycle} mode={mode} />
 
           {mode === 'current' && (
             <div className="w-full">
@@ -157,6 +138,7 @@ export default function MonthPage() {
 
           {/* The working, closed until asked for. Each says what is inside, so none is a mystery. */}
           <div className="flex flex-col">
+            <MoneyInOutSection cycle={cycle} mode={mode} />
             {mode !== 'future' && <FlexibleSpendingSection cycle={cycle} />}
 
             <Disclosure

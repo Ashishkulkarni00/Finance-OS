@@ -99,7 +99,7 @@ export function MonthBriefing({ cycle, mode, progress }: MonthBriefingProps) {
  */
 function KeptPanel({ cycle, mode, progress }: MonthBriefingProps) {
   // Only a closed cycle has a snapshot; asking for one otherwise is a guaranteed 404.
-  const { data: snapshot } = useGetCycleSnapshotQuery(cycle?.id ?? 0, { skip: !cycle?.closed });
+  const { currentData: snapshot } = useGetCycleSnapshotQuery(cycle?.id ?? 0, { skip: !cycle?.closed });
 
   if (mode === 'future') {
     return <Note>This month hasn’t started yet, so nothing has been paid in it.</Note>;
